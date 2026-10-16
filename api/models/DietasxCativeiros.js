@@ -40,9 +40,8 @@ const DietasxCativeirosSchema = new mongoose.Schema({
 DietasxCativeirosSchema.index({ cativeiro: 1, ativo: 1 });
 DietasxCativeirosSchema.index({ cativeiro: 1, inicioVigencia: 1, fimVigencia: 1 });
 
-DietasxCativeirosSchema.pre('save', function(next) {
+DietasxCativeirosSchema.pre('save', function() {
   this.atualizadoEm = new Date();
-  next();
 });
 
 const DietasxCativeiros = mongoose.model("DietasxCativeiros", DietasxCativeirosSchema);
