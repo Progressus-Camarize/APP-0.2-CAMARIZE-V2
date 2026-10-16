@@ -1,9 +1,7 @@
 import userService from "../services/userService.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-
 import Fazendas from "../models/Fazendas.js";
-
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
 
 // JWTSecret — obrigatório no .env, sem fallback
@@ -54,7 +52,7 @@ const getCurrentUser = async (req, res) => {
 // Cadastrando um usuário
 const createUser = async (req, res) => {
   try {
-    console.log("Dados recebidos para cadastro:", req.body); // Log dos dados recebidos
+
     const { nome, email, senha, foto_perfil, fazenda, role } = req.body;
     await userService.Create(nome, email, senha, foto_perfil, fazenda, role);
     res.sendStatus(201); // Cod. 201 (CREATED)
@@ -67,7 +65,7 @@ const createUser = async (req, res) => {
 // Cadastro completo (usuário + fazenda)
 const register = async (req, res) => {
   try {
-    console.log("🔍 [REGISTER] Dados recebidos:", req.body);
+
     const { nome, email, senha, foto_perfil, fazenda } = req.body;
     
     // Verificar se o usuário já existe

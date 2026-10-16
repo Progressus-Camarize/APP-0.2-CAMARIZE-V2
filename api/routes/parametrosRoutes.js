@@ -1,5 +1,5 @@
 import express from "express";
-import { cadastrarParametros, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
+import { cadastrarParametros, provisionDevice, updateTemperatureLimits, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
 import Auth from "../middleware/Auth.js";
 
 const router = express.Router();
@@ -8,16 +8,16 @@ const router = express.Router();
  * @swagger
  * tags:
  *   name: Parâmetros
- *   description: Leituras de sensores — temperatura, pH e amônia. O endpoint de cadastro é público para receber dados do ESP32.
+ *   description: Leituras de sensores — temperatura, pH e amônia. Protótipos sem chave continuam a enviar dados, mas suas leituras não geram avisos.
  */
 
 /**
  * @swagger
  * /parametros/cadastrar:
  *   post:
- *     summary: Registrar leitura de sensor (ESP32) — público, sem autenticação
+ *     summary: Registrar leitura de sensor (ESP32)
  *     tags: [Parâmetros]
- *     description: Endpoint chamado diretamente pelo ESP32 para enviar leituras periódicas dos viveiros.
+ *     description: Use X-Device-Key e amostraId para leituras confiáveis e idempotentes. Sem chave, a leitura é marcada como legado e não gera aviso.
  *     requestBody:
  *       required: true
  *       content:
@@ -39,6 +39,8 @@ const router = express.Router();
  *               $ref: '#/components/schemas/Error'
  */
 router.post("/cadastrar", cadastrarParametros);
+router.post('/dispositivos/:cativeiroId/chave', Auth.Authorization, provisionDevice);
+router.patch('/limites-temperatura/:cativeiroId', Auth.Authorization, updateTemperatureLimits);
 
 /**
  * @swagger

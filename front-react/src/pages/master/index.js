@@ -3,8 +3,8 @@ import { useRouter } from 'next/router';
 import Modal from '../../components/Modal';
 import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
-import { FaUserCircle } from 'react-icons/fa';
-import { HiOutlineClipboardList, HiOutlineBell, HiOutlineOfficeBuilding, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineUser, HiOutlineChip, HiOutlineBeaker } from 'react-icons/hi';
+
+import { HiOutlineClipboardList, HiOutlineBell, HiOutlineOfficeBuilding, HiOutlineChatAlt2, HiOutlineUser, HiOutlineChip, HiOutlineBeaker } from 'react-icons/hi';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 
@@ -23,8 +23,8 @@ export default function MasterPanel() {
   const [dietaForm, setDietaForm] = useState({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
   const [editingDietaId, setEditingDietaId] = useState('');
   const [editingDieta, setEditingDieta] = useState({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
+  const [, setDietaEditsByCat] = useState({});
   const [cativeiroDieta, setCativeiroDieta] = useState({}); // cId -> { dietaId, descricao, quantidade, horarios, quantidadeRefeicoes }
-  const [dietaEditsByCat, setDietaEditsByCat] = useState({});
   const [assignForm, setAssignForm] = useState({ cativeiroId: '', dietaId: '' });
   const [showAssignConfirm, setShowAssignConfirm] = useState(false);
   const [assignConfirmData, setAssignConfirmData] = useState(null); // { cativeiroNome, dietaAtualNome, dietaNovaNome, cativeiroId, dietaId }
@@ -47,7 +47,7 @@ export default function MasterPanel() {
   const [chatText, setChatText] = useState('');
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [, setShowChatMenu] = useState(false);
   const [showDeleteConvModal, setShowDeleteConvModal] = useState(false);
   const getMyId = () => {
     const fromUser = user?.id || user?._id;
@@ -79,8 +79,8 @@ export default function MasterPanel() {
   const [linkForm, setLinkForm] = useState({ sensorId: '', cativeiroId: '', currentSensorIds: [] });
   const [expandedFazenda, setExpandedFazenda] = useState({}); // id -> bool
   const [expandedCativeiro, setExpandedCativeiro] = useState({}); // id -> bool
-  const [cativeirosByFazenda, setCativeirosByFazenda] = useState({}); // fazendaId -> [cativeiros]
-  const [loadingFazenda, setLoadingFazenda] = useState({}); // fazendaId -> bool
+  const [cativeirosByFazenda] = useState({}); // fazendaId -> [cativeiros]
+  const [loadingFazenda] = useState({}); // fazendaId -> bool
 
   // Confirmação de mudança de role
   const [pendingRoleChange, setPendingRoleChange] = useState(null); // { userId, userName, currentRole, newRole }
@@ -322,7 +322,7 @@ export default function MasterPanel() {
 
   // Auto-scroll para última mensagem
   useEffect(() => {
-    try { chatEndRef.current && chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' }); } catch {}
+    try { chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); } catch {}
   }, [chatMessages.length, chatSelectedId]);
 
   useEffect(() => {
@@ -656,21 +656,6 @@ export default function MasterPanel() {
           )}
         </div>
       );
-    } else if (action === 'associar_funcionario') {
-      return (
-        <div style={{ 
-          background: '#f8fafc', 
-          padding: 12, 
-          borderRadius: 6, 
-          marginTop: 8,
-          border: '1px solid #e2e8f0'
-        }}>
-          <div><strong>Email do Funcionário:</strong> {payload.emailFuncionario || 'N/A'}</div>
-          <div style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>
-            Funcionário será associado à fazenda do solicitante (Admin).
-          </div>
-        </div>
-      );
     } else {
       // Fallback para outras ações
       return (
@@ -808,25 +793,7 @@ export default function MasterPanel() {
     }
   };
 
-  const upsertDietaForCativeiro = async (cativeiroId) => {
-    try {
-      const token = getToken();
-      const headers = { Authorization: `Bearer ${token}` };
-      const atual = cativeiroDieta[cativeiroId];
-      const edits = dietaEditsByCat[cativeiroId] || { descricao: '', quantidade: '' };
-      if (atual && atual.dietaId) {
-        await axios.put(`${apiUrl}/dietas/${atual.dietaId}`, { descricao: edits.descricao, quantidade: edits.quantidade }, { headers });
-      } else {
-        const d = await axios.post(`${apiUrl}/dietas`, { descricao: edits.descricao, quantidade: edits.quantidade }, { headers });
-        const dietaId = d?.data?._id;
-        await axios.post(`${apiUrl}/dietas/assign/${cativeiroId}`, { dietaId, ativo: true }, { headers });
-      }
-      await loadDietaAtual(cativeiroId);
-      alert('Dieta atualizada.');
-    } catch (e) {
-      alert('Erro ao atualizar dieta: ' + (e?.response?.data?.error || e.message));
-    }
-  };
+
 
   const getFazendaName = (id) => {
     const idStr = String(id);
@@ -896,11 +863,7 @@ export default function MasterPanel() {
     }
   };
 
-  const updateCativeiroNome = async (id, nome) => {
-    const token = getToken();
-    await axios.patch(`${apiUrl}/cativeiros/${id}`, { nome }, { headers: { Authorization: `Bearer ${token}` } });
-    await load();
-  };
+
 
   const deleteCativeiro = async (id) => {
     const token = getToken();
@@ -924,35 +887,7 @@ export default function MasterPanel() {
     setShowCreateModal(true);
   };
 
-  const createCativeiro = async (fazendaId, nome) => {
-    try {
-      const token = getToken();
-      const tipoDefault = (Array.isArray(tiposCamarao) && tiposCamarao.length > 0) ? tiposCamarao[0]._id : null;
-      if (!tipoDefault) {
-        alert('Não foi possível obter o tipo de camarão. Recarregue a página.');
-        return;
-      }
-      const payload = {
-        fazendaId,
-        nome: nome && nome.trim() ? nome.trim() : 'Novo cativeiro',
-        id_tipo_camarao: tipoDefault,
-        data_instalacao: new Date().toISOString(),
-        // Campos opcionais: o backend já trata valores ausentes
-        temp_media_diaria: '',
-        ph_medio_diario: '',
-        amonia_media_diaria: ''
-      };
-      await axios.post(`${apiUrl}/cativeiros`, payload, { headers: { Authorization: `Bearer ${token}` } });
-      await load();
-      // manter a fazenda expandida e limpar input
-      setExpandedFazenda(prev => ({ ...prev, [String(fazendaId)]: true }));
-      const input = document.getElementById(`novo-c-${fazendaId}`);
-      if (input) input.value = '';
-    } catch (e) {
-      console.error('Falha ao criar cativeiro:', e);
-      alert('Erro ao criar cativeiro. Verifique os dados e tente novamente.');
-    }
-  };
+
 
   const submitCreateModal = async () => {
     try {
@@ -1257,7 +1192,7 @@ export default function MasterPanel() {
         const SENSOR_TIPO_CFG = {
           temperatura: { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa', label: 'Temp' },
           ph:          { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: 'pH'   },
-          amonia:      { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: 'NH₃'  },
+          amonia:      { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: 'Amônia' },
           sensor:      { bg: '#f8fafc', color: '#475569', border: '#e2e8f0', label: '—'    },
         };
         const grouped = groupedByFazenda();
@@ -2595,8 +2530,8 @@ export default function MasterPanel() {
         {assignConfirmData && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: '0.9rem', color: '#374151', lineHeight: 1.6 }}>
-              O cativeiro <strong>{assignConfirmData.cativeiroNome}</strong> já possui a dieta <strong>"{assignConfirmData.dietaAtualNome}"</strong> ativa.
-              Deseja substituí-la por <strong>"{assignConfirmData.dietaNovaNome}"</strong>?
+              O cativeiro <strong>{assignConfirmData.cativeiroNome}</strong> já possui a dieta <strong>&quot;{assignConfirmData.dietaAtualNome}&quot;</strong> ativa.
+              Deseja substituí-la por <strong>&quot;{assignConfirmData.dietaNovaNome}&quot;</strong>?
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowAssignConfirm(false)}>Cancelar</button>
@@ -2656,7 +2591,7 @@ export default function MasterPanel() {
         {deleteSensorData && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
-              Tem certeza que deseja excluir o sensor <strong>"{deleteSensorData.apelido}"</strong> ({deleteSensorData.tipo})?
+              Tem certeza que deseja excluir o sensor <strong>&quot;{deleteSensorData.apelido}&quot;</strong> ({deleteSensorData.tipo})?
               Esta ação não pode ser desfeita.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -2684,7 +2619,7 @@ export default function MasterPanel() {
         {deleteDietaData && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
-              Tem certeza que deseja excluir a dieta <strong>"{deleteDietaData.descricao}"</strong>?
+              Tem certeza que deseja excluir a dieta <strong>&quot;{deleteDietaData.descricao}&quot;</strong>?
               Esta ação não pode ser desfeita.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -2739,4 +2674,3 @@ export default function MasterPanel() {
     </div>
   );
 }
-

@@ -3,12 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import { useRegister } from "@/context/RegisterContext";
 
 const RegisterContent = () => {
   const router = useRouter();
   const { tipo } = router.query; // Pega o tipo da query string
-  const { } = useRegister();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

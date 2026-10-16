@@ -4,6 +4,7 @@ import axios from 'axios';
 import MemberLayout from '@/components/MemberLayout';
 import Modal from '@/components/Modal';
 import panelStyles from '@/styles/panel.module.css';
+import { carregarHistorico } from '@/lib/parametros';
 
 const PERIODO_MAP = {
   dia:    { label: 'Últimas 24 horas', dias: 1 },
@@ -14,7 +15,7 @@ const PERIODO_MAP = {
 const PARAM_CFG = [
   { key: 'temperatura', label: 'Temperatura', unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
   { key: 'ph',          label: 'pH',           unit: '',      decimals: 1, icon: '🧪', stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
-  { key: 'amonia',      label: 'Amônia',       unit: ' mg/L', decimals: 3, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+  { key: 'amonia',      label: 'Amônia experimental', unit: '', decimals: 3, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
 ];
 
 function calcStats(dados, field) {
@@ -40,6 +41,11 @@ export default function RelatorioIndividual() {
   const [showPeriodoModal, setShowPeriodoModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [geradoEm, setGeradoEm] = useState('');
+
+  useEffect(() => {
+    setGeradoEm(new Date().toLocaleString('pt-BR'));
+  }, []);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
   const getToken = () =>
@@ -68,12 +74,12 @@ export default function RelatorioIndividual() {
       try {
         const token = getToken();
         const headers = { Authorization: `Bearer ${token}` };
-        const [cativRes, histRes] = await Promise.all([
+        const [cativRes, historico] = await Promise.all([
           axios.get(`${apiUrl}/cativeiros/${id}`, { headers }),
-          axios.get(`${apiUrl}/parametros/historicos/${id}?dias=${info.dias}`, { headers }),
+          carregarHistorico(apiUrl, id, info.dias, headers),
         ]);
         setCativeiro(cativRes.data);
-        setDados(histRes.data.dados || []);
+        setDados(historico);
       } catch (err) {
         setError(err.response?.status === 401
           ? 'Sessão expirada. Faça login novamente.'
@@ -111,7 +117,6 @@ export default function RelatorioIndividual() {
 
   const periodoInfo = PERIODO_MAP[periodo] || {};
   const fotoUrl = `${apiUrl}/cativeiros/${id}/foto`;
-  const geradoEm = new Date().toLocaleString('pt-BR');
 
   return (
     <MemberLayout
@@ -249,7 +254,7 @@ export default function RelatorioIndividual() {
                     {[
                       { icon: '🌡️', label: 'Temperatura', value: cativeiro.condicoes_ideais.temp_ideal,   unit: '°C',    bg: '#fff7ed', badgeColor: '#c2410c' },
                       { icon: '🧪', label: 'pH',           value: cativeiro.condicoes_ideais.ph_ideal,     unit: '',      bg: '#eff6ff', badgeColor: '#1d4ed8' },
-                      { icon: '⚗️', label: 'Amônia',      value: cativeiro.condicoes_ideais.amonia_ideal, unit: ' mg/L', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+                      { icon: '⚗️', label: 'Meta de amônia (experimental)', value: cativeiro.condicoes_ideais.amonia_ideal, unit: '', bg: '#fdf4ff', badgeColor: '#7e22ce' },
                     ].map((p) => (
                       <div
                         key={p.label}
@@ -332,7 +337,7 @@ export default function RelatorioIndividual() {
                           <th style={{ padding: '8px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>Data / Hora</th>
                           <th style={{ padding: '8px 16px', textAlign: 'right', color: '#f97316', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>🌡️ </span>Temp.</th>
                           <th style={{ padding: '8px 16px', textAlign: 'right', color: '#3b82f6', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>🧪 </span>pH</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#a855f7', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>⚗️ </span>NH₃</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#a855f7', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>⚗️ </span>Amônia experimental</th>
                         </tr>
                       </thead>
                       <tbody>

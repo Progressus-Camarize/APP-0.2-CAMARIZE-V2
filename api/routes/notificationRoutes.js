@@ -77,6 +77,8 @@ router.get('/', notificationController.getNotifications);
  *                 type: object
  */
 router.get('/cativeiro/:cativeiroId', notificationController.getNotificationsByCativeiro);
+router.get('/cativeiro/:cativeiroId/resumo', notificationController.getNotificationSummary);
+router.patch('/:id/avaliacao', notificationController.evaluateNotification);
 
 /**
  * @swagger

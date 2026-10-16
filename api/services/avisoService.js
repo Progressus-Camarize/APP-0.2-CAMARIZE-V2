@@ -1,0 +1,126 @@
+import ParametrosAtuais from '../models/Parametros_atuais.js';
+import Cativeiros from '../models/Cativeiros.js';
+import Aviso from '../models/Aviso.js';
+import alertService from './alertService.js';
+
+const WINDOW_MS = 90 * 60_000;
+const MAX_GAP_MS = 20 * 60_000;
+const STALE_MS = 15 * 60_000;
+const fields = { temperatura: 'temp_atual', ph: 'ph_atual', amonia: 'amonia_atual' };
+export const VALID_READING_FILTER = {
+  temp_atual: { $gte: -5, $lte: 50 },
+  ph_atual: { $gte: 0, $lte: 14 },
+  amonia_atual: { $gte: 0, $lte: 500 },
+};
+const round = value => Number(value.toFixed(3));
+const mean = values => values.reduce((sum, n) => sum + n, 0) / values.length;
+
+export function freshness(reading, now = new Date()) {
+  if (!reading) return { estado: 'sem_dados', ultimaLeitura: null, idadeMinutos: null };
+  const age = Math.max(0, Math.floor((now - new Date(reading.datahora)) / 60_000));
+  return { estado: age * 60_000 > STALE_MS ? 'antigo' : 'recente', ultimaLeitura: reading.datahora, idadeMinutos: age, origem: reading.origem || 'legado' };
+}
+
+// Pure rule: six authenticated readings, no long gap, a sustained final half.
+export function evaluate(readings, bounds = {}, now = new Date()) {
+  const ordered = [...readings].sort((a, b) => new Date(a.datahora) - new Date(b.datahora));
+  const recent = ordered.slice(-6);
+  if (recent.length < 6) return { suficiente: false, razao: 'leituras_insuficientes', motivos: [] };
+  if (now - new Date(recent.at(-1).datahora) > STALE_MS) return { suficiente: false, razao: 'leitura_antiga', motivos: [] };
+  if (recent.some((r, i) => i && new Date(r.datahora) - new Date(recent[i - 1].datahora) > MAX_GAP_MS)) {
+    return { suficiente: false, razao: 'lacuna', motivos: [] };
+  }
+  const motivos = [];
+  for (const [tipo, field] of Object.entries(fields)) {
+    const first = recent.slice(0, 3).map(r => r[field]);
+    const last = recent.slice(3).map(r => r[field]);
+    const base = mean(first), current = mean(last), delta = current - base;
+    const allMove = last.every(value => Math.sign(value - base) === Math.sign(delta));
+    if (!allMove) continue;
+    let limite;
+    let triggered = false;
+    if (tipo === 'temperatura') {
+      const min = bounds.temp_min, max = bounds.temp_max;
+      if (Number.isFinite(max) && delta >= 0.3 && current >= max - 0.5) { limite = max; triggered = true; }
+      if (Number.isFinite(min) && delta <= -0.3 && current <= min + 0.5) { limite = min; triggered = true; }
+    } else {
+      const threshold = tipo === 'ph' ? 0.35 : Math.max(0.05, Math.abs(base) * 0.25);
+      triggered = Math.abs(delta) >= threshold;
+    }
+    if (!triggered) continue;
+    const direcao = delta > 0 ? 'aumento' : 'queda';
+    const label = tipo === 'temperatura' ? 'Temperatura' : tipo === 'ph' ? 'pH' : 'Amônia';
+    const mensagem = tipo === 'temperatura'
+      ? `Temperatura se aproxima do limite de ${limite} °C (${round(base)} → ${round(current)} °C). Confira o sensor e a água.`
+      : `${label} apresenta ${direcao} persistente (${round(base)} → ${round(current)}). Medição experimental: confira o sensor e a água.`;
+    motivos.push({ tipo, mensagem, experimental: tipo !== 'temperatura', periodoInicio: recent[0].datahora,
+      periodoFim: recent.at(-1).datahora, valorInicial: round(base), valorAtual: round(current), limite, direcao });
+  }
+  return { suficiente: true, razao: null, motivos };
+}
+
+export function temperatureBounds(condition = {}) {
+  const bounds = { ...condition };
+  if (Number.isFinite(condition.temp_ideal)) {
+    bounds.temp_min ??= condition.temp_ideal - 2;
+    bounds.temp_max ??= condition.temp_ideal + 2;
+  }
+  return bounds;
+}
+
+export async function processReading(cativeiroId, now = new Date()) {
+  const since = new Date(now.getTime() - WINDOW_MS);
+  const readings = await ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER, datahora: { $gte: since, $lte: now } })
+    .sort({ datahora: -1 }).limit(30).lean();
+  const cativeiro = await Cativeiros.findById(cativeiroId).populate('condicoes_ideais').lean();
+  if (!cativeiro) return;
+  const bounds = temperatureBounds(cativeiro.condicoes_ideais || {});
+  const result = evaluate(readings, bounds, now);
+  if (!result.suficiente) return;
+  const active = await Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' });
+  const recovered = new Set();
+  for (const existing of active) {
+      const field = fields[existing.tipo];
+      const last = [...readings].sort((a, b) => new Date(b.datahora) - new Date(a.datahora)).slice(0, 3);
+      const normal = last.length === 3 && last.every(r => {
+        if (existing.tipo === 'temperatura') {
+          const b = bounds;
+          return (!Number.isFinite(b.temp_min) || r[field] > b.temp_min + 0.5) &&
+            (!Number.isFinite(b.temp_max) || r[field] < b.temp_max - 0.5);
+        }
+        const threshold = existing.tipo === 'ph' ? 0.2 : Math.max(0.03, Math.abs(existing.valorInicial) * 0.15);
+        return Math.abs(r[field] - existing.valorInicial) < threshold;
+      });
+      if (normal) {
+        await Aviso.updateOne({ _id: existing._id, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
+        recovered.add(existing.tipo);
+      }
+  }
+  for (const motivo of result.motivos) {
+    if (active.some(a => a.tipo === motivo.tipo) || recovered.has(motivo.tipo)) continue;
+    try {
+      const aviso = await Aviso.create({ cativeiro: cativeiroId, ...motivo });
+      await deliverPending({ _id: aviso._id });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+    }
+  }
+}
+
+export async function deliverPending(filter = {}) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  const pending = await Aviso.find({ ...filter, pushStatus: 'pendente' }).limit(100).populate('cativeiro', 'nome').lean();
+  for (const aviso of pending) {
+    const claimed = await Aviso.findOneAndUpdate({ _id: aviso._id, pushStatus: 'pendente' },
+      { $set: { pushStatus: 'processando', pushTentadoEm: new Date() } });
+    if (!claimed) continue;
+    try {
+      await alertService.sendPush({ cativeiro: aviso.cativeiro._id, cativeiroNome: aviso.cativeiro.nome,
+        tipo: aviso.tipo, mensagem: aviso.mensagem, severidade: 'media' });
+      await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'enviado' } });
+    } catch (error) {
+      console.error('Falha ao entregar aviso:', error);
+      await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'indisponivel' } });
+    }
+  }
+}

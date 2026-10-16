@@ -32,7 +32,7 @@ export default function Modal({
       setIsVisible(true);
       
       // Força um reflow para garantir que o DOM foi atualizado
-      document.body.offsetHeight;
+      void document.body.offsetHeight;
       
       // SOLUÇÃO GENIAL: Usa requestIdleCallback para sincronizar com o ciclo do navegador
       const startAnimation = () => {

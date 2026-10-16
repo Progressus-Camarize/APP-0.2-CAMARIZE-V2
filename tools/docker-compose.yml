@@ -11,7 +11,9 @@ services:
       - "4000:4000"
 
   frontend:
-    build: ../front-react
+    build:
+      context: ../front-react
+      target: development
     container_name: camarize-frontend
     restart: unless-stopped
     environment:

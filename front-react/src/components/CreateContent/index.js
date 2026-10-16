@@ -25,7 +25,7 @@ export default function CreateContent() {
   const [tempMedia, setTempMedia] = useState("");
   const [phMedio, setPhMedio] = useState("");
   const [amoniaMedia, setAmoniaMedia] = useState("");
-  const [condicoesIdeais] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });

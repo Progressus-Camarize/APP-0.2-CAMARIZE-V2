@@ -1,16 +1,23 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { FlatCompat } from '@eslint/eslintrc';
+import js from '@eslint/js';
 
 const compat = new FlatCompat({
-  baseDirectory: __dirname,
+  baseDirectory: dirname(fileURLToPath(import.meta.url)),
+  recommendedConfig: js.configs.recommended,
 });
 
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+const config = [
+  { ignores: ['.next/**', 'out/**', 'coverage/**', 'node_modules/**'] },
+  ...compat.config({
+    extends: ['eslint:recommended', 'next/core-web-vitals'],
+    env: { browser: true, node: true, es2022: true },
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none', ignoreRestSiblings: true }],
+    },
+  }),
 ];
 
-export default eslintConfig;
+export default config;

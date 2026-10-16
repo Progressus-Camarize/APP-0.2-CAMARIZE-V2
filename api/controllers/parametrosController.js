@@ -3,13 +3,56 @@ import ParametrosAtuais from "../models/Parametros_atuais.js";
 import Cativeiros from "../models/Cativeiros.js";
 import cativeiroController from "../controllers/cativeiroController.js";
 import parametrosEmitter from "../services/parametrosEmitter.js";
+import crypto from 'node:crypto';
+import DeviceCredential from '../models/DeviceCredential.js';
+import Aviso from '../models/Aviso.js';
+import CondicoesIdeais from '../models/Condicoes_ideais.js';
+import { processReading, freshness, evaluate, temperatureBounds, VALID_READING_FILTER } from '../services/avisoService.js';
+
+const validReading = ({ temperatura, ph, amonia }) =>
+  [temperatura, ph, amonia].every(Number.isFinite) &&
+  temperatura >= -5 && temperatura <= 50 && ph >= 0 && ph <= 14 && amonia >= 0 && amonia <= 500;
+
+const credentialHash = key => crypto.createHash('sha256').update(key).digest('hex');
+
+const provisionDevice = async (req, res) => {
+  const { cativeiroId } = req.params;
+  if (!mongoose.isValidObjectId(cativeiroId)) return res.status(400).json({ error: 'ID inválido' });
+  if (req.loggedUser.role === 'membro') return res.status(403).json({ error: 'Acesso negado' });
+  const access = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+  if (access === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!access) return res.status(403).json({ error: 'Acesso negado' });
+  if (!await Cativeiros.exists({ _id: cativeiroId })) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  const key = crypto.randomBytes(32).toString('hex');
+  await DeviceCredential.findOneAndUpdate({ cativeiro: cativeiroId },
+    { keyHash: credentialHash(key), updatedAt: new Date() }, { upsert: true });
+  res.json({ chave: key, aviso: 'Guarde esta chave no ESP32. Ela será exibida somente agora; gerar outra revoga a anterior.' });
+};
+
+const updateTemperatureLimits = async (req, res) => {
+  const { cativeiroId } = req.params;
+  if (!mongoose.isValidObjectId(cativeiroId)) return res.status(400).json({ error: 'ID inválido' });
+  if (req.loggedUser.role === 'membro') return res.status(403).json({ error: 'Acesso negado' });
+  const access = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+  if (access === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!access) return res.status(403).json({ error: 'Acesso negado' });
+  const { minimo, maximo } = req.body;
+  if (!Number.isFinite(minimo) || !Number.isFinite(maximo) || minimo < -5 || maximo > 50 || minimo >= maximo) {
+    return res.status(400).json({ error: 'Limites de temperatura inválidos' });
+  }
+  const cativeiro = await Cativeiros.findById(cativeiroId).lean();
+  if (!cativeiro) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!cativeiro.condicoes_ideais) return res.status(409).json({ error: 'Configure primeiro as condições do viveiro' });
+  await CondicoesIdeais.updateOne({ _id: cativeiro.condicoes_ideais }, { $set: { temp_min: minimo, temp_max: maximo } });
+  res.json({ minimo, maximo });
+};
 
 // POST - Receber dados dos sensores do ESP32
 const cadastrarParametros = async (req, res) => {
   try {
     const { id_cativeiro, temperatura, ph, amonia } = req.body;
 
-    if (!id_cativeiro) {
+    if (!id_cativeiro || !mongoose.isValidObjectId(id_cativeiro)) {
       return res.status(400).json({ error: "ID do cativeiro é obrigatório" });
     }
 
@@ -17,8 +60,8 @@ const cadastrarParametros = async (req, res) => {
       return res.status(400).json({ error: "Temperatura, pH e amônia são obrigatórios" });
     }
 
-    if (typeof temperatura !== 'number' || typeof ph !== 'number' || typeof amonia !== 'number') {
-      return res.status(400).json({ error: "Temperatura, pH e amônia devem ser números" });
+    if (!validReading({ temperatura, ph, amonia })) {
+      return res.status(400).json({ error: "Leitura fora da faixa física aceita ou não numérica" });
     }
 
     const cativeiro = await Cativeiros.findById(id_cativeiro);
@@ -26,16 +69,42 @@ const cadastrarParametros = async (req, res) => {
       return res.status(404).json({ error: "Cativeiro não encontrado" });
     }
 
+    const suppliedKey = req.get('X-Device-Key');
+    const credential = await DeviceCredential.findOne({ cativeiro: id_cativeiro }).lean();
+    let authenticated = false;
+    if (suppliedKey) {
+      const suppliedHash = credentialHash(suppliedKey);
+      authenticated = !!credential && crypto.timingSafeEqual(Buffer.from(suppliedHash, 'hex'), Buffer.from(credential.keyHash, 'hex'));
+      if (!authenticated) return res.status(401).json({ error: 'Chave do dispositivo inválida' });
+    }
+    const amostraId = req.body.amostraId;
+    if (amostraId !== undefined && (typeof amostraId !== 'string' || !/^[A-Za-z0-9:_-]{1,80}$/.test(amostraId))) {
+      return res.status(400).json({ error: 'amostraId inválido' });
+    }
+    if (authenticated && amostraId) {
+      const repeated = await ParametrosAtuais.findOne({ id_cativeiro, amostraId, autenticada: true }).lean();
+      if (repeated) return res.status(200).json({ success: true, repetida: true, data: { id: repeated._id } });
+    } else {
+      const latest = await ParametrosAtuais.findOne({ id_cativeiro, origem: authenticated ? 'dispositivo' : 'legado' }).sort({ datahora: -1 }).lean();
+      if (latest && Date.now() - new Date(latest.datahora) < 10_000 &&
+        latest.temp_atual === temperatura && latest.ph_atual === ph && latest.amonia_atual === amonia) {
+        return res.status(200).json({ success: true, repetida: true, data: { id: latest._id } });
+      }
+    }
     const novoParametro = new ParametrosAtuais({
       id_cativeiro,
       temp_atual: temperatura,
       ph_atual: ph,
       amonia_atual: amonia,
-      datahora: new Date()
+      datahora: new Date(),
+      origem: authenticated ? 'dispositivo' : 'legado',
+      autenticada: authenticated,
+      ...(authenticated && amostraId ? { amostraId } : {})
     });
 
     await novoParametro.save();
 
+    if (authenticated) await processReading(id_cativeiro);
     // Notifica dashboards abertos para esse cativeiro
     parametrosEmitter.emit(`parametro:${id_cativeiro.toString()}`);
 
@@ -48,11 +117,13 @@ const cadastrarParametros = async (req, res) => {
         temperatura,
         ph,
         amonia,
-        datahora: novoParametro.datahora
+        datahora: novoParametro.datahora,
+        origem: novoParametro.origem
       }
     });
 
   } catch (error) {
+    if (error.code === 11000) return res.status(200).json({ success: true, repetida: true });
     console.error('Erro ao cadastrar parâmetros:', error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
@@ -73,7 +144,7 @@ const getParametrosAtuais = async (req, res) => {
 
     const [cativeiro, parametroAtual] = await Promise.all([
       Cativeiros.findById(cativeiroId).lean(),
-      ParametrosAtuais.findOne({ id_cativeiro: cativeiroId }).sort({ datahora: -1 }).lean()
+      ParametrosAtuais.findOne({ id_cativeiro: cativeiroId, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean()
     ]);
 
     if (!cativeiro) {
@@ -100,6 +171,12 @@ const getParametrosHistoricos = async (req, res) => {
   try {
     const { cativeiroId } = req.params;
     const { dias = 7 } = req.query;
+    const days = Number(dias);
+    const page = Number(req.query.pagina || 1);
+    const pageSize = Math.min(1000, Math.max(1, Number(req.query.limite || 500)));
+    if (!Number.isInteger(days) || days < 1 || days > 365 || !Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize)) {
+      return res.status(400).json({ error: 'Período ou paginação inválidos' });
+    }
 
     if (!cativeiroId) {
       return res.status(400).json({ error: "ID do cativeiro é obrigatório" });
@@ -110,35 +187,38 @@ const getParametrosHistoricos = async (req, res) => {
     if (access === false) return res.status(403).json({ error: 'Acesso negado.' });
 
     const dataLimite = new Date();
-    dataLimite.setDate(dataLimite.getDate() - parseInt(dias));
+    dataLimite.setDate(dataLimite.getDate() - days);
 
     const [cativeiro, parametros] = await Promise.all([
       Cativeiros.findById(cativeiroId).lean(),
       ParametrosAtuais.find({
         id_cativeiro: cativeiroId,
+        ...VALID_READING_FILTER,
         datahora: { $gte: dataLimite }
-      }).sort({ datahora: 1 }).lean().limit(1000)
+      }).sort({ datahora: 1, _id: 1 }).skip((page - 1) * pageSize).limit(pageSize + 1).lean()
     ]);
 
     if (!cativeiro) {
       return res.status(404).json({ error: "Cativeiro não encontrado" });
     }
 
-    if (parametros.length === 0) {
-      return res.json({ cativeiro: { id: cativeiro._id, nome: cativeiro.nome }, dados: [] });
-    }
+    const hasMore = parametros.length > pageSize;
+    parametros.length = Math.min(parametros.length, pageSize);
 
     const dadosFormatados = parametros.map(p => ({
       datahora: p.datahora,
       temperatura: p.temp_atual,
       ph: p.ph_atual,
-      amonia: p.amonia_atual
+      amonia: p.amonia_atual,
+      origem: p.origem || 'legado'
     }));
 
     res.json({
       cativeiro: { id: cativeiro._id, nome: cativeiro.nome },
       periodo: `${dias} dias`,
       total_registros: dadosFormatados.length,
+      pagina: page,
+      proximaPagina: hasMore ? page + 1 : null,
       dados: dadosFormatados
     });
 
@@ -153,13 +233,14 @@ async function fetchDashboardData(cativeiroId) {
   const dataLimite = new Date();
   dataLimite.setDate(dataLimite.getDate() - 7);
 
-  const [cativeiro, parametroAtual, dadosAgregados] = await Promise.all([
-    Cativeiros.findById(cativeiroId).lean(),
-    ParametrosAtuais.findOne({ id_cativeiro: cativeiroId }).sort({ datahora: -1 }).lean(),
+  const [cativeiro, parametroAtual, dadosAgregados, avisosAtivos, leiturasAnalise] = await Promise.all([
+    Cativeiros.findById(cativeiroId).populate('condicoes_ideais').lean(),
+    ParametrosAtuais.findOne({ id_cativeiro: cativeiroId, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean(),
     ParametrosAtuais.aggregate([
       {
         $match: {
           id_cativeiro: new mongoose.Types.ObjectId(cativeiroId),
+          ...VALID_READING_FILTER,
           datahora: { $gte: dataLimite }
         }
       },
@@ -172,10 +253,15 @@ async function fetchDashboardData(cativeiroId) {
         }
       },
       { $sort: { _id: 1 } }
-    ])
+    ]),
+    Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' }).sort({ criadoEm: -1 }).lean(),
+    ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER,
+      datahora: { $gte: new Date(Date.now() - 90 * 60_000) } }).sort({ datahora: -1 }).limit(6).lean()
   ]);
 
   if (!cativeiro) return null;
+
+  const { suficiente, razao } = evaluate(leiturasAnalise, temperatureBounds(cativeiro.condicoes_ideais || {}));
 
   const dadosAtuais = parametroAtual ? {
     temperatura: parametroAtual.temp_atual,
@@ -210,7 +296,10 @@ async function fetchDashboardData(cativeiroId) {
   return {
     cativeiro: { id: cativeiro._id, nome: cativeiro.nome },
     dadosAtuais,
-    dadosSemanais
+    dadosSemanais,
+    frescor: freshness(parametroAtual),
+    analise: { suficiente, razao },
+    avisosAtivos
   };
 }
 
@@ -267,7 +356,7 @@ const streamDashboard = async (req, res) => {
       }
     } catch (err) {
       console.error(`[SSE] erro em push() para cativeiroId=${cativeiroId}:`, err.message);
-      try { res.end(); } catch (_ignored) { /* connection already closed */ }
+      try { res.end(); } catch { /* conexão já encerrada */ }
     }
   };
 
@@ -289,6 +378,8 @@ const streamDashboard = async (req, res) => {
 
 export {
   cadastrarParametros,
+  provisionDevice,
+  updateTemperatureLimits,
   getParametrosAtuais,
   getParametrosHistoricos,
   getDadosDashboard,

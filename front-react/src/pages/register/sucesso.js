@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 
 export default function RegisterSucessoPage() {
   const router = useRouter();
-  const { requestId, email } = router.query;
+  const { email } = router.query;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

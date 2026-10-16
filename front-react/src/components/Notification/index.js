@@ -5,7 +5,7 @@ export default function Notification({ message, type = 'success', isVisible, onC
   useEffect(() => {
     if (isVisible && duration > 0) {
       const timer = setTimeout(() => {
-        try { onTimeout && onTimeout(); } catch {}
+        try { onTimeout?.(); } catch {}
         onClose();
       }, duration);
       return () => clearTimeout(timer);

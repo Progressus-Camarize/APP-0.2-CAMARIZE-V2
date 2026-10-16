@@ -1,0 +1,92 @@
+name: Publish production manually
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Digite PUBLICAR para publicar o commit selecionado da main'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require main and explicit activation
+        env:
+          REF: ${{ github.ref }}
+          ENABLED: ${{ vars.ENABLE_MANUAL_DEPLOY }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          test "$REF" = refs/heads/main
+          test "$CONFIRMATION" = PUBLICAR
+          if [ "$ENABLED" != true ]; then
+            echo 'Configure as plataformas e ENABLE_MANUAL_DEPLOY conforme docs/CI_CD.md.'
+            exit 1
+          fi
+
+  validate:
+    needs: preflight
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: production
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+      API_URL: ${{ vars.API_URL }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Check platform configuration
+        run: |
+          for key in RENDER_API_KEY RENDER_SERVICE_ID API_URL VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            test -n "${!key}" || { echo "Configure $key"; exit 1; }
+          done
+      - name: Install pinned Vercel CLI
+        run: npm install --prefix "$RUNNER_TEMP/vercel-cli" --no-audit --no-fund vercel@60.1.3
+      - name: Prepare production frontend before changing the API
+        working-directory: front-react
+        run: |
+          "$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel" pull --yes --environment=production --token="$VERCEL_TOKEN"
+          "$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel" build --prod --token="$VERCEL_TOKEN"
+      - name: Publish the exact API commit and verify readiness
+        run: node scripts/ci/deploy-render.mjs
+      - name: Publish the prepared frontend
+        id: frontend
+        working-directory: front-react
+        run: |
+          deployment_url=$("$RUNNER_TEMP/vercel-cli/node_modules/.bin/vercel" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+          echo "Frontend: $deployment_url" >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify published login page
+        env:
+          DEPLOYMENT_URL: ${{ steps.frontend.outputs.url }}
+        run: |
+          node --input-type=module <<'JS'
+          const response = await fetch(new URL('/login', process.env.DEPLOYMENT_URL), { signal: AbortSignal.timeout(30000) });
+          if (!response.ok || !(await response.text()).includes('Conecte-se para continuar')) {
+            throw new Error('A página de login publicada não passou na verificação. Consulte o runbook de rollback.');
+          }
+          JS
+      - name: Record release
+        if: always()
+        run: |
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Recuperação e configurações: docs/CI_CD.md' >> "$GITHUB_STEP_SUMMARY"

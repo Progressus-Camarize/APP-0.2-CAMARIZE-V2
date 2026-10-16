@@ -72,10 +72,7 @@ export default function MyRequests() {
     return t ? t.nome : id;
   };
 
-  const handleDelete = (id) => {
-    setItemToDelete(id);
-    setShowDeleteModal(true);
-  };
+
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;

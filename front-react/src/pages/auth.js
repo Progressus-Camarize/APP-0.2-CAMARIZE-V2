@@ -52,7 +52,7 @@ export default function AuthPage() {
       // Criar conta
       if (tipo === 'funcionario') {
         try {
-          const registerResponse = await axios.post(`${apiUrl}/users/register/funcionario`, {
+          await axios.post(`${apiUrl}/users/register/funcionario`, {
             nome: nome.trim(),
             email: email.trim(),
             senha: senha,

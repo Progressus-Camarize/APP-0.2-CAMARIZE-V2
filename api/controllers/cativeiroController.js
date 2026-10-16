@@ -8,6 +8,8 @@ import ParametrosAtuais from "../models/Parametros_atuais.js";
 import Dietas from "../models/Dietas.js";
 import DietasxCativeiros from "../models/DietasxCativeiros.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
+import Aviso from '../models/Aviso.js';
+import { freshness, VALID_READING_FILTER } from '../services/avisoService.js';
 
 /**
  * Verifica se um usuário tem permissão para acessar um cativeiro.
@@ -46,7 +48,7 @@ const createCativeiro = async (req, res) => {
     if (req.file) {
       data.foto_cativeiro = req.file.buffer;
     }
-    
+
     // Valida e converte os valores das condições ideais
     const validarEConverter = (valor, padrao) => {
       if (!valor || valor === '') return padrao;
@@ -67,17 +69,17 @@ const createCativeiro = async (req, res) => {
       amonia_ideal: amoniaIdeal
     });
     data.condicoes_ideais = condicao._id;
-    
+
     // Deixa os campos de monitoramento diário do cativeiro como null
     data.temp_media_diaria = null;
     data.ph_medio_diario = null;
     data.amonia_media_diaria = null;
-    
+
     // Associar o usuário logado ao cativeiro
     if (req.loggedUser?.id) {
       data.user = req.loggedUser.id;
     }
-    
+
     // dieta (string) pode vir do body
     // dieta como texto pode vir no request (dieta_texto) apenas para conveniência de criação
 
@@ -85,10 +87,10 @@ const createCativeiro = async (req, res) => {
     if (!result) {
       return res.status(500).json({ error: "Falha ao salvar no banco." });
     }
-    
+
     // Cria o relacionamento na tabela intermediária fazenda-cativeiro
     await FazendasxCativeiros.create({ fazenda: req.body.fazendaId, cativeiro: result._id });
-    
+
     // Cria os relacionamentos sensor-cativeiro para todos os sensores fornecidos
     console.log('🔍 Verificando sensores na criação:', {
       sensorIds: req.body.sensorIds,
@@ -96,10 +98,10 @@ const createCativeiro = async (req, res) => {
       isArray: Array.isArray(req.body.sensorIds),
       bodyKeys: Object.keys(req.body)
     });
-    
+
     // Processa os sensores fornecidos
     let sensoresParaProcessar = [];
-    
+
     // Verifica se sensorIds é um array (JSON) ou string única (FormData)
     if (req.body.sensorIds) {
       if (Array.isArray(req.body.sensorIds)) {
@@ -112,12 +114,12 @@ const createCativeiro = async (req, res) => {
         console.log('📦 Processando sensorIds como string FormData:', sensoresParaProcessar);
       }
     }
-    
+
          if (sensoresParaProcessar.length > 0) {
        try {
          // Filtra apenas sensores válidos e remove duplicatas
          const sensoresValidos = [...new Set(sensoresParaProcessar.filter(sensorId => sensorId && sensorId !== ""))];
-         
+
          if (sensoresValidos.length > 0) {
            // Cria novas relações para todos os sensores válidos
            const relacoes = [];
@@ -150,7 +152,7 @@ const createCativeiro = async (req, res) => {
     } else {
       console.log('⚠️  Nenhum sensor fornecido no cadastro');
     }
-    
+
     // Se vier dieta (descrição), registra também em Dietas e relaciona
     // dieta inicial: somente masters podem criar/atribuir na criação
     try {
@@ -163,7 +165,7 @@ const createCativeiro = async (req, res) => {
       console.error('Erro ao criar/atribuir dieta_texto na criação:', e.message);
     }
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: "Cativeiro criado com sucesso!",
       cativeiroId: result._id,
       sensorRelacionado: req.body.sensorId ? true : false
@@ -178,10 +180,10 @@ const getAllCativeiros = async (req, res) => {
   try {
     const usuarioId = req.loggedUser?.id;
     const role = req.loggedUser?.role;
-    
+
     console.log('🔍 DEBUG getAllCativeiros - usuarioId:', usuarioId, 'role:', role);
     console.log('🔍 DEBUG req.loggedUser completo:', req.loggedUser);
-    
+
     let cativeiros = [];
     if (role === 'master') {
       // Master enxerga todos os cativeiros
@@ -194,7 +196,7 @@ const getAllCativeiros = async (req, res) => {
       cativeiros = await cativeiroService.getAllByUsuarioViaRelacionamentos(usuarioId);
       console.log('🔍 DEBUG - Cativeiros encontrados por relacionamento:', cativeiros.length);
     }
-    
+
     console.log('🔍 DEBUG - Retornando cativeiros:', cativeiros.length);
     res.status(200).json(cativeiros);
   } catch (error) {
@@ -216,7 +218,7 @@ const getCativeiroById = async (req, res) => {
   try {
     const { id } = req.params;
     console.log('🔍 Buscando cativeiro por ID:', id);
-    
+
     const cativeiro = await cativeiroService.getById(id);
     if (!cativeiro) {
       return res.status(404).json({ error: 'Cativeiro não encontrado.' });
@@ -234,14 +236,14 @@ const getCativeiroById = async (req, res) => {
     console.log('  ID:', cativeiro._id);
     console.log('  Fazenda:', cativeiro.fazenda);
     console.log('  Sensores:', cativeiro.sensores ? cativeiro.sensores.length : 0);
-    
+
     if (cativeiro.sensores && cativeiro.sensores.length > 0) {
       console.log('  Detalhes dos sensores:');
       cativeiro.sensores.forEach((sensor, index) => {
         console.log(`    ${index + 1}. ${sensor.apelido} (${sensor.id_tipo_sensor}) - ID: ${sensor._id}`);
       });
     }
-    
+
     res.status(200).json(cativeiro);
   } catch (error) {
     console.error('❌ Erro no getCativeiroById:', error);
@@ -253,7 +255,7 @@ const updateCativeiro = async (req, res) => {
   try {
     const { id } = req.params;
     const data = { ...req.body };
-    
+
     if (req.file) {
       data.foto_cativeiro = req.file.buffer;
     }
@@ -297,7 +299,7 @@ const updateCativeiro = async (req, res) => {
       isArray: Array.isArray(req.body.sensorIds),
       bodyKeys: Object.keys(req.body)
     });
-    
+
     // Só mexe nas relações de sensores se houver payload relacionado a sensores
     const hasSensorPayload = typeof req.body.sensorIds !== 'undefined' || typeof req.body.sensorId !== 'undefined';
     if (hasSensorPayload) {
@@ -359,8 +361,8 @@ const updateCativeiro = async (req, res) => {
     // Se alterar dieta (descrição), cria nova Dieta e marca relação ativa
     // dieta removida do fluxo de patch do cativeiro; usar /dietas/assign/:cativeiroId
 
-    res.status(200).json({ 
-      message: 'Cativeiro atualizado com sucesso!', 
+    res.status(200).json({
+      message: 'Cativeiro atualizado com sucesso!',
       cativeiro: result,
       sensorRelacionado: req.body.sensorId ? true : false
     });
@@ -413,13 +415,13 @@ const getSensoresCativeiro = async (req, res) => {
         }
       })
       .populate('id_cativeiro');
-    
+
     // Converter para objetos simples manualmente para manter performance
     const sensoresSimplificados = sensores.map(s => {
       const sObj = s.toObject ? s.toObject() : s;
       return sObj;
     });
-    
+
     res.status(200).json(sensoresSimplificados);
   } catch (error) {
     console.error('Erro ao buscar sensores do cativeiro:', error);
@@ -430,227 +432,50 @@ const getSensoresCativeiro = async (req, res) => {
 // Buscar status geral de todos os cativeiros do usuário
 const getCativeirosStatus = async (req, res) => {
   try {
-    const usuarioId = req.loggedUser?.id;
-    
-    // Busca todos os cativeiros do usuário usando o service
-    const cativeiros = await cativeiroService.getAllByUsuarioViaRelacionamentos(usuarioId);
-    
-    const cativeirosComStatus = [];
-    let totalCativeiros = 0;
-    let cativeirosOk = 0;
-    let cativeirosAlerta = 0;
-    let cativeirosCritico = 0;
-    let cativeirosSemDados = 0;
-
-    // OTIMIZAÇÃO: Buscar todos os parâmetros de uma vez usando agregação
-    const cativeiroIds = cativeiros.map(c => c._id);
-    const parametrosRecentes = await ParametrosAtuais.aggregate([
-      { $match: { id_cativeiro: { $in: cativeiroIds } } },
-      { $sort: { datahora: -1 } },
-      {
-        $group: {
-          _id: '$id_cativeiro',
-          temp_atual: { $first: '$temp_atual' },
-          ph_atual: { $first: '$ph_atual' },
-          amonia_atual: { $first: '$amonia_atual' },
-          datahora: { $first: '$datahora' }
-        }
-      }
-    ]);
-    
-    // Criar mapa para acesso rápido
-    const parametrosMap = new Map();
-    parametrosRecentes.forEach(p => {
-      parametrosMap.set(p._id.toString(), p);
-    });
-
-    for (const cativeiro of cativeiros) {
-      totalCativeiros++;
-      
-      // Busca o parâmetro atual do mapa
-      const parametroAtual = parametrosMap.get(cativeiro._id.toString());
-      
-      if (!parametroAtual || !cativeiro.condicoes_ideais) {
-        cativeirosComStatus.push({
-          id: cativeiro._id,
-          nome: cativeiro.nome || `Cativeiro ${cativeiro._id}`,
-          tipo_camarao: cativeiro.id_tipo_camarao?.nome || 'Tipo não informado',
-          status: 'sem_dados',
-          statusText: 'Sem dados',
-          statusColor: '#9ca3af',
-          alertas: [],
-          alertasDetalhados: [],
-          totalAlertas: 0
-        });
-        cativeirosSemDados++;
-        continue;
-      }
-      
-      const condicaoIdeal = cativeiro.condicoes_ideais;
-      
-      // Tolerâncias mais realistas por parâmetro (mesmas das notificações)
-      const toleranciaTemp = 0.15; // 15% para temperatura
-      const toleranciaPh = 0.2;    // 20% para pH
-      const toleranciaAmonia = 0.25; // 25% para amônia
-      
-             let alertas = [];
-       const alertasDetalhados = [];
-      let status = 'ok';
-      let statusText = 'OK';
-      let statusColor = '#10b981';
-      
-      // Verifica temperatura (mesma lógica das notificações)
-      if (condicaoIdeal.temp_ideal) {
-        const diffTemp = Math.abs(parametroAtual.temp_atual - condicaoIdeal.temp_ideal);
-        const toleranciaTempValor = condicaoIdeal.temp_ideal * toleranciaTemp;
-        
-        if (diffTemp > toleranciaTempValor) {
-          const severidade = diffTemp > toleranciaTempValor * 2 ? 'alta' : 'media';
-          const tipo = parametroAtual.temp_atual > condicaoIdeal.temp_ideal ? 'aumento' : 'diminuição';
-          
-          alertas.push(severidade);
-          
-          alertasDetalhados.push({
-            tipo: 'temperatura',
-            severidade,
-            mensagem: `Temperatura com ${tipo}! Atual: ${parametroAtual.temp_atual}°C, Ideal: ${condicaoIdeal.temp_ideal}°C`,
-            valorAtual: parametroAtual.temp_atual,
-            valorIdeal: condicaoIdeal.temp_ideal,
-            diferenca: diffTemp,
-            datahora: parametroAtual.datahora
-          });
-          
-          if (severidade === 'alta') {
-            status = 'critico';
-            statusText = 'CRÍTICO';
-            statusColor = '#ef4444';
-          } else if (status !== 'critico') {
-            status = 'alerta';
-            statusText = 'ALERTA';
-            statusColor = '#f59e0b';
-          }
-        }
-      }
-      
-      // Verifica pH (mesma lógica das notificações)
-      if (condicaoIdeal.ph_ideal) {
-        const diffPh = Math.abs(parametroAtual.ph_atual - condicaoIdeal.ph_ideal);
-        const toleranciaPhValor = condicaoIdeal.ph_ideal * toleranciaPh;
-        
-        if (diffPh > toleranciaPhValor) {
-          const severidade = diffPh > toleranciaPhValor * 2 ? 'alta' : 'media';
-          const tipo = parametroAtual.ph_atual > condicaoIdeal.ph_ideal ? 'aumento' : 'diminuição';
-          
-          alertas.push(severidade);
-          
-          alertasDetalhados.push({
-            tipo: 'ph',
-            severidade,
-            mensagem: `pH com ${tipo}! Atual: ${parametroAtual.ph_atual}, Ideal: ${condicaoIdeal.ph_ideal}`,
-            valorAtual: parametroAtual.ph_atual,
-            valorIdeal: condicaoIdeal.ph_ideal,
-            diferenca: diffPh,
-            datahora: parametroAtual.datahora
-          });
-          
-          if (severidade === 'alta') {
-            status = 'critico';
-            statusText = 'CRÍTICO';
-            statusColor = '#ef4444';
-          } else if (status !== 'critico') {
-            status = 'alerta';
-            statusText = 'ALERTA';
-            statusColor = '#f59e0b';
-          }
-        }
-      }
-      
-      // Verifica amônia (mesma lógica das notificações)
-      if (condicaoIdeal.amonia_ideal) {
-        const diffAmonia = Math.abs(parametroAtual.amonia_atual - condicaoIdeal.amonia_ideal);
-        const toleranciaAmoniaValor = condicaoIdeal.amonia_ideal * toleranciaAmonia;
-        
-        if (diffAmonia > toleranciaAmoniaValor) {
-          const severidade = diffAmonia > toleranciaAmoniaValor * 2 ? 'alta' : 'media';
-          const tipo = parametroAtual.amonia_atual > condicaoIdeal.amonia_ideal ? 'aumento' : 'diminuição';
-          
-          alertas.push(severidade);
-          
-          alertasDetalhados.push({
-            tipo: 'amonia',
-            severidade,
-            mensagem: `Amônia com ${tipo}! Atual: ${parametroAtual.amonia_atual}mg/L, Ideal: ${condicaoIdeal.amonia_ideal}mg/L`,
-            valorAtual: parametroAtual.amonia_atual,
-            valorIdeal: condicaoIdeal.amonia_ideal,
-            diferenca: diffAmonia,
-            datahora: parametroAtual.datahora
-          });
-          
-          if (severidade === 'alta') {
-            status = 'critico';
-            statusText = 'CRÍTICO';
-            statusColor = '#ef4444';
-          } else if (status !== 'critico') {
-            status = 'alerta';
-            statusText = 'ALERTA';
-            statusColor = '#f59e0b';
-          }
-        }
-      }
-      
-      // Remove duplicatas dos alertas
-      alertas = [...new Set(alertas)];
-      
-      // Conta os status
-      if (status === 'ok') {
-        cativeirosOk++;
-      } else if (status === 'alerta') {
-        cativeirosAlerta++;
-      } else if (status === 'critico') {
-        cativeirosCritico++;
-      }
-      
-      cativeirosComStatus.push({
+    const cativeiros = await cativeiroService.getAllByUsuarioViaRelacionamentos(req.loggedUser.id);
+    const items = await Promise.all(cativeiros.map(async cativeiro => {
+      const [reading, avisos] = await Promise.all([
+        ParametrosAtuais.findOne({ id_cativeiro: cativeiro._id, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean(),
+        Aviso.find({ cativeiro: cativeiro._id, estado: 'ativo' }).lean(),
+      ]);
+      const frescor = freshness(reading);
+      const status = frescor.estado !== 'recente' ? 'sem_dados' : avisos.length ? 'alerta' : 'ok';
+      const alertasDetalhados = avisos.map(a => ({
+        tipo: a.tipo, severidade: 'media', mensagem: a.mensagem,
+        valorAtual: a.valorAtual, valorIdeal: a.tipo === 'temperatura' ? a.limite : a.valorInicial,
+        datahora: a.criadoEm, experimental: a.experimental,
+      }));
+      return {
         id: cativeiro._id,
         nome: cativeiro.nome || `Cativeiro ${cativeiro._id}`,
         tipo_camarao: cativeiro.id_tipo_camarao?.nome || 'Tipo não informado',
         status,
-        statusText,
-        statusColor,
-        alertas,
+        statusText: status === 'alerta' ? 'AVISO' : status === 'ok' ? 'SEM AVISO' : 'DADOS ANTIGOS OU AUSENTES',
+        statusColor: status === 'alerta' ? '#f59e0b' : status === 'ok' ? '#10b981' : '#9ca3af',
+        alertas: avisos.length ? ['media'] : [],
         alertasDetalhados,
-        totalAlertas: alertasDetalhados.length,
-        ultimaAtualizacao: parametroAtual.datahora
-      });
-    }
-    
-    res.json({
-      success: true,
-      cativeiros: cativeirosComStatus,
-      resumo: {
-        total: totalCativeiros,
-        ok: cativeirosOk,
-        alerta: cativeirosAlerta,
-        critico: cativeirosCritico,
-        semDados: cativeirosSemDados
-      }
-    });
-    
+        totalAlertas: avisos.length,
+        ultimaAtualizacao: reading?.datahora,
+        frescor,
+      };
+    }));
+    res.json({ success: true, cativeiros: items, resumo: {
+      total: items.length,
+      ok: items.filter(i => i.status === 'ok').length,
+      alerta: items.filter(i => i.status === 'alerta').length,
+      critico: 0,
+      semDados: items.filter(i => i.status === 'sem_dados').length,
+    } });
   } catch (error) {
     console.error('Erro ao buscar status dos cativeiros:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Erro interno do servidor' 
-    });
+    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
   }
 };
 
 // Método específico para atualizar dados do cativeiro sem enviar resposta
 const updateCativeiroData = async (id, data) => {
   const result = await cativeiroService.update(id, data);
-  if (!result) {
-    throw new Error('Cativeiro não encontrado.');
-  }
+  if (!result) throw new Error('Cativeiro não encontrado.');
   return result;
 };
 
@@ -666,4 +491,4 @@ export default {
   getSensoresCativeiro,
   getCativeirosStatus,
   assertCativeiroAccess,
-}; 
+};

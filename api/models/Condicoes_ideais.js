@@ -12,6 +12,8 @@ const CondicoesIdeaisSchema = new mongoose.Schema({
     type: Number,
     required: false,
   },
+  temp_min: Number,
+  temp_max: Number,
   ph_ideal: {
     type: Number,
     required: false,

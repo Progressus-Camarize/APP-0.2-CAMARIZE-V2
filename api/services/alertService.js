@@ -131,4 +131,9 @@ const sendAlert = async (alertData) => {
   }
 };
 
-export default { sendAlert, getUserIdsByCativeiro };
+const sendPush = async (alertData) => {
+  const userIds = await getUserIdsByCativeiro(alertData.cativeiro);
+  if (userIds.length) await sendPushForAlert(alertData, userIds);
+};
+
+export default { sendAlert, sendPush, getUserIdsByCativeiro };
