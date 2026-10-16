@@ -13,22 +13,28 @@ ambiente publicado e consumir horas gratuitas com duas APIs continuamente ativas
 
 ## Verificações obrigatórias
 
-`.github/workflows/ci.yml` roda em PRs, pushes na `main`, execução manual e como workflow reutilizável:
+`.github/workflows/ci.yml` roda em PRs e pushes na `main`:
 
 | Job | Evidência |
 | --- | --- |
-| API lint and integration tests | Lint bloqueante; login, logout, isolamento entre fazendas, ingestão, dashboard, SSE e alertas; relatório JUnit |
-| Frontend lint build and browser tests | Lint bloqueante; build; Chromium acessando login, dashboard e relatório dinâmico; relatório HTML/JUnit e trace em falha |
-| Secrets and production dependencies | Verificação de segredos conhecidos e dumps no checkout, testes do controlador de deploy e auditoria das três árvores de dependências |
-| CI gate | Só aprova quando todos os jobs acima terminam com sucesso; falhas, cancelamentos e jobs ignorados não aprovam |
+| Lint API | `node --check` em todo `.js` da API e ESLint |
+| Testes API | Suíte Vitest (`npm run test:coverage`) contra um MongoDB de serviço do runner; relatório de cobertura anexado |
+| Build Frontend | Build de produção do Next.js |
+| Auditoria de Dependências | `npm audit --omit=dev --audit-level=critical` em `api` e `front-react` (não bloqueante — reportado, não bloqueia o gate) |
+| Docker Build | Builda as imagens Docker da API e do frontend, após os testes e o build passarem |
+| CI gate | Reprova se Lint API, Testes API ou Build Frontend falharem; Auditoria e Docker Build são informativos |
 
-As actions são fixadas por SHA. Há timeout nos jobs, cancelamento de CI obsoleto, cache npm por
-lockfile e retenção de relatórios por 14 dias. Nenhum segredo de produção é entregue ao CI de PRs.
-O audit bloqueia vulnerabilidades altas e críticas em dependências de produção; moderadas seguem visíveis.
-45 avisos existentes de hooks/imagens do frontend são dívida técnica visível e não bloqueiam esta entrega.
+Cache npm por lockfile. Nenhum segredo de produção é entregue ao CI de PRs.
 
-O scanner local é uma proteção adicional para padrões conhecidos, não um scanner universal nem uma
-limpeza do histórico. Ative secret scanning/push protection no GitHub quando houver acesso.
+Os testes de integração (`api/tests/alerts.test.js`, `application.test.js`) exigem um MongoDB real —
+por isso o job "Testes API" sobe um serviço `mongo:7.0` com `MONGO_TEST_URL` apontando para ele.
+`safety.test.js` não precisa de banco.
+
+**Gaps conhecidos, ainda não integrados a este pipeline:** `npm run test:e2e` (Playwright, ver
+`playwright.config.js` e `tests/e2e/`) e `node --test scripts/ci/*.test.mjs` / `npm run check:secrets`
+existem no repositório mas não são executados pelo CI atual — rode-os manualmente (seção abaixo)
+até serem adicionados a um job.
+
 As credenciais anteriormente versionadas devem ser rotacionadas pelo responsável pelos serviços.
 Os dumps foram retirados do índice do Git e permanecem locais/ignorados; cópias históricas continuam no Git.
 
@@ -59,7 +65,6 @@ Eles não leem `MONGO_URL` nem `.env` e nunca iniciam o monitoramento automátic
 simulam o envio; a instância de Nodemailer usa transporte JSON em `NODE_ENV=test`.
 O executor E2E é exclusivo de `api/tests/e2e-server.js` e não é incluído no servidor de produção.
 
-Para gerar JUnit da API: `mkdir -p api/test-results && npm --prefix api run test:ci`.
 Portas 4100/3100 são exclusivas do E2E; não reutilize servidores de desenvolvimento nesses testes.
 O build deve ser feito com as URLs de teste antes do E2E: `NEXT_PUBLIC_*` é incorporado ao JavaScript.
 
@@ -75,7 +80,7 @@ O responsável com acesso ao serviço deve configurar:
 
 A API só escuta após conectar ao banco, retorna 503 se perder a conexão e inclui
 `RENDER_GIT_COMMIT` no readiness. Ao receber SIGTERM, interrompe o monitoramento e fecha servidor/banco.
-Rotas `/test` estão desabilitadas por padrão e sempre desabilitadas em produção.
+Não há rotas de diagnóstico expostas; `/test/*` sempre retorna 404.
 
 No Free, a API pode dormir após 15 minutos sem tráfego, demorar a retomar e reiniciar.
 Isso pausa o monitoramento periódico; não há garantia de monitoramento contínuo gratuito.

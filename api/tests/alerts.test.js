@@ -1,4 +1,4 @@
-import { before, after, test } from 'node:test';
+import { beforeAll, afterAll, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import ParametrosAtuais from '../models/Parametros_atuais.js';
@@ -9,11 +9,11 @@ import { connectTestDatabase, dropTestDatabase, seedFixtures } from './fixtures.
 
 process.env.NODE_ENV = 'test';
 let fixtures;
-before(async () => {
+beforeAll(async () => {
   await connectTestDatabase('alerts');
   fixtures = await seedFixtures();
 });
-after(async () => {
+afterAll(async () => {
   if (mongoose.connection.readyState) await dropTestDatabase();
 });
 
@@ -36,7 +36,7 @@ test('regras: normal, ruído isolado, tendência persistente, lacuna e dado anti
   assert.equal(freshness({ datahora: new Date(Date.now() - 20 * 60_000) }).estado, 'antigo');
 });
 
-test('ocorrência única, recuperação e nova ocorrência; somente leitura autenticada conta', async t => {
+test('ocorrência única, recuperação e nova ocorrência; somente leitura autenticada conta', async () => {
   const pond = fixtures.cativeiros[0]._id;
   const create = async (values, authenticated = true, minutesAgo = 5) => {
     const start = Date.now() - (minutesAgo + 5) * 60_000;
@@ -55,10 +55,11 @@ test('ocorrência única, recuperação e nova ocorrência; somente leitura aute
   assert.equal((await Aviso.findOne({ tipo: 'ph' })).pushStatus, 'pendente');
   process.env.VAPID_PUBLIC_KEY = 'teste';
   process.env.VAPID_PRIVATE_KEY = 'teste';
-  const push = t.mock.method(alertService, 'sendPush', async () => {});
+  const push = vi.spyOn(alertService, 'sendPush').mockResolvedValue();
   await deliverPending();
   await deliverPending();
-  assert.equal(push.mock.callCount(), 1);
+  assert.equal(push.mock.calls.length, 1);
+  push.mockRestore();
   delete process.env.VAPID_PUBLIC_KEY;
   delete process.env.VAPID_PRIVATE_KEY;
   await create(Array(6).fill([28,7,0.2]), true, 8);

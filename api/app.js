@@ -16,7 +16,6 @@ import usuariosxFazendasRoutes from './routes/usuariosxFazendasRoutes.js';
 import sensoresxCativeirosRoutes from './routes/sensoresxCativeirosRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
-import testRoutes from './routes/testRoutes.js';
 import parametrosRoutes from './routes/parametrosRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import dietaRoutes from './routes/dietaRoutes.js';
@@ -91,9 +90,6 @@ export function createApp({ isDatabaseReady = () => mongoose.connection.readySta
   app.use('/sensoresxcativeiros', sensoresxCativeirosRoutes);
   app.use('/notifications', notificationRoutes);
   app.use('/email', emailRoutes);
-  if (process.env.ENABLE_TEST_ROUTES === 'true' && process.env.NODE_ENV !== 'production') {
-    app.use('/test', testRoutes);
-  }
   app.use('/parametros', parametrosRoutes);
   app.use('/chat', chatRoutes);
   app.use('/dietas', dietaRoutes);

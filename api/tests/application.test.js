@@ -1,4 +1,4 @@
-import { after, before, test } from 'node:test';
+import { afterAll, beforeAll, test } from 'vitest';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import mongoose from 'mongoose';
@@ -29,7 +29,7 @@ async function request(path, { method = 'GET', body, auth, deviceKey } = {}) {
   return { status: response.status, body: await response.json() };
 }
 
-before(async () => {
+beforeAll(async () => {
   await connectTestDatabase('api');
   fixtures = await seedFixtures();
   server = createApp({ isDatabaseReady: () => databaseReady && mongoose.connection.readyState === 1 }).listen(0, '127.0.0.1');
@@ -37,9 +37,9 @@ before(async () => {
   baseURL = `http://127.0.0.1:${server.address().port}`;
   token = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[0].email, senha: password } })).body.token;
   otherToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[1].email, senha: password } })).body.token;
-}, { timeout: 15000 });
+}, 15000);
 
-after(async () => {
+afterAll(async () => {
   if (server) {
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
@@ -113,7 +113,7 @@ test('leituras e SSE são isolados por fazenda e exigem autenticação', async (
   assert.equal((await request(`/parametros/dashboard/${fixtures.cativeiros[1].id}`, { auth: otherToken })).body.dadosAtuais.temperatura, null);
 });
 
-test('SSE entrega leitura inicial e nova leitura após o envio do sensor', { timeout: 10000 }, async () => {
+test('SSE entrega leitura inicial e nova leitura após o envio do sensor', async () => {
   const abort = new AbortController();
   const deadline = setTimeout(() => abort.abort(), 7000);
   let reader;
@@ -148,7 +148,7 @@ test('SSE entrega leitura inicial e nova leitura após o envio do sensor', { tim
     abort.abort();
     await reader?.cancel().catch(() => {});
   }
-});
+}, 10000);
 
 test('rotas de diagnóstico ficam desabilitadas por padrão', async () => {
   const result = await fetch(`${baseURL}/test/test-relacoes`);
