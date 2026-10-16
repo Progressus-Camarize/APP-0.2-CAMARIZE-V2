@@ -17,3 +17,6 @@ coverage/
 .vscode/
 .idea/
 *.log
+test-results/
+playwright-report/
+api/test-results/
