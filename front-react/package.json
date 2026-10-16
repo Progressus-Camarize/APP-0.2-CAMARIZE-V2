@@ -14,7 +14,7 @@
     "html2pdf.js": "^0.14.0",
     "jwt-decode": "^4.0.0",
     "next": "15.5.28",
-    "react": "^18",
+    "react": "^19",
     "react-dom": "^18",
     "react-icons": "^5.7.0",
     "react-select": "^5.10.2"
@@ -23,7 +23,7 @@
     "@eslint/eslintrc": "3.3.7",
     "@eslint/js": "9.39.5",
     "@types/node": "^20",
-    "@types/react": "^18",
+    "@types/react": "^19",
     "@types/react-dom": "^18",
     "eslint": "9.39.5",
     "eslint-config-next": "15.5.26"
