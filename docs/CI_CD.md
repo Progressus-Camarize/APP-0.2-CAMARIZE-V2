@@ -20,21 +20,22 @@ ambiente publicado e consumir horas gratuitas com duas APIs continuamente ativas
 | Lint API | `node --check` em todo `.js` da API e ESLint |
 | Testes API | Suíte Vitest (`npm run test:coverage`) contra um MongoDB de serviço do runner; relatório de cobertura anexado |
 | Build Frontend | Build de produção do Next.js |
+| Verificação de Segredos | `node scripts/ci/check-secrets.mjs` — credenciais conhecidas e dumps versionados no checkout |
+| Testes E2E (Playwright) | Sobe API + frontend reais com MongoDB de serviço; Chromium exercitando login, dashboard e relatório; relatório HTML/JUnit e trace em falha |
 | Auditoria de Dependências | `npm audit --omit=dev --audit-level=critical` em `api` e `front-react` (não bloqueante — reportado, não bloqueia o gate) |
 | Docker Build | Builda as imagens Docker da API e do frontend, após os testes e o build passarem |
-| CI gate | Reprova se Lint API, Testes API ou Build Frontend falharem; Auditoria e Docker Build são informativos |
+| CI gate | Reprova se Lint API, Testes API, Build Frontend, Verificação de Segredos ou E2E falharem; Auditoria e Docker Build são informativos |
 
 Cache npm por lockfile. Nenhum segredo de produção é entregue ao CI de PRs.
 
 Os testes de integração (`api/tests/alerts.test.js`, `application.test.js`) exigem um MongoDB real —
-por isso o job "Testes API" sobe um serviço `mongo:7.0` com `MONGO_TEST_URL` apontando para ele.
-`safety.test.js` não precisa de banco.
+por isso os jobs "Testes API" e "Testes E2E" sobem um serviço `mongo:7.0` com `MONGO_TEST_URL`
+apontando para ele. `safety.test.js` não precisa de banco. O job de E2E builda o frontend com
+`NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_SSE_URL` apontando para `127.0.0.1:4100` (API de teste exclusiva
+de `api/tests/e2e-server.js`), nunca para o ambiente publicado.
 
-**Gaps conhecidos, ainda não integrados a este pipeline:** `npm run test:e2e` (Playwright, ver
-`playwright.config.js` e `tests/e2e/`) e `node --test scripts/ci/*.test.mjs` / `npm run check:secrets`
-existem no repositório mas não são executados pelo CI atual — rode-os manualmente (seção abaixo)
-até serem adicionados a um job.
-
+O scanner de segredos é uma proteção adicional para padrões conhecidos, não um scanner universal nem
+uma limpeza do histórico. Ative secret scanning/push protection no GitHub quando houver acesso.
 As credenciais anteriormente versionadas devem ser rotacionadas pelo responsável pelos serviços.
 Os dumps foram retirados do índice do Git e permanecem locais/ignorados; cópias históricas continuam no Git.
 
