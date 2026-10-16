@@ -28,27 +28,22 @@ const SensoresSchema = new mongoose.Schema({
 });
 
 // Compatibilidade: permitir receber string (descricao) e converter para TiposSensor
-SensoresSchema.pre('validate', async function(next) {
-  try {
-    const value = this.id_tipo_sensor;
-    if (!value) return next();
+SensoresSchema.pre('validate', async function() {
+  const value = this.id_tipo_sensor;
+  if (!value) return;
 
-    // Se já for ObjectId, ok
-    if (typeof value === 'object' && value instanceof mongoose.Types.ObjectId) return next();
+  // Se já for ObjectId, ok
+  if (typeof value === 'object' && value instanceof mongoose.Types.ObjectId) return;
 
-    // Se vier como string (ex: "temperatura", "pH", "Amônia"), mapear para catálogo
-    if (typeof value === 'string') {
-      const TiposSensor = mongoose.models.TiposSensor || (await import('./Tipos_sensores.js')).then(m => m.default);
-      const descricao = value.trim();
-      let tipo = await TiposSensor.findOne({ descricao });
-      if (!tipo) {
-        tipo = await TiposSensor.create({ descricao });
-      }
-      this.id_tipo_sensor = tipo._id;
+  // Se vier como string (ex: "temperatura", "pH", "Amônia"), mapear para catálogo
+  if (typeof value === 'string') {
+    const TiposSensor = mongoose.models.TiposSensor || (await import('./Tipos_sensores.js')).default;
+    const descricao = value.trim();
+    let tipo = await TiposSensor.findOne({ descricao });
+    if (!tipo) {
+      tipo = await TiposSensor.create({ descricao });
     }
-    return next();
-  } catch (err) {
-    return next(err);
+    this.id_tipo_sensor = tipo._id;
   }
 });
 

@@ -39,19 +39,12 @@ const FazendasSchema = new mongoose.Schema({
 });
 
 // Hook robusto para autoincrementar o campo codigo
-FazendasSchema.pre('save', async function(next) {
+FazendasSchema.pre('save', async function() {
   if (this.isNew && (this.codigo === undefined || this.codigo === null || this.codigo === -1)) {
-    try {
-      const ultimo = await mongoose.models.Fazendas.findOne().sort({ codigo: -1 });
-      this.codigo = ultimo ? ultimo.codigo + 1 : 1;
-      next();
-    } catch (err) {
-      next(err);
-    }
+    const ultimo = await mongoose.models.Fazendas.findOne().sort({ codigo: -1 });
+    this.codigo = ultimo ? ultimo.codigo + 1 : 1;
   } else if (this.codigo === null || this.codigo === undefined || this.codigo === -1) {
-    return next(new Error('O campo codigo não pode ser nulo.'));
-  } else {
-    next();
+    throw new Error('O campo codigo não pode ser nulo.');
   }
 });
 
