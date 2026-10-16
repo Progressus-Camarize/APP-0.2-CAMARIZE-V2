@@ -69,7 +69,7 @@ export default function RegisterProprietarioPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       
       // Criar cadastro de proprietário (cria usuário e fazenda diretamente)
-      const response = await axios.post(`${apiUrl}/users/register/proprietario`, {
+      await axios.post(`${apiUrl}/users/register/proprietario`, {
         nome: userData.nome,
         email: userData.email,
         senha: userData.senha,

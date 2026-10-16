@@ -60,17 +60,17 @@ export default function StatusCativeirosPage() {
     return `${date.toLocaleDateString('pt-BR')} às ${hora}`;
   };
 
-  const formatarDiferenca = (v) => (typeof v === 'number' ? v.toFixed(2) : '—');
-
   const criticoCativeiros = cativeirosStatus.filter(c => c.status === 'critico');
   const alertaCativeiros  = cativeirosStatus.filter(c => c.status === 'alerta');
   const okCativeiros      = cativeirosStatus.filter(c => c.status === 'ok');
+  const semDadosCativeiros = cativeirosStatus.filter(c => c.status === 'sem_dados');
   const hasAnyAtualizacao = cativeirosStatus.some(c => !!c.ultimaAtualizacao);
 
   const GRUPOS = [
     { key: 'critico', list: criticoCativeiros },
     { key: 'alerta',  list: alertaCativeiros },
     { key: 'ok',      list: okCativeiros },
+    { key: 'sem_dados', list: semDadosCativeiros },
   ].filter(g => g.list.length > 0);
 
   const gruposVisiveis = filtroStatus
@@ -82,6 +82,7 @@ export default function StatusCativeirosPage() {
     { key: 'critico', label: 'Críticos', count: criticoCativeiros.length, bg: '#fef2f2', color: '#b91c1c', border: '#ef4444' },
     { key: 'alerta',  label: 'Alertas',  count: alertaCativeiros.length,  bg: '#fffbeb', color: '#92400e', border: '#f59e0b' },
     { key: 'ok',      label: 'OK',       count: okCativeiros.length,       bg: '#f0fdf4', color: '#15803d', border: '#10b981' },
+    { key: 'sem_dados', label: 'Dados antigos/ausentes', count: semDadosCativeiros.length, bg: '#f8fafc', color: '#475569', border: '#94a3b8' },
   ];
 
   if (loading) {
@@ -232,7 +233,7 @@ export default function StatusCativeirosPage() {
                                   {TIPO_ICON[alerta.tipo] || '🔔'} {alerta.tipo}
                                 </span>
                                 <span style={{ background: sevBg, color: sevColor, fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
-                                  {alerta.severidade}
+                                  {alerta.experimental ? 'experimental' : 'aviso'}
                                 </span>
                               </div>
 
@@ -245,8 +246,7 @@ export default function StatusCativeirosPage() {
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                 {[
                                   { label: 'Atual',     value: alerta.valorAtual },
-                                  { label: 'Ideal',     value: alerta.valorIdeal },
-                                  { label: 'Diferença', value: formatarDiferenca(alerta.diferenca) },
+                                  { label: alerta.tipo === 'temperatura' ? 'Limite' : 'Referência recente', value: alerta.valorIdeal },
                                 ].map(({ label, value }) => (
                                   <span key={label} style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
                                     <span style={{ color: '#94a3b8', marginRight: 3 }}>{label}:</span>{value}
@@ -259,7 +259,7 @@ export default function StatusCativeirosPage() {
                       </div>
                     ) : (
                       <div style={{ fontSize: '0.82rem', color: '#64748b', fontStyle: 'italic' }}>
-                        Sem alertas ativos — todos os parâmetros dentro do ideal.
+                        Sem avisos ativos com dados suficientes.
                       </div>
                     )}
 

@@ -3,12 +3,14 @@ npm-debug.log
 CLAUDE.md
 docs/TECH_DEBT.md
 tools/dump/
+# Configuração privada e dados locais
 .env
 .env.*
 !.env.example
-!.env.docker.example
+!**/.env.docker.example
 api/.env
 api/.env.docker
+dump/
 .next/
 dist/
 build/
@@ -16,6 +18,7 @@ coverage/
 .DS_Store
 .vscode/
 .idea/
+.vercel/
 *.log
 test-results/
 playwright-report/

@@ -3,8 +3,8 @@ import { useRouter } from "next/router";
 import axios from "axios";
 import MemberLayout from "../components/MemberLayout";
 import Notification from "../components/Notification";
-import AuthError from "../components/AuthError";
-import Loading from "../components/Loading";
+
+
 
 // Novo CSS para a foto circular perfeita e layout sem box
 const customStyles = {

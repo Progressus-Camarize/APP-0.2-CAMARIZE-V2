@@ -17,6 +17,7 @@ String savedPassword;
 
 // ─── API ─────────────────────────────────────────────────
 String apiBaseUrl;
+String deviceKey;
 
 // ─── NTP (UTC-3) ─────────────────────────────────────────
 WiFiUDP ntpUDP;
@@ -210,6 +211,7 @@ void enviarParametrosParaAPI(float temp, float ph, float amonia,
     String url = String(apiBaseUrl) + "/parametros/cadastrar";
     http.begin(url);
     http.addHeader("Content-Type", "application/json");
+    if (!deviceKey.isEmpty()) http.addHeader("X-Device-Key", deviceKey);
     http.setTimeout(8000);
 
     // Monta JSON com ArduinoJson — seguro contra erros de concatenação
@@ -218,6 +220,7 @@ void enviarParametrosParaAPI(float temp, float ph, float amonia,
     doc["temperatura"] = serialized(String(temp, 2));
     doc["ph"] = serialized(String(ph, 2));
     doc["amonia"] = serialized(String(amonia, 2));
+    doc["amostraId"] = String(timeClient.getEpochTime());
     // doc["dataHora"]  = dataHoraISO; // descomente se a API aceitar
 
     String json;
@@ -252,6 +255,7 @@ void setup()
     savedSSID = prefs.getString("ssid", "");
     savedPassword = prefs.getString("pass", "");
     apiBaseUrl = prefs.getString("apiUrl", "http://SEU_HOST_OU_IP:4000");
+    deviceKey = prefs.getString("deviceKey", "");
 
     // ─── Janela de configuração via Serial (10s) ─────────────
     Serial.println("\n===== CONFIGURAÇÃO INICIAL (10s) =====");
@@ -260,6 +264,7 @@ void setup()
     Serial.println("  SET PASS <senha>");
     Serial.println("  SET URL <api_base_url>");
     Serial.println("  SET CATIVEIRO <ObjectId>");
+    Serial.println("  SET DEVICEKEY <chave gerada pela API>");
     Serial.println("  SET GPS <gramas_por_segundo>");
     if (!savedSSID.isEmpty())
         Serial.println("SSID salvo:       " + savedSSID + "  (Enter para manter)");
@@ -327,6 +332,18 @@ void setup()
                 else
                 {
                     Serial.println("ObjectId inválido (mínimo 24 chars).");
+                }
+            }
+            else if (line.startsWith("SET DEVICEKEY ") || line.startsWith("set devicekey "))
+            {
+                String val = line.substring(14);
+                val.trim();
+                if (val.length() == 64)
+                {
+                    deviceKey = val;
+                    prefs.putString("deviceKey", deviceKey);
+                    Serial.println("Chave do dispositivo salva.");
+                    start = millis();
                 }
             }
             else if (line.startsWith("SET GPS ") || line.startsWith("set gps "))
@@ -451,10 +468,10 @@ void loop()
     if (temp == DEVICE_DISCONNECTED_C)
     {
         Serial.println("ERRO: sensor de temperatura desconectado!");
-        temp = -127.0;
+        return; // sensor desconectado: não envia leitura inválida
     }
 
-    Serial.printf("[%s %02d:%02d] Temp: %.2f°C | pH: %.2f | NH3: %.2f ppm\n",
+    Serial.printf("[%s %02d:%02d] Temp: %.2f°C | pH experimental: %.2f | Amonia experimental: %.2f (unidade nao calibrada)\n",
                   dataHoje.c_str(), currentHour, currentMinute, temp, ph, amonia);
 
     // ── Envio para API ──

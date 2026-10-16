@@ -10,7 +10,10 @@
     "dev:front": "cd front-react && npm run dev",
     "dev:both": "concurrently \"npm run dev:api\" \"npm run dev:front\"",
     "test:api": "cd api && npm run test",
-    "build:front": "cd front-react && npm run build"
+    "test:e2e": "playwright test",
+    "lint": "npm --prefix api run lint && npm --prefix front-react run lint",
+    "build:front": "cd front-react && npm run build",
+    "check:secrets": "node scripts/ci/check-secrets.mjs"
   },
   "repository": {
     "type": "git",
@@ -24,7 +27,13 @@
   },
   "homepage": "https://github.com/joaovitor101/APP-0.2-CAMARIZE#readme",
   "dependencies": {
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.5",
     "dotenv": "^17.2.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

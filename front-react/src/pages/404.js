@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import styles from '@/styles/StartScreen.module.css';
+
 
 export default function Custom404() {
   return (

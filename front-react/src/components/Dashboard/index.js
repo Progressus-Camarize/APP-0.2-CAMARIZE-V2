@@ -8,8 +8,7 @@ import panelStyles from "@/styles/panel.module.css";
 const SENSOR_CFG = [
   { key: 'temperatura',  label: 'Temperatura',  unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
   { key: 'ph',           label: 'pH',            unit: '',      decimals: 1, icon: '🧪', stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
-  { key: 'amonia',       label: 'Amônia total',  unit: ' mg/L', decimals: 2, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
-  { key: 'amoniaLivre',  label: 'NH₃ livre',     unit: ' mg/L', decimals: 2, icon: '⚗️', stripe: '#7c3aed', bg: '#f5f3ff', badgeColor: '#5b21b6' },
+  { key: 'amonia',       label: 'Amônia (experimental)', unit: '', decimals: 2, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
 ];
 
 // Default ranges for typical aquaculture values.
@@ -44,6 +43,10 @@ export default function Dashboard() {
   const [dadosAtuais, setDadosAtuais]     = useState(null);
   const [dadosSemanais, setDadosSemanais] = useState([]);
   const [nomeCativeiro, setNomeCativeiro] = useState('');
+  const [frescor, setFrescor] = useState(null);
+  const [avisosAtivos, setAvisosAtivos] = useState([]);
+  const [analise, setAnalise] = useState(null);
+  const [agora, setAgora] = useState(Date.now());
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState(null);
   const [sseKey, setSseKey]               = useState(0);
@@ -57,6 +60,11 @@ export default function Dashboard() {
     ? (sessionStorage.getItem('token') || localStorage.getItem('token'))
     : null;
 
+  useEffect(() => {
+    const timer = setInterval(() => setAgora(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Busca pontual via REST — usada pelo botão Atualizar como fallback
   const buscar = async () => {
     if (!id) return;
@@ -69,6 +77,9 @@ export default function Dashboard() {
       setDadosAtuais(data.dadosAtuais);
       setDadosSemanais(data.dadosSemanais || []);
       setNomeCativeiro(data.cativeiro?.nome || '');
+      setFrescor(data.frescor);
+      setAvisosAtivos(data.avisosAtivos || []);
+      setAnalise(data.analise);
       setError(null);
     } catch (err) {
       setError(err.response?.status === 401
@@ -98,6 +109,9 @@ export default function Dashboard() {
       setDadosAtuais(data.dadosAtuais);
       setDadosSemanais(data.dadosSemanais || []);
       setNomeCativeiro(data.cativeiro?.nome || '');
+      setFrescor(data.frescor);
+      setAvisosAtivos(data.avisosAtivos || []);
+      setAnalise(data.analise);
       setError(null);
       setLoading(false);
     };
@@ -121,8 +135,9 @@ export default function Dashboard() {
     temperatura: dadosAtuais?.temperatura ?? null,
     ph:          dadosAtuais?.ph          ?? null,
     amonia:      dadosAtuais?.amonia      ?? null,
-    amoniaLivre: typeof dadosAtuais?.amonia === 'number' ? dadosAtuais.amonia * 0.2 : null,
   };
+  const idadeLeitura = frescor?.ultimaLeitura ? Math.max(0, Math.floor((agora - new Date(frescor.ultimaLeitura).getTime()) / 60_000)) : null;
+  const dadosRecentes = idadeLeitura !== null && idadeLeitura <= 15;
 
   // Preserve nulls — null = gap in chart (no fake padding)
   const extractSerie = (campo) =>
@@ -251,6 +266,18 @@ export default function Dashboard() {
   return (
     <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Parâmetros monitorados em tempo real">
       <div className={panelStyles.section}>
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#1e3a8a', fontSize: '0.82rem' }}>
+          Última leitura: {idadeLeitura !== null ? `${idadeLeitura} min atrás` : 'sem dados'} · {dadosRecentes ? 'dados recentes' : 'dados antigos'}
+          {frescor?.origem === 'legado' && ' · origem não autenticada'}
+          <div style={{ marginTop: 4 }}>Análise: {dadosRecentes && analise?.suficiente ? 'leituras suficientes' : ({ lacuna: 'insuficiente: lacuna entre leituras', leitura_antiga: 'insuficiente: última leitura autenticada antiga', leituras_insuficientes: 'insuficiente: menos de seis leituras autenticadas' }[analise?.razao] || 'insuficiente para o momento')}</div>
+          <div style={{ marginTop: 4 }}>pH e amônia: sensor sem calibração; medições experimentais. A fração de NH₃ livre depende de pH e temperatura e não é estimada aqui.</div>
+        </div>
+        {avisosAtivos.map(aviso => (
+          <div key={aviso._id} style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: '#78350f' }}>
+            <strong>{aviso.tipo === 'temperatura' ? '🌡️' : '⚗️'} Aviso ativo</strong> · {aviso.mensagem}
+            <div style={{ fontSize: '0.74rem', marginTop: 4 }}>Período analisado: {new Date(aviso.periodoInicio).toLocaleString('pt-BR')} a {new Date(aviso.periodoFim).toLocaleString('pt-BR')}{aviso.experimental ? ' · sensor sem calibração' : ''}</div>
+          </div>
+        ))}
 
         {/* Banner de erro inline — aparece quando SSE cai mas já há dados visíveis */}
         {error && (
@@ -369,7 +396,7 @@ export default function Dashboard() {
             <div style={{ display: 'flex', gap: 14, fontSize: '0.72rem', fontWeight: 600 }}>
               <span style={{ color: '#f97316' }}>▬ Temp.</span>
               <span style={{ color: '#3b82f6' }}>▬ pH</span>
-              <span style={{ color: '#a855f7' }}>▬ NH₃</span>
+              <span style={{ color: '#a855f7' }}>▬ Amônia (experimental)</span>
             </div>
           </div>
 
@@ -462,7 +489,7 @@ export default function Dashboard() {
         const params = [
           { key: 'temperatura', icon: '🌡️', label: 'Temp.',  value: tooltip.temp,   dec: 1, unit: ' °C',   color: '#fb923c' },
           { key: 'ph',          icon: '🧪', label: 'pH',     value: tooltip.ph,     dec: 2, unit: '',       color: '#60a5fa' },
-          { key: 'amonia',      icon: '⚗️', label: 'NH₃',   value: tooltip.amonia, dec: 3, unit: ' mg/L',  color: '#c084fc' },
+          { key: 'amonia',      icon: '⚗️', label: 'Amônia experimental', value: tooltip.amonia, dec: 3, unit: '', color: '#c084fc' },
         ];
         return (
           <div style={{

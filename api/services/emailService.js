@@ -1,9 +1,7 @@
 import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
 import dns from 'dns';
 import { promisify } from 'util';
 
-dotenv.config();
 
 // Promisify DNS functions
 const resolveMx = promisify(dns.resolveMx);
@@ -16,7 +14,7 @@ class EmailService {
 
   initializeTransporter() {
     // Configuração do transporter de email
-    this.transporter = nodemailer.createTransport({
+    this.transporter = nodemailer.createTransport(process.env.NODE_ENV === 'test' ? { jsonTransport: true } : {
       service: 'gmail', // Pode ser alterado para outros provedores
       auth: {
         user: process.env.EMAIL_USER || 'camarize.alertas@gmail.com',

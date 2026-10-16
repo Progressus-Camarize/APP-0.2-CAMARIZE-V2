@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import MemberLayout from '@/components/MemberLayout';
 import panelStyles from '@/styles/panel.module.css';
+import { carregarHistorico } from '@/lib/parametros';
 
 const PERIODO_MAP = {
   dia:    { label: 'Últimas 24 horas', dias: 1 },
@@ -13,7 +14,7 @@ const PERIODO_MAP = {
 const PARAM_CFG = [
   { key: 'temperatura', label: 'Temp.',  unit: '°C',    decimals: 1, color: '#f97316', icon: '🌡️' },
   { key: 'ph',          label: 'pH',     unit: '',      decimals: 1, color: '#3b82f6', icon: '🧪' },
-  { key: 'amonia',      label: 'NH₃',   unit: ' mg/L', decimals: 3, color: '#a855f7', icon: '⚗️' },
+  { key: 'amonia',      label: 'Amônia experimental', unit: '', decimals: 3, color: '#a855f7', icon: '⚗️' },
 ];
 
 function calcStats(dados, field) {
@@ -71,8 +72,8 @@ export default function RelatorioGeral() {
 
         const results = await Promise.all(
           lista.map(c =>
-            axios.get(`${apiUrl}/parametros/historicos/${c._id}?dias=${info.dias}`, { headers })
-              .then(r => ({ id: c._id, dados: r.data.dados || [] }))
+            carregarHistorico(apiUrl, c._id, info.dias, headers)
+              .then(dados => ({ id: c._id, dados }))
               .catch(() => ({ id: c._id, dados: [] }))
           )
         );

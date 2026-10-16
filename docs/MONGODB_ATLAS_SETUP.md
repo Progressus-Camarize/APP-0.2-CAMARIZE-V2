@@ -36,7 +36,7 @@
 ### 5. Configurar o Projeto
 1. Crie um arquivo `.env` na pasta `api/`:
 ```bash
-MONGO_URL=mongodb+srv://seu_usuario:sua_senha@seu_cluster.mongodb.net/camarize?retryWrites=true&w=majority
+MONGO_URL=mongodb://localhost:27017/camarize-dev
 PORT=4000
 NODE_ENV=development
 ```
@@ -62,7 +62,7 @@ npm start
 
 ## Exemplo de String de Conexão
 ```
-mongodb+srv://usuario:senha@cluster0.abc123.mongodb.net/camarize?retryWrites=true&w=majority
+mongodb://localhost:27017/camarize-dev
 ```
 
 ## Troubleshooting

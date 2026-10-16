@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import Modal from '../../components/Modal';
-import Link from 'next/link';
-import dynamic from 'next/dynamic';
+
 import { useAuth } from '@/hooks/useAuth';
-import { FaUserCircle } from 'react-icons/fa';
+
 import { HiOutlineClipboardList, HiOutlineBell, HiOutlineOfficeBuilding, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChartBar } from 'react-icons/hi';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
 
-const CreatableSelect = dynamic(() => import('react-select/creatable'), { ssr: false });
+
 
 export default function AdminPanel() {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -24,7 +23,7 @@ export default function AdminPanel() {
   const [fazendas, setFazendas] = useState([]);
   const [users, setUsers] = useState([]);
   const [tiposCamarao, setTiposCamarao] = useState([]);
-  const [condicoesIdeais, setCondicoesIdeais] = useState([]);
+  const [, setCondicoesIdeais] = useState([]);
   const [sensores, setSensores] = useState([]); // mantemos carregado para futuras funcionalidades
   const [previewImage, setPreviewImage] = useState({});  // cativeiroId -> imageUrl
   const [photoErrors, setPhotoErrors] = useState({});   // cativeiroId -> bool (foto não encontrada)
@@ -97,7 +96,7 @@ export default function AdminPanel() {
     quantidadeRefeicoes: 1,
     horarios: [''],
   });
-  const isMaster = (user?.role || (typeof window !== 'undefined' ? (JSON.parse(sessionStorage.getItem('usuarioCamarize') || localStorage.getItem('usuarioCamarize') || '{}')?.role) : '')) === 'master';
+
   const [newCativeiro, setNewCativeiro] = useState({
     fazendaId: '',
     nome: '',
@@ -339,7 +338,7 @@ export default function AdminPanel() {
 
   // Auto-scroll para última mensagem
   useEffect(() => {
-    try { chatEndRef.current && chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' }); } catch {}
+    try { chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); } catch {}
   }, [chatMessages.length, chatSelectedId]);
 
   useEffect(() => {
@@ -1150,7 +1149,7 @@ export default function AdminPanel() {
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                                 {cativeiro.sensores.map(s => {
                                   const tipo = getSensorType(s);
-                                  const SCFG = { temperatura: { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa', label: 'Temp' }, ph: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: 'pH' }, amonia: { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: 'NH₃' }, sensor: { bg: '#f8fafc', color: '#475569', border: '#e2e8f0', label: '—' } };
+                                  const SCFG = { temperatura: { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa', label: 'Temp' }, ph: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: 'pH' }, amonia: { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: 'Amônia' }, sensor: { bg: '#f8fafc', color: '#475569', border: '#e2e8f0', label: '—' } };
                                   const cfg = SCFG[tipo] || SCFG.sensor;
                                   return (
                                     <div key={s._id || s} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 20, padding: '4px 10px' }}>
@@ -2085,4 +2084,3 @@ export default function AdminPanel() {
     </div>
   );
 }
-

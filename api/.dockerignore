@@ -1,5 +1,7 @@
 node_modules
-.env
+.env*
+!.env.docker.example
+test-results
 tests
 scripts
 examples

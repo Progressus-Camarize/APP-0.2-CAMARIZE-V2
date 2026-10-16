@@ -94,8 +94,7 @@ class userService {
 
   // Atualizar foto do usuário
   async updatePhoto(id, foto_perfil) {
-    const updatedUser = await User.findByIdAndUpdate(id, { foto_perfil }, { new: true });
-    return updatedUser;
+    return User.findByIdAndUpdate(id, { foto_perfil }, { new: true });
   }
 
   // Listar usuários com filtro opcional por role

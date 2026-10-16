@@ -9,7 +9,6 @@ import DietasxCativeiros from "../models/DietasxCativeiros.js";
 import Sensores from "../models/Sensores.js";
 import SensoresxCativeiros from "../models/SensoresxCativeiros.js";
 
-
 class RequestService {
   async create({ requesterUser, requesterRole, targetRole, type, action, payload, fazenda }) {
     const req = new Request({ requesterUser, requesterRole, targetRole, type, action, payload, fazenda });

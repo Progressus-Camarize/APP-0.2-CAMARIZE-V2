@@ -1,9 +1,7 @@
-FROM node:18
+FROM node:24
 WORKDIR /app
 COPY package*.json ./
-RUN npm config set strict-ssl false
-RUN npm install
+RUN npm ci
 COPY . .
 CMD ["npm", "start"]
 EXPOSE 4000
-
