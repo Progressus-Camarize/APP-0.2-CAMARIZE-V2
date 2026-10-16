@@ -1,5 +1,5 @@
 import express from 'express';
-import { verifyToken } from '../middleware/Auth.js';
+import Auth from '../middleware/Auth.js';
 import {
   getMyConversations,
   createConversation,
@@ -9,6 +9,8 @@ import {
 } from '../controllers/chatController.js';
 
 const router = express.Router();
+
+router.use(Auth.Authorization);
 
 /**
  * @swagger
@@ -35,7 +37,7 @@ const router = express.Router();
  *               items:
  *                 $ref: '#/components/schemas/Conversation'
  */
-router.get('/conversations/mine', verifyToken, getMyConversations);
+router.get('/conversations/mine', getMyConversations);
 
 /**
  * @swagger
@@ -71,7 +73,7 @@ router.get('/conversations/mine', verifyToken, getMyConversations);
  *       200:
  *         description: Conversa já existente retornada
  */
-router.post('/conversations', verifyToken, createConversation);
+router.post('/conversations', createConversation);
 
 /**
  * @swagger
@@ -102,7 +104,7 @@ router.post('/conversations', verifyToken, createConversation);
  *       404:
  *         description: Conversa não encontrada
  */
-router.get('/conversations/:id/messages', verifyToken, getMessages);
+router.get('/conversations/:id/messages', getMessages);
 
 /**
  * @swagger
@@ -141,7 +143,7 @@ router.get('/conversations/:id/messages', verifyToken, getMessages);
  *       403:
  *         description: Usuário não participa da conversa
  */
-router.post('/conversations/:id/messages', verifyToken, sendMessage);
+router.post('/conversations/:id/messages', sendMessage);
 
 /**
  * @swagger
@@ -166,6 +168,6 @@ router.post('/conversations/:id/messages', verifyToken, sendMessage);
  *       404:
  *         description: Conversa não encontrada
  */
-router.delete('/conversations/:id', verifyToken, deleteConversation);
+router.delete('/conversations/:id', deleteConversation);
 
 export default router;

@@ -4,7 +4,7 @@ import Message from '../models/Message.js';
 // GET /chat/conversations/mine - Listar conversas do usuário autenticado
 export const getMyConversations = async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.loggedUser.id;
     const conversations = await Conversation.find({ participants: userId })
       .populate('participants', 'nome email foto_perfil role')
       .sort({ lastMessageAt: -1 });
@@ -55,7 +55,7 @@ export const createConversation = async (req, res) => {
 export const getMessages = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.userId;
+    const userId = req.loggedUser.id;
 
     // Verifica se o usuário participa da conversa
     const conversation = await Conversation.findById(id);
@@ -90,7 +90,7 @@ export const sendMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const { text } = req.body;
-    const userId = req.userId;
+    const userId = req.loggedUser.id;
 
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'O texto da mensagem é obrigatório' });
@@ -141,7 +141,7 @@ export const sendMessage = async (req, res) => {
 export const deleteConversation = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.userId;
+    const userId = req.loggedUser.id;
 
     const conversation = await Conversation.findById(id);
     if (!conversation) {
