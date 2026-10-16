@@ -49,7 +49,7 @@ Na raiz da API, copie o template de variáveis de ambiente:
 mongodump --uri="URL_DE_PRODUCAO" --out=./dump
 
 mongorestore \
-  --uri="MONGO_URL=mongodb+srv://USUARIO:SENHA@SEU_CLUSTER.mongodb.net/camarize-dev?retryWrites=true&w=majority" \
+  --uri="URI_DO_ATLAS_COM_BANCO_CAMARIZE_DEV" \
   ./dump/NOME_DO_BANCO_DE_PRODUCAO
 ```
 
