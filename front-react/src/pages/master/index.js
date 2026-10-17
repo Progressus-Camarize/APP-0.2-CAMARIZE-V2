@@ -177,6 +177,27 @@ export default function MasterPanel() {
     }
   };
 
+  const [showHistoricoChaveModal, setShowHistoricoChaveModal] = useState(false);
+  const [historicoChaveCativeiro, setHistoricoChaveCativeiro] = useState({ id: '', nome: '' });
+  const [historicoChave, setHistoricoChave] = useState([]);
+  const [historicoChaveLoading, setHistoricoChaveLoading] = useState(false);
+
+  const abrirHistoricoChave = async (c) => {
+    setHistoricoChaveCativeiro({ id: c._id, nome: c.nome || '' });
+    setShowHistoricoChaveModal(true);
+    setHistoricoChaveLoading(true);
+    try {
+      const token = getToken();
+      const res = await axios.get(`${apiUrl}/parametros/dispositivos/${c._id}/historico`, { headers: { Authorization: `Bearer ${token}` } });
+      setHistoricoChave(res.data?.historico || []);
+    } catch (e) {
+      console.error('Erro ao carregar histórico da chave do dispositivo:', e);
+      setHistoricoChave([]);
+    } finally {
+      setHistoricoChaveLoading(false);
+    }
+  };
+
   const confirmLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -1468,6 +1489,14 @@ export default function MasterPanel() {
                                         Alertas
                                       </button>
                                       <button
+                                        className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
+                                        onClick={() => abrirHistoricoChave(c)}
+                                        title="Ver trilha de quem gerou a chave do dispositivo deste viveiro"
+                                      >
+                                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        Chave
+                                      </button>
+                                      <button
                                         className={`${styles.btn} ${styles.btnSm}`}
                                         style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}
                                         onClick={() => deleteCativeiro(c._id)}
@@ -2622,6 +2651,44 @@ export default function MasterPanel() {
               {limitesSubmitting ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
+        </div>
+      </Modal>
+      {/* Modal de trilha de auditoria da chave do dispositivo */}
+      <Modal isOpen={showHistoricoChaveModal} onClose={() => setShowHistoricoChaveModal(false)} title={`Trilha da chave do dispositivo — ${historicoChaveCativeiro.nome}`}>
+        <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 14 }}>
+          Registra quem gerou cada chave do ESP32 deste viveiro e quando — a chave em si nunca fica
+          guardada. Útil para investigar se um aviso de sensor inativo coincide com uma troca de chave.
+        </div>
+        {historicoChaveLoading ? (
+          <div style={{ color: '#64748b', padding: '12px 0' }}>Carregando...</div>
+        ) : historicoChave.length === 0 ? (
+          <div style={{ color: '#64748b', padding: '12px 0' }}>Nenhuma chave foi gerada para este viveiro ainda.</div>
+        ) : (
+          <div style={{ position: 'relative', paddingLeft: 20 }}>
+            <div style={{ position: 'absolute', left: 5, top: 6, bottom: 6, width: 2, background: '#e2e8f0' }} />
+            {historicoChave.map((item, index) => (
+              <div key={index} style={{ position: 'relative', paddingBottom: index === historicoChave.length - 1 ? 0 : 18 }}>
+                <div style={{
+                  position: 'absolute', left: -20, top: 2, width: 12, height: 12, borderRadius: '50%',
+                  background: index === 0 ? '#3b82f6' : '#cbd5e1', border: '2px solid #fff', boxShadow: '0 0 0 1px #e2e8f0',
+                }} />
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1e293b' }}>
+                  {new Date(item.geradoEm).toLocaleString('pt-BR')}
+                  {index === 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#3b82f6' }}>CHAVE ATUAL</span>}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: 2 }}>
+                  {item.geradoPor ? (
+                    <>Gerada por <strong>{item.geradoPor.nome}</strong> ({item.geradoPor.email}) — {item.geradoPor.role}</>
+                  ) : (
+                    <em>Usuário não encontrado (pode ter sido removido depois)</em>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={() => setShowHistoricoChaveModal(false)} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Fechar</button>
         </div>
       </Modal>
       {/* Modal de aprovação de funcionário */}
