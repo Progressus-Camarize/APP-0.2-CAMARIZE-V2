@@ -243,3 +243,28 @@ test('limites de sensibilidade de pH/amônia: só admin/master, com validação'
   assert.equal(ok.status, 200);
   assert.deepEqual(ok.body, { phLimiar: 0.4, amoniaLimiarPct: 0.3 });
 });
+
+test('histórico de rotação da chave do dispositivo: registra quem gerou, sem guardar a chave', async () => {
+  const pond = fixtures.cativeiros[0].id;
+  const ownToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[0].email, senha: password } })).body.token;
+  const master = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[2].email, senha: password } })).body.token;
+
+  assert.equal((await request(`/parametros/dispositivos/${pond}/historico`, { auth: ownToken })).status, 403, 'membro não pode ver o histórico de chaves');
+  assert.equal((await request(`/parametros/dispositivos/${pond}/historico`, { auth: otherToken })).status, 403, 'usuário de outra fazenda não tem acesso ao cativeiro');
+
+  const antes = await request(`/parametros/dispositivos/${pond}/historico`, { auth: master });
+  assert.equal(antes.status, 200);
+  const totalAntes = antes.body.historico.length;
+  assert.ok(totalAntes >= 1, 'o teste de dispositivo anterior já deve ter gerado uma chave para este viveiro');
+
+  const provisionNova = await request(`/parametros/dispositivos/${pond}/chave`, { method: 'POST', auth: master });
+  assert.equal(provisionNova.status, 200);
+
+  const depois = await request(`/parametros/dispositivos/${pond}/historico`, { auth: master });
+  assert.equal(depois.body.historico.length, totalAntes + 1);
+  const maisRecente = depois.body.historico[0];
+  assert.equal(maisRecente.geradoPor.email, fixtures.users[2].email);
+  assert.equal(maisRecente.geradoPor.role, 'master');
+  assert.ok(new Date(maisRecente.geradoEm).getTime() > 0);
+  assert.equal(JSON.stringify(depois.body).includes(provisionNova.body.chave), false, 'a chave em si nunca deve aparecer no histórico');
+});

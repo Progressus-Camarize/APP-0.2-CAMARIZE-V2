@@ -5,6 +5,7 @@ import cativeiroController from "../controllers/cativeiroController.js";
 import parametrosEmitter from "../services/parametrosEmitter.js";
 import crypto from 'node:crypto';
 import DeviceCredential from '../models/DeviceCredential.js';
+import DeviceCredentialHistory from '../models/DeviceCredentialHistory.js';
 import Aviso from '../models/Aviso.js';
 import CondicoesIdeais from '../models/Condicoes_ideais.js';
 import { processReading, freshness, evaluate, temperatureBounds, VALID_READING_FILTER } from '../services/avisoService.js';
@@ -26,7 +27,25 @@ const provisionDevice = async (req, res) => {
   const key = crypto.randomBytes(32).toString('hex');
   await DeviceCredential.findOneAndUpdate({ cativeiro: cativeiroId },
     { keyHash: credentialHash(key), updatedAt: new Date() }, { upsert: true });
+  // Auditoria: nunca guarda a chave, só quem gerou e quando — permite investigar depois
+  // se um sensor "parou de funcionar" porque alguém trocou a chave sem avisar.
+  await DeviceCredentialHistory.create({ cativeiro: cativeiroId, geradoPor: req.loggedUser.id });
   res.json({ chave: key, aviso: 'Guarde esta chave no ESP32. Ela será exibida somente agora; gerar outra revoga a anterior.' });
+};
+
+const getDeviceCredentialHistory = async (req, res) => {
+  const { cativeiroId } = req.params;
+  if (!mongoose.isValidObjectId(cativeiroId)) return res.status(400).json({ error: 'ID inválido' });
+  if (req.loggedUser.role === 'membro') return res.status(403).json({ error: 'Acesso negado' });
+  const access = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+  if (access === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!access) return res.status(403).json({ error: 'Acesso negado' });
+  const historico = await DeviceCredentialHistory.find({ cativeiro: cativeiroId })
+    .sort({ geradoEm: -1 }).populate('geradoPor', 'nome email role').lean();
+  res.json({ historico: historico.map(h => ({
+    geradoEm: h.geradoEm,
+    geradoPor: h.geradoPor ? { id: h.geradoPor._id, nome: h.geradoPor.nome, email: h.geradoPor.email, role: h.geradoPor.role } : null,
+  })) });
 };
 
 const updateTemperatureLimits = async (req, res) => {
@@ -401,6 +420,7 @@ const streamDashboard = async (req, res) => {
 export {
   cadastrarParametros,
   provisionDevice,
+  getDeviceCredentialHistory,
   updateTemperatureLimits,
   updateSensitivityLimits,
   getParametrosAtuais,

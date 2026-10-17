@@ -1,5 +1,5 @@
 import express from "express";
-import { cadastrarParametros, provisionDevice, updateTemperatureLimits, updateSensitivityLimits, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
+import { cadastrarParametros, provisionDevice, getDeviceCredentialHistory, updateTemperatureLimits, updateSensitivityLimits, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
 import Auth from "../middleware/Auth.js";
 
 const router = express.Router();
@@ -40,6 +40,7 @@ const router = express.Router();
  */
 router.post("/cadastrar", cadastrarParametros);
 router.post('/dispositivos/:cativeiroId/chave', Auth.Authorization, provisionDevice);
+router.get('/dispositivos/:cativeiroId/historico', Auth.Authorization, getDeviceCredentialHistory);
 router.patch('/limites-temperatura/:cativeiroId', Auth.Authorization, updateTemperatureLimits);
 router.patch('/limites-sensibilidade/:cativeiroId', Auth.Authorization, updateSensitivityLimits);
 

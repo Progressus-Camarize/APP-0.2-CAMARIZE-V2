@@ -5,7 +5,8 @@ import Modal from '../../components/Modal';
 
 import { useAuth } from '@/hooks/useAuth';
 
-import { HiOutlineClipboardList, HiOutlineBell, HiOutlineOfficeBuilding, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChartBar } from 'react-icons/hi';
+import { HiOutlineClipboardList, HiOutlineBell, HiOutlineExclamationCircle, HiOutlineOfficeBuilding, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChartBar } from 'react-icons/hi';
+import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
@@ -85,6 +86,51 @@ export default function AdminPanel() {
     id: '', cativeiroNome: '', nome: '', id_tipo_camarao: '',
     data_instalacao: '', temp_media_diaria: '', ph_medio_diario: '', amonia_media_diaria: ''
   });
+  const [showLimitesModal, setShowLimitesModal] = useState(false);
+  const [limitesForm, setLimitesForm] = useState({ id: '', nome: '', minimo: '', maximo: '', phLimiar: '', amoniaLimiarPct: '' });
+  const [limitesSubmitting, setLimitesSubmitting] = useState(false);
+
+  const abrirModalLimites = (c) => {
+    setLimitesForm({
+      id: c._id,
+      nome: c.nome || '',
+      minimo: c.condicoes_ideais?.temp_min ?? '',
+      maximo: c.condicoes_ideais?.temp_max ?? '',
+      phLimiar: c.condicoes_ideais?.ph_limiar ?? '',
+      amoniaLimiarPct: c.condicoes_ideais?.amonia_limiar_pct ?? '',
+    });
+    setShowLimitesModal(true);
+  };
+
+  const salvarLimitesAvisos = async () => {
+    setLimitesSubmitting(true);
+    try {
+      const token = getToken();
+      const headers = { Authorization: `Bearer ${token}` };
+      const tarefas = [];
+      const { id, minimo, maximo, phLimiar, amoniaLimiarPct } = limitesForm;
+      if (minimo !== '' && maximo !== '') {
+        tarefas.push(axios.patch(`${apiUrl}/parametros/limites-temperatura/${id}`,
+          { minimo: Number(minimo), maximo: Number(maximo) }, { headers }));
+      }
+      if (phLimiar !== '' && amoniaLimiarPct !== '') {
+        tarefas.push(axios.patch(`${apiUrl}/parametros/limites-sensibilidade/${id}`,
+          { phLimiar: Number(phLimiar), amoniaLimiarPct: Number(amoniaLimiarPct) }, { headers }));
+      }
+      if (tarefas.length === 0) {
+        setShowLimitesModal(false);
+        return;
+      }
+      await Promise.all(tarefas);
+      setShowLimitesModal(false);
+      await load();
+    } catch (e) {
+      console.error('Falha ao salvar limites de avisos:', e);
+      alert('Erro ao salvar limites: ' + (e?.response?.data?.error || e.message));
+    } finally {
+      setLimitesSubmitting(false);
+    }
+  };
   // Dietas por cativeiro (cache simples)
   const [cativeiroDieta, setCativeiroDieta] = useState({}); // id -> { descricao }
   const [showDietaModal, setShowDietaModal] = useState(false);
@@ -259,6 +305,42 @@ export default function AdminPanel() {
       loadAllRequests().then(setAllRequests);
     }
   }, [tab, isAuthenticated]);
+
+  const [avisos, setAvisos] = useState([]);
+  const [avisosLoading, setAvisosLoading] = useState(false);
+  const { count: avisosNaoVistos, markSeen: marcarAvisosVistos } = useUnreadAvisos();
+
+  const loadAvisos = async () => {
+    setAvisosLoading(true);
+    try {
+      const token = getToken();
+      const response = await axios.get(`${apiUrl}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+      setAvisos(response.data?.notifications || []);
+    } catch (e) {
+      console.error('Erro ao carregar avisos:', e);
+    } finally {
+      setAvisosLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'avisos' && isAuthenticated) {
+      loadAvisos();
+      marcarAvisosVistos();
+    }
+  }, [tab, isAuthenticated]);
+
+  const avaliarAviso = async (avisoId, avaliacao) => {
+    try {
+      const token = getToken();
+      await axios.patch(`${apiUrl}/notifications/${avisoId}/avaliacao`, { avaliacao }, { headers: { Authorization: `Bearer ${token}` } });
+      setAvisos(lista => lista.map(a => a.id === avisoId ? { ...a, avaliacao, verificadoEm: new Date().toISOString() } : a));
+    } catch (e) {
+      console.error('Erro ao avaliar aviso:', e);
+    }
+  };
+
+  const avisoIcone = (tipo) => ({ temperatura: '🌡️', ph: '🧪', amonia: '⚗️', sensor_inativo: '📡' }[tipo] || '🔔');
 
   // Chat polling
   useEffect(() => {
@@ -786,6 +868,7 @@ export default function AdminPanel() {
 
   const adminNavItems = [
     { id: 'requests', icon: HiOutlineClipboardList, label: 'Histórico' },
+    { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Avisos', badge: avisosNaoVistos || null },
     { id: 'solicitacoes', icon: HiOutlineBell, label: 'Solicitações', badge: items.length || null },
     { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Cativeiros' },
     { id: 'monitoramento', icon: HiOutlineChartBar, label: 'Monitoramento' },
@@ -795,6 +878,7 @@ export default function AdminPanel() {
 
   const adminPageTitles = {
     requests: ['Histórico', 'Histórico de ações dos funcionários'],
+    avisos: ['Avisos', 'Alertas gerados pelo monitoramento dos viveiros'],
     solicitacoes: ['Solicitações', 'Aprovações pendentes de funcionários'],
     cativeiros: ['Fazendas & Cativeiros', 'Gerencie suas fazendas e cativeiros'],
     monitoramento: ['Monitoramento', 'Dashboard e relatórios dos cativeiros em tempo real'],
@@ -857,6 +941,46 @@ export default function AdminPanel() {
           </div>
         </header>
         <div className={styles.content}>
+
+      {tab === 'avisos' && (
+        <section className={styles.section}>
+          {avisosLoading ? (
+            <div style={{ color: '#64748b', padding: 20 }}>Carregando avisos...</div>
+          ) : avisos.length === 0 ? (
+            <div style={{ color: '#64748b', padding: 20 }}>Nenhum aviso até o momento.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {avisos.map(aviso => (
+                <div key={aviso.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <strong>{avisoIcone(aviso.tipo)} {aviso.cativeiroNome}</strong>
+                      <span style={{ marginLeft: 8, fontSize: 12, color: aviso.estado === 'ativo' ? '#b45309' : '#16a34a', fontWeight: 600 }}>
+                        {aviso.estado === 'ativo' ? 'ATIVO' : 'RECUPERADO'}
+                      </span>
+                      <div style={{ marginTop: 4, color: '#334155', fontSize: '0.88rem' }}>{aviso.mensagem}</div>
+                      <div style={{ marginTop: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
+                        {new Date(aviso.datahora).toLocaleString('pt-BR')}
+                        {aviso.experimental ? ' · sensor sem calibração · medição experimental' : ''}
+                      </div>
+                    </div>
+                    {aviso.avaliacao ? (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: aviso.avaliacao === 'confirmado' ? '#166534' : '#991b1b' }}>
+                        {aviso.avaliacao === 'confirmado' ? '✓ Confirmado' : '✗ Falso alarme'}
+                      </span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => avaliarAviso(aviso.id, 'confirmado')} style={{ border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Confirmar</button>
+                        <button onClick={() => avaliarAviso(aviso.id, 'falso_alarme')} style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Falso alarme</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {tab === 'requests' && (
         <section className={styles.section}>
@@ -1094,6 +1218,14 @@ export default function AdminPanel() {
                             >
                               <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                               Solicitar Edição
+                            </button>
+                            <button
+                              className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
+                              onClick={() => abrirModalLimites(cativeiro)}
+                              title="Configurar limites de temperatura e sensibilidade dos avisos"
+                            >
+                              <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              Alertas
                             </button>
                           </div>
 
@@ -1846,6 +1978,46 @@ export default function AdminPanel() {
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
             <button onClick={() => setShowEditModal(false)} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancelar</button>
             <button onClick={solicitarEdicaoCativeiro} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Enviar Solicitação</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de limites de avisos (temperatura e sensibilidade de pH/amônia) */}
+      <Modal isOpen={showLimitesModal} onClose={() => setShowLimitesModal(false)} title={`Limites de avisos — ${limitesForm.nome}`}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ gridColumn: 'span 2', fontSize: '0.78rem', color: '#64748b', marginBottom: 4 }}>
+            Define quando a detecção de tendência abre um aviso para este viveiro. Deixe um par de
+            campos em branco para manter o padrão do sistema naquele parâmetro.
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp. mínima (°C)</label>
+            <input type="number" step="0.1" value={limitesForm.minimo}
+              onChange={(e) => setLimitesForm(f => ({ ...f, minimo: e.target.value }))}
+              placeholder="padrão: ideal − 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp. máxima (°C)</label>
+            <input type="number" step="0.1" value={limitesForm.maximo}
+              onChange={(e) => setLimitesForm(f => ({ ...f, maximo: e.target.value }))}
+              placeholder="padrão: ideal + 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Limiar de pH</label>
+            <input type="number" step="0.01" min="0.05" max="3" value={limitesForm.phLimiar}
+              onChange={(e) => setLimitesForm(f => ({ ...f, phLimiar: e.target.value }))}
+              placeholder="padrão: 0,35" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Limiar de amônia (%)</label>
+            <input type="number" step="0.01" min="0.05" max="1" value={limitesForm.amoniaLimiarPct}
+              onChange={(e) => setLimitesForm(f => ({ ...f, amoniaLimiarPct: e.target.value }))}
+              placeholder="padrão: 0,25 (25%)" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+          </div>
+          <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+            <button onClick={() => setShowLimitesModal(false)} disabled={limitesSubmitting} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={salvarLimitesAvisos} disabled={limitesSubmitting} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>
+              {limitesSubmitting ? 'Salvando...' : 'Salvar'}
+            </button>
           </div>
         </div>
       </Modal>
