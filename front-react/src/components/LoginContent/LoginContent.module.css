@@ -113,6 +113,37 @@
   cursor: not-allowed;
 }
 
+.loginButtonContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.slowHint {
+  width: 100%;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #6b7280;
+  margin-top: -8px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
 .errorMsg {
   color: #ff4d4f;
   font-size: 0.95rem;

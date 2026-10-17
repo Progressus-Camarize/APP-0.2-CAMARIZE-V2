@@ -2,9 +2,13 @@ import styles from "@/components/LoginContent/LoginContent.module.css";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import axios from "axios";
 
+// Plano free do Render "dorme" a API após inatividade; o primeiro request
+// pode levar até ~1 min para acordar o servidor. Depois desse tempo sem
+// resposta, mostramos um aviso para o usuário não achar que travou.
+const SLOW_HINT_DELAY_MS = 4000;
 
 const LoginContent = () => {
   const router = useRouter();
@@ -13,11 +17,17 @@ const LoginContent = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showSlowHint, setShowSlowHint] = useState(false);
+  const slowHintTimer = useRef(null);
   const isFormValid = email && senha;
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
+    setShowSlowHint(false);
+    slowHintTimer.current = setTimeout(() => setShowSlowHint(true), SLOW_HINT_DELAY_MS);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const response = await axios.post(`${apiUrl}/users/auth`, { email, senha });
@@ -44,6 +54,10 @@ const LoginContent = () => {
       else router.push('/home');
     } catch {
       setError("Usuário ou senha inválidos!");
+      setLoading(false);
+    } finally {
+      clearTimeout(slowHintTimer.current);
+      setShowSlowHint(false);
     }
   };
 
@@ -101,10 +115,20 @@ const LoginContent = () => {
         <button
           type="submit"
           className={styles.loginButton}
-          disabled={!isFormValid}
+          disabled={!isFormValid || loading}
         >
-          Conectar
+          {loading ? (
+            <span className={styles.loginButtonContent}>
+              <span className={styles.spinner} aria-hidden="true" />
+              Conectando...
+            </span>
+          ) : "Conectar"}
         </button>
+        {showSlowHint && (
+          <div className={styles.slowHint}>
+            O servidor está iniciando (plano gratuito) — isso pode levar até 1 minuto na primeira vez.
+          </div>
+        )}
         {error && <div className={styles.errorMsg}>{error}</div>}
         <div className={styles.registerRow}>
           <span>Não tem uma conta?</span>
