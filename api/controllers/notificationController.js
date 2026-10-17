@@ -1,6 +1,7 @@
 import ParametrosAtuais from "../models/Parametros_atuais.js";
 import Cativeiros from '../models/Cativeiros.js';
 import Aviso from '../models/Aviso.js';
+import User from '../models/Users.js';
 import cativeiroService from '../services/cativeiroService.js';
 import cativeiroController from './cativeiroController.js';
 import { freshness, VALID_READING_FILTER } from '../services/avisoService.js';
@@ -118,6 +119,35 @@ const getNotificationSummary = async (req, res) => {
   } catch (error) {
     console.error('Erro ao resumir avisos:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+};
+
+// Contador independente de push: quantos avisos surgiram desde a última vez que o
+// usuário abriu a tela de notificações. Usado para um indicador no app que funciona
+// mesmo que o push esteja desabilitado, tenha falhado ou o dispositivo esteja offline.
+const getUnreadCount = async (req, res) => {
+  try {
+    const cativeiros = req.loggedUser.role === 'master'
+      ? await Cativeiros.find().select('_id').lean()
+      : await cativeiroService.getAllByUsuarioViaRelacionamentos(req.loggedUser.id);
+    const ids = cativeiros.map(c => c._id);
+    const user = await User.findById(req.loggedUser.id).select('avisosVistoEm').lean();
+    const desde = user?.avisosVistoEm || new Date(0);
+    const naoVistos = await Aviso.countDocuments({ cativeiro: { $in: ids }, criadoEm: { $gt: desde } });
+    res.json({ success: true, naoVistos });
+  } catch (error) {
+    console.error('Erro ao contar avisos não vistos:', error);
+    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+  }
+};
+
+const markNotificationsSeen = async (req, res) => {
+  try {
+    await User.updateOne({ _id: req.loggedUser.id }, { $set: { avisosVistoEm: new Date() } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao marcar avisos como vistos:', error);
+    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
   }
 };
 
@@ -423,6 +453,8 @@ export default {
   getNotificationsByCativeiro,
   evaluateNotification,
   getNotificationSummary,
+  getUnreadCount,
+  markNotificationsSeen,
   subscribeToPush,
   unsubscribeFromPush,
   getEmailSettings,

@@ -32,6 +32,12 @@ const userSchema = new mongoose.Schema({
   tokenVersion: {
     type: Number,
     default: 0,
+  },
+  // Carimbo de quando o usuário conferiu os avisos pela última vez — serve
+  // de base para o contador de "não vistos" independente de push.
+  avisosVistoEm: {
+    type: Date,
+    default: null,
   }
 });
 

@@ -207,3 +207,19 @@ test('dispositivo autenticado gera aviso explicável, isolado por fazenda e idem
   assert.equal(page.body.dados.length, 2);
   assert.equal(page.body.proximaPagina, 2);
 });
+
+test('contador de avisos não vistos independe de push e some ao marcar como visto', async () => {
+  // token já foi revogado pelo teste de logout acima; usa ownToken (mesmo usuário, sessão nova).
+  const ownToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[0].email, senha: password } })).body.token;
+  const unread = await request('/notifications/nao-vistos', { auth: ownToken });
+  assert.equal(unread.status, 200);
+  assert.ok(unread.body.naoVistos >= 3, 'deve contar os avisos já criados nos testes anteriores');
+  assert.equal((await request('/notifications/nao-vistos')).status, 401);
+
+  const marcado = await request('/notifications/marcar-visto', { method: 'POST', auth: ownToken });
+  assert.equal(marcado.status, 200);
+  assert.equal((await request('/notifications/nao-vistos', { auth: ownToken })).body.naoVistos, 0);
+
+  assert.equal((await request('/notifications/nao-vistos', { auth: otherToken })).body.naoVistos, 0,
+    'otherToken não tem acesso aos cativeiros do dono, não deve contar os avisos dele');
+});

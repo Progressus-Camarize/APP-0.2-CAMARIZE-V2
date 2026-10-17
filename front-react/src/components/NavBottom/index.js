@@ -1,10 +1,12 @@
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
+import { useUnreadAvisos } from "../../hooks/useUnreadAvisos";
 import styles from "./NavBottom.module.css";
 
 export default function NavBottom({ homeRef, settingsRef, requestsRef, notificationsRef, profileRef }) {
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
+  const { count: avisosNaoVistos } = useUnreadAvisos();
 
   useEffect(() => {
     const checkMobile = () => {
@@ -60,12 +62,25 @@ export default function NavBottom({ homeRef, settingsRef, requestsRef, notificat
       >
         <img src="/images/history.svg" alt="Minhas Solicitações" style={{ width: '32px', height: '32px' }} />
       </button>
-      <button 
-        ref={notificationsRef} 
+      <button
+        ref={notificationsRef}
         onClick={() => router.push('/notifications')}
-        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', position: 'relative' }}
       >
         <img src="/images/bell.svg" alt="Notificações" style={{ width: '32px', height: '32px' }} />
+        {avisosNaoVistos > 0 && (
+          <span
+            aria-label={`${avisosNaoVistos} avisos não vistos`}
+            style={{
+              position: 'absolute', top: -2, right: -2, minWidth: '16px', height: '16px',
+              borderRadius: '8px', background: '#ef4444', color: '#fff', fontSize: '10px',
+              fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 4px', lineHeight: 1,
+            }}
+          >
+            {avisosNaoVistos > 9 ? '9+' : avisosNaoVistos}
+          </span>
+        )}
       </button>
       <button 
         ref={profileRef} 

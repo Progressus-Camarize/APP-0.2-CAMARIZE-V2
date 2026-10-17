@@ -107,20 +107,44 @@ export async function processReading(cativeiroId, now = new Date()) {
   }
 }
 
-export async function deliverPending(filter = {}) {
+export const MAX_PUSH_ATTEMPTS = 3;
+// Backoff crescente: 2min, 10min, 30min antes de desistir de vez.
+const RETRY_BACKOFF_MS = [2, 10, 30].map(minutos => minutos * 60_000);
+
+export async function deliverPending(filter = {}, now = new Date()) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
-  const pending = await Aviso.find({ ...filter, pushStatus: 'pendente' }).limit(100).populate('cativeiro', 'nome').lean();
+  const pending = await Aviso.find({
+    ...filter,
+    pushStatus: 'pendente',
+    $or: [{ proximaTentativaEm: { $exists: false } }, { proximaTentativaEm: null }, { proximaTentativaEm: { $lte: now } }],
+  }).limit(100).populate('cativeiro', 'nome').lean();
+
   for (const aviso of pending) {
     const claimed = await Aviso.findOneAndUpdate({ _id: aviso._id, pushStatus: 'pendente' },
-      { $set: { pushStatus: 'processando', pushTentadoEm: new Date() } });
+      { $set: { pushStatus: 'processando', pushTentadoEm: now } }, { new: false });
     if (!claimed) continue;
     try {
-      await alertService.sendPush({ cativeiro: aviso.cativeiro._id, cativeiroNome: aviso.cativeiro.nome,
+      const resultado = await alertService.sendPush({ cativeiro: aviso.cativeiro._id, cativeiroNome: aviso.cativeiro.nome,
         tipo: aviso.tipo, mensagem: aviso.mensagem, severidade: 'media' });
-      await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'enviado' } });
+      if (resultado.attempted === 0) {
+        // Ninguém com push ativo agora — não é uma falha, não entra na fila de retry.
+        await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'sem_inscricao' } });
+      } else if (resultado.sent > 0) {
+        await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'enviado' } });
+      } else {
+        throw new Error(`Nenhuma entrega bem-sucedida (${resultado.failed} falha(s))`);
+      }
     } catch (error) {
       console.error('Falha ao entregar aviso:', error);
-      await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'indisponivel' } });
+      const tentativas = (claimed.pushTentativas || 0) + 1;
+      if (tentativas >= MAX_PUSH_ATTEMPTS) {
+        await Aviso.updateOne({ _id: aviso._id }, { $set: { pushStatus: 'falhou' }, $inc: { pushTentativas: 1 } });
+      } else {
+        await Aviso.updateOne({ _id: aviso._id }, {
+          $set: { pushStatus: 'pendente', proximaTentativaEm: new Date(now.getTime() + RETRY_BACKOFF_MS[tentativas - 1]) },
+          $inc: { pushTentativas: 1 },
+        });
+      }
     }
   }
 }

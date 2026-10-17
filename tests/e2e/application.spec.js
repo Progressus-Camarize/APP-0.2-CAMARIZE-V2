@@ -10,6 +10,13 @@ async function login(page) {
   await expect(page).toHaveURL(/\/home$/);
 }
 
+test('service worker de push está publicado e acessível', async ({ request }) => {
+  const response = await request.get('/sw.js');
+  expect(response.status()).toBe(200);
+  const body = await response.text();
+  expect(body).toContain("addEventListener('push'");
+});
+
 test('login no navegador rejeita credenciais incorretas', async ({ page }) => {
   await page.goto('/login');
   await page.getByPlaceholder('Email', { exact: true }).fill('membro-a@example.invalid');

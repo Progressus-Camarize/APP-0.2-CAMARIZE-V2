@@ -55,7 +55,7 @@ test('ocorrência única, recuperação e nova ocorrência; somente leitura aute
   assert.equal((await Aviso.findOne({ tipo: 'ph' })).pushStatus, 'pendente');
   process.env.VAPID_PUBLIC_KEY = 'teste';
   process.env.VAPID_PRIVATE_KEY = 'teste';
-  const push = vi.spyOn(alertService, 'sendPush').mockResolvedValue();
+  const push = vi.spyOn(alertService, 'sendPush').mockResolvedValue({ attempted: 1, sent: 1, failed: 0 });
   await deliverPending();
   await deliverPending();
   assert.equal(push.mock.calls.length, 1);
@@ -68,4 +68,61 @@ test('ocorrência única, recuperação e nova ocorrência; somente leitura aute
   await create([[28,7,0.2],[28,7,0.2],[28,7,0.2],[28,8,0.2],[28,8,0.2],[28,8,0.2]], true, 1);
   await processReading(pond);
   assert.equal(await Aviso.countDocuments({ tipo: 'ph' }), 2);
+});
+
+test('push: falha real tenta de novo com backoff até esgotar e marca "falhou"; sem inscrição marca "sem_inscricao" sem retry', async () => {
+  const pond = fixtures.cativeiros[1]._id;
+  const trend = samples([[28,7,0.2],[28,7,0.2],[28,7,0.2],[29.5,7.7,0.3],[29.7,7.8,0.32],[29.8,7.9,0.34]], Date.now() - 10 * 60_000);
+  await ParametrosAtuais.insertMany(trend.map((v, i) => ({
+    id_cativeiro: pond, autenticada: true, origem: 'dispositivo', amostraId: `retry_${Date.now()}_${i}_${Math.random()}`, ...v,
+  })));
+  await processReading(pond);
+  const temperatura = await Aviso.findOne({ cativeiro: pond, tipo: 'temperatura', estado: 'ativo' });
+  const amonia = await Aviso.findOne({ cativeiro: pond, tipo: 'amonia', estado: 'ativo' });
+  assert.ok(temperatura && amonia);
+
+  process.env.VAPID_PUBLIC_KEY = 'teste';
+  process.env.VAPID_PRIVATE_KEY = 'teste';
+
+  // Falha real de entrega (ex.: servidor de push fora do ar) deve ser reprocessada, não desistida de cara.
+  const push = vi.spyOn(alertService, 'sendPush').mockResolvedValue({ attempted: 1, sent: 0, failed: 1 });
+  let now = new Date();
+  await deliverPending({ _id: temperatura._id }, now);
+  let estado = await Aviso.findById(temperatura._id);
+  assert.equal(estado.pushStatus, 'pendente');
+  assert.equal(estado.pushTentativas, 1);
+  assert.ok(estado.proximaTentativaEm > now);
+
+  // Antes do backoff vencer, não tenta de novo.
+  await deliverPending({ _id: temperatura._id }, new Date(now.getTime() + 1000));
+  assert.equal(push.mock.calls.length, 1);
+
+  // Backoff vencido: 2ª tentativa.
+  now = new Date(estado.proximaTentativaEm.getTime() + 1000);
+  await deliverPending({ _id: temperatura._id }, now);
+  estado = await Aviso.findById(temperatura._id);
+  assert.equal(estado.pushTentativas, 2);
+  assert.equal(estado.pushStatus, 'pendente');
+
+  // 3ª tentativa esgota o limite — vira terminal, para de tentar.
+  now = new Date(estado.proximaTentativaEm.getTime() + 1000);
+  await deliverPending({ _id: temperatura._id }, now);
+  estado = await Aviso.findById(temperatura._id);
+  assert.equal(estado.pushTentativas, 3);
+  assert.equal(estado.pushStatus, 'falhou');
+  assert.equal(push.mock.calls.length, 3);
+  now = new Date(now.getTime() + 60 * 60_000);
+  await deliverPending({ _id: temperatura._id }, now);
+  assert.equal(push.mock.calls.length, 3, 'aviso terminal não deve ser reprocessado');
+
+  // Ninguém com push ativo no momento: não é falha, não entra em retry.
+  push.mockResolvedValue({ attempted: 0, sent: 0, failed: 0 });
+  await deliverPending({ _id: amonia._id });
+  const semInscricao = await Aviso.findById(amonia._id);
+  assert.equal(semInscricao.pushStatus, 'sem_inscricao');
+  assert.equal(semInscricao.pushTentativas, 0);
+
+  push.mockRestore();
+  delete process.env.VAPID_PUBLIC_KEY;
+  delete process.env.VAPID_PRIVATE_KEY;
 });

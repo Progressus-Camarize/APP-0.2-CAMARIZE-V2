@@ -82,6 +82,34 @@ router.patch('/:id/avaliacao', notificationController.evaluateNotification);
 
 /**
  * @swagger
+ * /notifications/nao-vistos:
+ *   get:
+ *     summary: Contar avisos criados desde a última vez que o usuário abriu as notificações
+ *     tags: [Notificações]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Contagem de avisos não vistos
+ */
+router.get('/nao-vistos', notificationController.getUnreadCount);
+
+/**
+ * @swagger
+ * /notifications/marcar-visto:
+ *   post:
+ *     summary: Marcar os avisos como vistos agora pelo usuário autenticado
+ *     tags: [Notificações]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Marcado com sucesso
+ */
+router.post('/marcar-visto', notificationController.markNotificationsSeen);
+
+/**
+ * @swagger
  * /notifications/push/subscribe:
  *   post:
  *     summary: Inscrever dispositivo para push notifications

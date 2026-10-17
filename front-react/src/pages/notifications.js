@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from "react";
 import MemberLayout from "../components/MemberLayout";
 import axios from "axios";
+import { useUnreadAvisos } from "../hooks/useUnreadAvisos";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { markSeen } = useUnreadAvisos();
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+    markSeen();
+  }, [markSeen]);
 
   const fetchNotifications = async () => {
     try {

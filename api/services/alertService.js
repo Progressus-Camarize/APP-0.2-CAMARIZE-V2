@@ -62,13 +62,14 @@ const sendEmailsForAlert = async (alertData, userIds) => {
   }
 };
 
+// Retorna {attempted, sent, failed} para quem chama decidir se deve tentar de novo.
 const sendPushForAlert = async (alertData, userIds) => {
   const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
   if (!vapidPublicKey || !vapidPrivateKey) {
     console.log('⚠️ Push ignorado: VAPID keys não configuradas');
-    return;
+    return { attempted: 0, sent: 0, failed: 0 };
   }
 
   const subscriptions = await PushSubscription.find({
@@ -78,7 +79,7 @@ const sendPushForAlert = async (alertData, userIds) => {
 
   if (subscriptions.length === 0) {
     console.log(`ℹ️ Nenhuma subscription push ativa para o cativeiro ${alertData.cativeiroNome}`);
-    return;
+    return { attempted: 0, sent: 0, failed: 0 };
   }
 
   const webpush = await import('web-push');
@@ -97,18 +98,22 @@ const sendPushForAlert = async (alertData, userIds) => {
     }
   });
 
+  let sent = 0, failed = 0;
   for (const sub of subscriptions) {
     try {
       await webpush.default.sendNotification(sub.subscription, payload);
       console.log(`✅ Push enviado para subscription ${sub._id}`);
+      sent++;
     } catch (error) {
       console.error(`❌ Erro ao enviar push para subscription ${sub._id}:`, error);
+      failed++;
       if (error.statusCode === 410) {
         await PushSubscription.findByIdAndUpdate(sub._id, { isActive: false });
         console.log(`🗑️ Subscription ${sub._id} marcada como inativa`);
       }
     }
   }
+  return { attempted: subscriptions.length, sent, failed };
 };
 
 // Ponto de entrada: envia e-mail + push para todos os usuários ativos do cativeiro
@@ -133,7 +138,8 @@ const sendAlert = async (alertData) => {
 
 const sendPush = async (alertData) => {
   const userIds = await getUserIdsByCativeiro(alertData.cativeiro);
-  if (userIds.length) await sendPushForAlert(alertData, userIds);
+  if (!userIds.length) return { attempted: 0, sent: 0, failed: 0 };
+  return sendPushForAlert(alertData, userIds);
 };
 
 export default { sendAlert, sendPush, getUserIdsByCativeiro };

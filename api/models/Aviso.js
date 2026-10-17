@@ -17,8 +17,12 @@ const schema = new mongoose.Schema({
   verificadoEm: Date,
   verificadoPor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   avaliacao: { type: String, enum: ['confirmado', 'falso_alarme'] },
-  pushStatus: { type: String, enum: ['pendente', 'processando', 'enviado', 'indisponivel'], default: 'pendente' },
+  // sem_inscricao: ninguém com push ativo no momento (não é falha, não tenta de novo)
+  // falhou: esgotou as tentativas de entrega após erro real de envio
+  pushStatus: { type: String, enum: ['pendente', 'processando', 'enviado', 'sem_inscricao', 'falhou'], default: 'pendente' },
+  pushTentativas: { type: Number, default: 0 },
   pushTentadoEm: Date,
+  proximaTentativaEm: Date,
 });
 
 schema.index({ cativeiro: 1, criadoEm: -1 });
