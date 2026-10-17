@@ -1,17 +1,24 @@
 import ParametrosAtuais from '../models/Parametros_atuais.js';
 import Cativeiros from '../models/Cativeiros.js';
 import Aviso from '../models/Aviso.js';
+import DeviceCredential from '../models/DeviceCredential.js';
 import alertService from './alertService.js';
 
 const WINDOW_MS = 90 * 60_000;
 const MAX_GAP_MS = 20 * 60_000;
 const STALE_MS = 15 * 60_000;
+const SENSOR_INATIVO_MS = 3 * 60 * 60_000; // 3h sem leitura autenticada de um dispositivo provisionado
 const fields = { temperatura: 'temp_atual', ph: 'ph_atual', amonia: 'amonia_atual' };
 export const VALID_READING_FILTER = {
   temp_atual: { $gte: -5, $lte: 50 },
   ph_atual: { $gte: 0, $lte: 14 },
   amonia_atual: { $gte: 0, $lte: 500 },
 };
+// Padrões usados quando o viveiro não tem sensibilidade própria configurada.
+export const DEFAULT_PH_LIMIAR = 0.35;
+export const DEFAULT_AMONIA_LIMIAR_PCT = 0.25;
+export const DEFAULT_AMONIA_LIMIAR_MIN = 0.05;
+const RECOVERY_RATIO = 0.6;
 const round = value => Number(value.toFixed(3));
 const mean = values => values.reduce((sum, n) => sum + n, 0) / values.length;
 
@@ -43,9 +50,13 @@ export function evaluate(readings, bounds = {}, now = new Date()) {
       const min = bounds.temp_min, max = bounds.temp_max;
       if (Number.isFinite(max) && delta >= 0.3 && current >= max - 0.5) { limite = max; triggered = true; }
       if (Number.isFinite(min) && delta <= -0.3 && current <= min + 0.5) { limite = min; triggered = true; }
-    } else {
-      const threshold = tipo === 'ph' ? 0.35 : Math.max(0.05, Math.abs(base) * 0.25);
+    } else if (tipo === 'ph') {
+      const threshold = Number.isFinite(bounds.ph_limiar) ? bounds.ph_limiar : DEFAULT_PH_LIMIAR;
       triggered = Math.abs(delta) >= threshold;
+    } else {
+      const minimo = Number.isFinite(bounds.amonia_limiar_min) ? bounds.amonia_limiar_min : DEFAULT_AMONIA_LIMIAR_MIN;
+      const pct = Number.isFinite(bounds.amonia_limiar_pct) ? bounds.amonia_limiar_pct : DEFAULT_AMONIA_LIMIAR_PCT;
+      triggered = Math.abs(delta) >= Math.max(minimo, Math.abs(base) * pct);
     }
     if (!triggered) continue;
     const direcao = delta > 0 ? 'aumento' : 'queda';
@@ -88,7 +99,14 @@ export async function processReading(cativeiroId, now = new Date()) {
           return (!Number.isFinite(b.temp_min) || r[field] > b.temp_min + 0.5) &&
             (!Number.isFinite(b.temp_max) || r[field] < b.temp_max - 0.5);
         }
-        const threshold = existing.tipo === 'ph' ? 0.2 : Math.max(0.03, Math.abs(existing.valorInicial) * 0.15);
+        // Banda de recuperação mais estreita que o limiar de disparo (evita oscilar entre ativo/recuperado).
+        if (existing.tipo === 'ph') {
+          const limiar = Number.isFinite(bounds.ph_limiar) ? bounds.ph_limiar : DEFAULT_PH_LIMIAR;
+          return Math.abs(r[field] - existing.valorInicial) < limiar * RECOVERY_RATIO;
+        }
+        const minimo = Number.isFinite(bounds.amonia_limiar_min) ? bounds.amonia_limiar_min : DEFAULT_AMONIA_LIMIAR_MIN;
+        const pct = Number.isFinite(bounds.amonia_limiar_pct) ? bounds.amonia_limiar_pct : DEFAULT_AMONIA_LIMIAR_PCT;
+        const threshold = Math.max(minimo * RECOVERY_RATIO, Math.abs(existing.valorInicial) * pct * RECOVERY_RATIO);
         return Math.abs(r[field] - existing.valorInicial) < threshold;
       });
       if (normal) {
@@ -146,5 +164,35 @@ export async function deliverPending(filter = {}, now = new Date()) {
         });
       }
     }
+  }
+}
+
+// Detecta silêncio de um dispositivo provisionado (sensor desligado, sem energia, sem rede),
+// algo que a detecção de tendência não cobre: sem leitura nova, não há tendência a avaliar.
+// Só se aplica a cativeiros com chave de dispositivo gerada — não incomoda quem usa a
+// ingestão manual/legada, que não tem expectativa de leituras contínuas.
+export async function checkSensorInativo(cativeiroId, now = new Date()) {
+  const temDispositivo = await DeviceCredential.exists({ cativeiro: cativeiroId });
+  if (!temDispositivo) return;
+  const ultima = await ParametrosAtuais.findOne({ id_cativeiro: cativeiroId, autenticada: true })
+    .sort({ datahora: -1 }).lean();
+  const inativo = !ultima || (now - new Date(ultima.datahora)) > SENSOR_INATIVO_MS;
+  const ativo = await Aviso.findOne({ cativeiro: cativeiroId, tipo: 'sensor_inativo', estado: 'ativo' });
+  if (inativo && !ativo) {
+    const idadeHoras = ultima ? Math.round((now - new Date(ultima.datahora)) / 3_600_000) : null;
+    const mensagem = ultima
+      ? `Sensor sem leitura autenticada há cerca de ${idadeHoras}h. Confira alimentação, conexão e a chave configurada no dispositivo.`
+      : 'Nenhuma leitura autenticada recebida deste dispositivo até agora. Confira a instalação e a chave configurada no sensor.';
+    try {
+      const aviso = await Aviso.create({
+        cativeiro: cativeiroId, tipo: 'sensor_inativo', mensagem, experimental: false,
+        periodoInicio: ultima?.datahora || now, periodoFim: now,
+      });
+      await deliverPending({ _id: aviso._id }, now);
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+    }
+  } else if (!inativo && ativo) {
+    await Aviso.updateOne({ _id: ativo._id, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
   }
 }

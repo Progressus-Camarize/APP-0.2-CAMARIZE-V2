@@ -47,6 +47,28 @@ const updateTemperatureLimits = async (req, res) => {
   res.json({ minimo, maximo });
 };
 
+// pH e amônia usavam limiares fixos no código, iguais para qualquer viveiro.
+// Este endpoint permite calibrar por cativeiro, com os padrões do código como fallback.
+const updateSensitivityLimits = async (req, res) => {
+  const { cativeiroId } = req.params;
+  if (!mongoose.isValidObjectId(cativeiroId)) return res.status(400).json({ error: 'ID inválido' });
+  if (req.loggedUser.role === 'membro') return res.status(403).json({ error: 'Acesso negado' });
+  const access = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+  if (access === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!access) return res.status(403).json({ error: 'Acesso negado' });
+  const { phLimiar, amoniaLimiarPct } = req.body;
+  if (!Number.isFinite(phLimiar) || !Number.isFinite(amoniaLimiarPct) ||
+      phLimiar < 0.05 || phLimiar > 3 || amoniaLimiarPct < 0.05 || amoniaLimiarPct > 1) {
+    return res.status(400).json({ error: 'Limiares de sensibilidade inválidos' });
+  }
+  const cativeiro = await Cativeiros.findById(cativeiroId).lean();
+  if (!cativeiro) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!cativeiro.condicoes_ideais) return res.status(409).json({ error: 'Configure primeiro as condições do viveiro' });
+  await CondicoesIdeais.updateOne({ _id: cativeiro.condicoes_ideais },
+    { $set: { ph_limiar: phLimiar, amonia_limiar_pct: amoniaLimiarPct } });
+  res.json({ phLimiar, amoniaLimiarPct });
+};
+
 // POST - Receber dados dos sensores do ESP32
 const cadastrarParametros = async (req, res) => {
   try {
@@ -380,6 +402,7 @@ export {
   cadastrarParametros,
   provisionDevice,
   updateTemperatureLimits,
+  updateSensitivityLimits,
   getParametrosAtuais,
   getParametrosHistoricos,
   getDadosDashboard,

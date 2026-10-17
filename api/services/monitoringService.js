@@ -1,5 +1,5 @@
 import Cativeiros from '../models/Cativeiros.js';
-import { processReading, deliverPending } from './avisoService.js';
+import { processReading, checkSensorInativo, deliverPending } from './avisoService.js';
 
 class MonitoringService {
   constructor() {
@@ -31,7 +31,10 @@ class MonitoringService {
     this.lastCheck = new Date();
     // Cobre leituras recebidas antes de um reinício ou cujo processamento foi interrompido.
     const cativeiros = await Cativeiros.find().select('_id').lean();
-    for (const cativeiro of cativeiros) await processReading(cativeiro._id, this.lastCheck);
+    for (const cativeiro of cativeiros) {
+      await processReading(cativeiro._id, this.lastCheck);
+      await checkSensorInativo(cativeiro._id, this.lastCheck);
+    }
     await deliverPending();
   }
 

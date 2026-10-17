@@ -22,6 +22,11 @@ const CondicoesIdeaisSchema = new mongoose.Schema({
     type: Number,
     required: false,
   },
+  // Sensibilidade da detecção de tendência (avisoService.evaluate). Sem valor
+  // definido, usa os padrões do código — mesmo esquema já usado por temp_min/temp_max.
+  ph_limiar: Number,
+  amonia_limiar_pct: Number,
+  amonia_limiar_min: Number,
 });
 
 const CondicoesIdeais = mongoose.model("CondicoesIdeais", CondicoesIdeaisSchema);

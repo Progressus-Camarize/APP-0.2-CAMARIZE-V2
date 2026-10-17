@@ -59,6 +59,8 @@ export default function NotificationsPage() {
         return '🧪';
       case 'amonia':
         return '⚗️';
+      case 'sensor_inativo':
+        return '📡';
       default:
         return '🔔';
     }

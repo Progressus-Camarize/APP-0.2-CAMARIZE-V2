@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema({
   cativeiro: { type: mongoose.Schema.Types.ObjectId, ref: 'Cativeiros', required: true },
-  tipo: { type: String, enum: ['temperatura', 'ph', 'amonia'], required: true },
+  tipo: { type: String, enum: ['temperatura', 'ph', 'amonia', 'sensor_inativo'], required: true },
   estado: { type: String, enum: ['ativo', 'recuperado'], default: 'ativo' },
   mensagem: { type: String, required: true },
   experimental: { type: Boolean, default: false },

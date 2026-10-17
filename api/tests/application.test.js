@@ -223,3 +223,23 @@ test('contador de avisos não vistos independe de push e some ao marcar como vis
   assert.equal((await request('/notifications/nao-vistos', { auth: otherToken })).body.naoVistos, 0,
     'otherToken não tem acesso aos cativeiros do dono, não deve contar os avisos dele');
 });
+
+test('limites de sensibilidade de pH/amônia: só admin/master, com validação', async () => {
+  const pond = fixtures.cativeiros[0].id;
+  const ownToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[0].email, senha: password } })).body.token;
+  const master = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[2].email, senha: password } })).body.token;
+
+  assert.equal((await request(`/parametros/limites-sensibilidade/${pond}`, { method: 'PATCH', auth: ownToken,
+    body: { phLimiar: 0.2, amoniaLimiarPct: 0.15 } })).status, 403, 'membro não pode ajustar sensibilidade');
+
+  assert.equal((await request(`/parametros/limites-sensibilidade/${pond}`, { method: 'PATCH', auth: otherToken,
+    body: { phLimiar: 0.2, amoniaLimiarPct: 0.15 } })).status, 403, 'usuário de outra fazenda não tem acesso ao cativeiro');
+
+  assert.equal((await request(`/parametros/limites-sensibilidade/${pond}`, { method: 'PATCH', auth: master,
+    body: { phLimiar: 10, amoniaLimiarPct: 0.15 } })).status, 400, 'phLimiar fora da faixa aceita deve ser rejeitado');
+
+  const ok = await request(`/parametros/limites-sensibilidade/${pond}`, { method: 'PATCH', auth: master,
+    body: { phLimiar: 0.4, amoniaLimiarPct: 0.3 } });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.body, { phLimiar: 0.4, amoniaLimiarPct: 0.3 });
+});

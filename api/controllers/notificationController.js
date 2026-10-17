@@ -106,7 +106,7 @@ const getNotificationSummary = async (req, res) => {
     if (!access) return res.status(403).json({ error: 'Acesso negado' });
     const avisos = await Aviso.find({ cativeiro: cativeiroId }).select('tipo criadoEm verificadoEm avaliacao').lean();
     const verificados = avisos.filter(a => a.verificadoEm);
-    const porParametro = Object.fromEntries(['temperatura', 'ph', 'amonia'].map(tipo => [tipo, avisos.filter(a => a.tipo === tipo).length]));
+    const porParametro = Object.fromEntries(['temperatura', 'ph', 'amonia', 'sensor_inativo'].map(tipo => [tipo, avisos.filter(a => a.tipo === tipo).length]));
     res.json({
       total: avisos.length,
       porParametro,

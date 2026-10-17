@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import ParametrosAtuais from '../models/Parametros_atuais.js';
 import Aviso from '../models/Aviso.js';
+import DeviceCredential from '../models/DeviceCredential.js';
+import Cativeiros from '../models/Cativeiros.js';
 import alertService from '../services/alertService.js';
-import { evaluate, processReading, deliverPending, freshness } from '../services/avisoService.js';
+import { evaluate, processReading, checkSensorInativo, deliverPending, freshness } from '../services/avisoService.js';
 import { connectTestDatabase, dropTestDatabase, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -34,6 +36,15 @@ test('regras: normal, ruído isolado, tendência persistente, lacuna e dado anti
   assert.equal(evaluate(trend.map((s, i) => ({ ...s, datahora: new Date(Date.now() - (130 - i * 25) * 60_000) })), bounds).suficiente, false);
   assert.equal(evaluate(trend, bounds, new Date(Date.now() + 20 * 60_000)).suficiente, false);
   assert.equal(freshness({ datahora: new Date(Date.now() - 20 * 60_000) }).estado, 'antigo');
+});
+
+test('limiares de pH e amônia são configuráveis por viveiro', () => {
+  const bounds = { temp_min: 26, temp_max: 30 };
+  const trendLeve = samples([[28,7,0.2],[28,7,0.2],[28,7,0.2],[28,7.2,0.22],[28,7.22,0.225],[28,7.25,0.23]]);
+  const padrao = evaluate(trendLeve, bounds);
+  assert.equal(padrao.motivos.some(m => m.tipo === 'ph'), false, 'variação pequena não deve disparar com o limiar padrão');
+  const sensivel = evaluate(trendLeve, { ...bounds, ph_limiar: 0.15 });
+  assert.equal(sensivel.motivos.some(m => m.tipo === 'ph'), true, 'o mesmo trend deve disparar com um limiar mais sensível configurado');
 });
 
 test('ocorrência única, recuperação e nova ocorrência; somente leitura autenticada conta', async () => {
@@ -125,4 +136,39 @@ test('push: falha real tenta de novo com backoff até esgotar e marca "falhou"; 
   push.mockRestore();
   delete process.env.VAPID_PUBLIC_KEY;
   delete process.env.VAPID_PRIVATE_KEY;
+});
+
+test('sensor_inativo: dispara quando um dispositivo provisionado some, recupera quando leitura volta', async () => {
+  // Cativeiro isolado, sem o histórico de leituras recentes que os fixtures já acumularam
+  // nos testes anteriores — senão "sem leitura há 3h" nunca seria verdade.
+  const pond = (await Cativeiros.create({
+    nome: 'Viveiro isolado sensor_inativo', id_tipo_camarao: fixtures.condicao.id_tipo_camarao,
+    data_instalacao: new Date(),
+  }))._id;
+  await DeviceCredential.create({ cativeiro: pond, keyHash: 'hash-de-teste' });
+  const now = new Date();
+
+  await checkSensorInativo(pond, now);
+  let aviso = await Aviso.findOne({ cativeiro: pond, tipo: 'sensor_inativo', estado: 'ativo' });
+  assert.ok(aviso, 'deve abrir aviso quando nunca houve leitura autenticada deste dispositivo');
+
+  await checkSensorInativo(pond, now);
+  assert.equal(await Aviso.countDocuments({ cativeiro: pond, tipo: 'sensor_inativo' }), 1, 'não deve duplicar enquanto o aviso segue ativo');
+
+  await ParametrosAtuais.create({ id_cativeiro: pond, autenticada: true, origem: 'dispositivo',
+    temp_atual: 28, ph_atual: 7, amonia_atual: 0.2, datahora: now });
+  await checkSensorInativo(pond, now);
+  aviso = await Aviso.findOne({ cativeiro: pond, tipo: 'sensor_inativo' }).sort({ criadoEm: -1 });
+  assert.equal(aviso.estado, 'recuperado');
+
+  const maisTarde = new Date(now.getTime() + 4 * 60 * 60_000);
+  await checkSensorInativo(pond, maisTarde);
+  assert.equal(await Aviso.countDocuments({ cativeiro: pond, tipo: 'sensor_inativo', estado: 'ativo' }), 1,
+    'silêncio novamente após a recuperação deve abrir outra ocorrência');
+});
+
+test('sensor_inativo: não se aplica a cativeiro sem dispositivo provisionado', async () => {
+  const pond = fixtures.cativeiros[1]._id;
+  await checkSensorInativo(pond, new Date());
+  assert.equal(await Aviso.countDocuments({ cativeiro: pond, tipo: 'sensor_inativo' }), 0);
 });
