@@ -77,6 +77,9 @@ O responsável com acesso ao serviço deve configurar:
 2. Build Command `npm ci`; Start Command `npm start` (executa `node index.js`).
 3. Health Check Path `/api/health`.
 4. Variáveis `MONGO_URL`, `JWT_SECRET`, `FRONTEND_URL` e chaves de notificações no painel, nunca no Git.
+   **Pendente:** `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` foram geradas em 2026-10-17 (`npx web-push
+   generate-vapid-keys`) e configuradas só em `api/.env` local — ainda não existem no painel do
+   Render. Sem isso, push em produção fica desabilitado (a API sobe normalmente, só não envia push).
 5. Auto-Deploy **Off** antes de ativar o workflow manual.
 
 A API só escuta após conectar ao banco, retorna 503 se perder a conexão e inclui
@@ -94,6 +97,9 @@ Não coloque uma URL de produção nem credenciais reais no CI para contornar es
 1. Framework Next.js, Root Directory `front-react`, Node 24 e branch de produção `main`.
 2. Definir `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_SSE_URL` com a URL HTTPS da API publicada.
 3. Definir `NEXT_PUBLIC_VAPID_PUBLIC_KEY` correspondente à chave da API quando push estiver habilitado.
+   **Pendente:** mesma chave pública gerada em 2026-10-17 (ver seção do Render acima) — ainda não
+   configurada na Vercel. As duas plataformas precisam da mesma chave pública; uma chave órfã (sem
+   par cadastrado do outro lado) já causou esse problema antes neste projeto.
 4. Conferir `API_PROXY_URL` se necessário. Rewrites relativos seguem a URL pública da API por padrão.
 5. Desativar publicação automática da `main` quando o workflow manual for ativado; acrescentar
    a configuração abaixo a `front-react/vercel.json` (mesclando com o arquivo existente, se houver).
