@@ -262,3 +262,29 @@ jobs:
       - name: Deploy para produção
         working-directory: front-react
         run: npx --yes vercel@64.5.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+  deploy-api:
+    name: Deploy API (Render)
+    runs-on: ubuntu-latest
+    needs: ci-passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-passed.result == 'success'
+    environment: production
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Conferir configuração do Render
+        run: |
+          test -n "$RENDER_API_KEY" || { echo "Configure o secret RENDER_API_KEY."; exit 1; }
+          test -n "$RENDER_SERVICE_ID" || { echo "Configure a variável RENDER_SERVICE_ID."; exit 1; }
+          test -n "$API_URL" || { echo "Configure a variável API_URL."; exit 1; }
+
+      - name: Publicar no Render e aguardar readiness
+        run: node scripts/ci/deploy-render.mjs

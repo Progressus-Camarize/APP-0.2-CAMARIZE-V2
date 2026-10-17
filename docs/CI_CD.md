@@ -7,15 +7,19 @@ Vercel (`camarize-frontend`, conta pessoal do mantenedor) e API no Render (`cama
 mesma conta) — ambos criados em 2026-10-17, substituindo os projetos anteriores que estavam
 na conta de um ex-integrante do grupo.
 
-O processo é **PR → CI → merge → deploy automático**, com o deploy condicionado ao CI passar
-em cada plataforma, do jeito nativo de cada uma (não por um workflow de publicação único):
+O processo é **PR → CI → merge → deploy automático**, feito por dois jobs em `ci.yml`
+(`deploy-frontend` e `deploy-api`) que só rodam em push na `main` e só se `ci-passed` tiver
+sido bem-sucedido. Nenhuma das duas plataformas tem integração/auto-deploy nativo ativado —
+de propósito, para não publicar nada sem passar pelo nosso CI:
 
-- **Render**: Auto-Deploy configurado como **"After CI Checks Pass"** — o Render observa os
-  check runs do commit no GitHub e só publica se todos (incluindo os do `ci.yml`) estiverem
-  verdes. Nenhuma configuração extra no lado do GitHub Actions é necessária para isso.
-- **Vercel**: sem integração Git nativa (de propósito — ela dispararia build a cada push,
-  ignorando nosso CI). O job `deploy-frontend` em `ci.yml` só roda em push na `main` e só se
-  `ci-passed` tiver sido bem-sucedido; ele mesmo builda e publica via Vercel CLI.
+- **Render**: `autoDeploy` desligado no serviço. O Render tem um modo nativo "Auto-Deploy: After
+  CI Checks Pass", mas **não funciona com GitHub Actions** — ele escuta a API clássica de
+  *Commit Status* do GitHub, que o GitHub Actions nunca popula (Actions usa *Check Runs*, uma
+  API diferente). Confirmado na prática em 2026-10-17: todos os 10 check runs do commit ficaram
+  verdes e nenhum deploy disparou depois de vários minutos. Por isso o job `deploy-api` chama a
+  API do Render diretamente (`scripts/ci/deploy-render.mjs`).
+- **Vercel**: sem integração Git nativa (ela dispararia build a cada push, ignorando nosso CI).
+  O job `deploy-frontend` builda e publica via Vercel CLI.
 
 Isso substitui o fluxo de "publicação manual" descrito mais abaixo neste documento, que segue
 existindo como caminho alternativo (ex.: republicar um SHA específico fora do fluxo normal),
@@ -96,10 +100,10 @@ no Render, criado em 2026-10-17. URL: `https://camarize-api.onrender.com`.
    `EMAIL_USER`, `EMAIL_PASS`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
    `ENABLE_AUTO_MONITORING`, `VALIDATE_EMAIL_ON_REGISTER`. As chaves VAPID são as geradas em
    2026-10-17 (`npx web-push generate-vapid-keys`) — a mesma chave pública está na Vercel.
-5. **Auto-Deploy: "After CI Checks Pass"** (não "On Commit" nem "Off"). O Render espera todos os
-   check runs do commit no GitHub (o `ci.yml` inteiro, incluindo auditoria e build Docker) antes
-   de publicar. Isso substitui qualquer necessidade de um job de deploy no GitHub Actions para a
-   API — o Render mesmo observa o resultado do CI.
+5. **Auto-Deploy: Off.** Quem publica é o job `deploy-api` em `ci.yml`, via API do Render
+   (`scripts/ci/deploy-render.mjs`), autenticado com `RENDER_API_KEY` (secret do repositório).
+   Só roda em push na `main` e só se `ci-passed` tiver sucesso. (O modo nativo "After CI Checks
+   Pass" existe no painel mas não funciona com GitHub Actions — ver `## Escopo e estado` acima.)
 
 A API só escuta após conectar ao banco, retorna 503 se perder a conexão e inclui
 `RENDER_GIT_COMMIT` no readiness. Ao receber SIGTERM, interrompe o monitoramento e fecha servidor/banco.
@@ -111,9 +115,10 @@ SMTP nas portas 25/465/587 é bloqueado. O serviço atual ainda usa Gmail SMTP: 
 e-mail a partir do Render Free, adaptar para um provedor com API HTTPS é uma entrega posterior.
 Não coloque uma URL de produção nem credenciais reais no CI para contornar essas limitações.
 
-`scripts/ci/deploy-render.mjs` (dispara deploy via API do Render para um commit específico e
-aguarda `/api/health` confirmar banco conectado e o commit certo) não é usado pelo Auto-Deploy
-nativo — fica disponível para o fluxo de publicação manual descrito mais abaixo.
+`scripts/ci/deploy-render.mjs` dispara o deploy via API do Render para o commit exato do push e
+aguarda `/api/health` confirmar banco conectado e o commit certo antes de o job terminar com
+sucesso — usado tanto pelo `deploy-api` automático quanto pelo fluxo de publicação manual
+descrito mais abaixo.
 
 ## Configuração da Vercel
 
@@ -147,13 +152,13 @@ Configure em GitHub → Settings → Secrets and variables → Actions (ou no en
 
 | Tipo | Nome | Status |
 | --- | --- | --- |
-| Secret | `RENDER_API_KEY` | ⬜ não configurado |
-| Secret | `VERCEL_TOKEN` | ✅ configurado (reaproveitado do deploy automático da Vercel) |
-| Variable | `RENDER_SERVICE_ID` | ⬜ não configurado — usar `srv-db9vn87btjjs73d7tu30` |
+| Secret | `RENDER_API_KEY` | ✅ configurado (reaproveitado do `deploy-api`) |
+| Secret | `VERCEL_TOKEN` | ✅ configurado (reaproveitado do `deploy-frontend`) |
+| Variable | `RENDER_SERVICE_ID` | ✅ configurado (`srv-db9vn87btjjs73d7tu30`) |
 | Variable | `API_URL` | ✅ configurado |
 | Variable | `VERCEL_ORG_ID` | ✅ configurado |
 | Variable | `VERCEL_PROJECT_ID` | ✅ configurado |
-| Variable | `ENABLE_MANUAL_DEPLOY` | ⬜ não configurado — só ativar depois do `RENDER_API_KEY` acima |
+| Variable | `ENABLE_MANUAL_DEPLOY` | ⬜ não configurado — único item que falta pra ativar este workflow |
 
 Nunca envie tokens na conversa nem acrescente arquivos privados ao commit.
 
