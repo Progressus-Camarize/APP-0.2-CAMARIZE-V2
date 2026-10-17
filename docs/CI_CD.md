@@ -2,14 +2,29 @@
 
 ## Escopo e estado
 
-Equipe de três integrantes, projeto acadêmico e sensores de teste. Hospedagem mantida:
-frontend na Vercel, API no Render e MongoDB no Atlas. As alterações desta entrega são locais;
-os workflows passam a existir no GitHub quando a branch for enviada e integrada.
+Equipe de três integrantes, projeto acadêmico e sensores de teste. Hospedagem: frontend na
+Vercel (`camarize-frontend`, conta pessoal do mantenedor) e API no Render (`camarize-api`,
+mesma conta) — ambos criados em 2026-10-17, substituindo os projetos anteriores que estavam
+na conta de um ex-integrante do grupo.
 
-O processo usa PR → CI → revisão → merge → publicação manual. A homologação automatizada
-ocorre em serviços locais temporários do runner, com o build de produção do frontend.
-Não há uma segunda API permanente no Render nesta etapa; isso evita compartilhar dados do
-ambiente publicado e consumir horas gratuitas com duas APIs continuamente ativas.
+O processo é **PR → CI → merge → deploy automático**, com o deploy condicionado ao CI passar
+em cada plataforma, do jeito nativo de cada uma (não por um workflow de publicação único):
+
+- **Render**: Auto-Deploy configurado como **"After CI Checks Pass"** — o Render observa os
+  check runs do commit no GitHub e só publica se todos (incluindo os do `ci.yml`) estiverem
+  verdes. Nenhuma configuração extra no lado do GitHub Actions é necessária para isso.
+- **Vercel**: sem integração Git nativa (de propósito — ela dispararia build a cada push,
+  ignorando nosso CI). O job `deploy-frontend` em `ci.yml` só roda em push na `main` e só se
+  `ci-passed` tiver sido bem-sucedido; ele mesmo builda e publica via Vercel CLI.
+
+Isso substitui o fluxo de "publicação manual" descrito mais abaixo neste documento, que segue
+existindo como caminho alternativo (ex.: republicar um SHA específico fora do fluxo normal),
+mas não é mais o caminho principal de deploy.
+
+**Pendência relacionada, fora do escopo desta reconfiguração:** o `MONGO_URL` em uso ainda
+aponta para um cluster do MongoDB Atlas (`joaocluster`, usuário `joaokusaka27`) que aparenta
+pertencer ao mesmo ex-integrante cujas contas de hospedagem acabamos de substituir. Migrar o
+banco para uma conta Atlas própria da equipe é um passo separado, ainda não feito.
 
 ## Verificações obrigatórias
 
@@ -71,16 +86,20 @@ O build deve ser feito com as URLs de teste antes do E2E: `NEXT_PUBLIC_*` é inc
 
 ## Configuração do Render
 
-O responsável com acesso ao serviço deve configurar:
+Serviço atual: `camarize-api` (`srv-db9vn87btjjs73d7tu30`), workspace pessoal do mantenedor
+no Render, criado em 2026-10-17. URL: `https://camarize-api.onrender.com`.
 
-1. Branch `main`, Root Directory `api`, runtime Node 24.
+1. Branch `main`, Root Directory `api`, runtime Node.
 2. Build Command `npm ci`; Start Command `npm start` (executa `node index.js`).
 3. Health Check Path `/api/health`.
-4. Variáveis `MONGO_URL`, `JWT_SECRET`, `FRONTEND_URL` e chaves de notificações no painel, nunca no Git.
-   **Pendente:** `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` foram geradas em 2026-10-17 (`npx web-push
-   generate-vapid-keys`) e configuradas só em `api/.env` local — ainda não existem no painel do
-   Render. Sem isso, push em produção fica desabilitado (a API sobe normalmente, só não envia push).
-5. Auto-Deploy **Off** antes de ativar o workflow manual.
+4. Variáveis configuradas no painel (nunca no Git): `MONGO_URL`, `JWT_SECRET`, `FRONTEND_URL`,
+   `EMAIL_USER`, `EMAIL_PASS`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+   `ENABLE_AUTO_MONITORING`, `VALIDATE_EMAIL_ON_REGISTER`. As chaves VAPID são as geradas em
+   2026-10-17 (`npx web-push generate-vapid-keys`) — a mesma chave pública está na Vercel.
+5. **Auto-Deploy: "After CI Checks Pass"** (não "On Commit" nem "Off"). O Render espera todos os
+   check runs do commit no GitHub (o `ci.yml` inteiro, incluindo auditoria e build Docker) antes
+   de publicar. Isso substitui qualquer necessidade de um job de deploy no GitHub Actions para a
+   API — o Render mesmo observa o resultado do CI.
 
 A API só escuta após conectar ao banco, retorna 503 se perder a conexão e inclui
 `RENDER_GIT_COMMIT` no readiness. Ao receber SIGTERM, interrompe o monitoramento e fecha servidor/banco.
@@ -92,57 +111,50 @@ SMTP nas portas 25/465/587 é bloqueado. O serviço atual ainda usa Gmail SMTP: 
 e-mail a partir do Render Free, adaptar para um provedor com API HTTPS é uma entrega posterior.
 Não coloque uma URL de produção nem credenciais reais no CI para contornar essas limitações.
 
+`scripts/ci/deploy-render.mjs` (dispara deploy via API do Render para um commit específico e
+aguarda `/api/health` confirmar banco conectado e o commit certo) não é usado pelo Auto-Deploy
+nativo — fica disponível para o fluxo de publicação manual descrito mais abaixo.
+
 ## Configuração da Vercel
 
-1. Framework Next.js, Root Directory `front-react`, Node 24 e branch de produção `main`.
-2. Definir `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_SSE_URL` com a URL HTTPS da API publicada.
-3. Definir `NEXT_PUBLIC_VAPID_PUBLIC_KEY` correspondente à chave da API quando push estiver habilitado.
-   **Pendente:** mesma chave pública gerada em 2026-10-17 (ver seção do Render acima) — ainda não
-   configurada na Vercel. As duas plataformas precisam da mesma chave pública; uma chave órfã (sem
-   par cadastrado do outro lado) já causou esse problema antes neste projeto.
-4. Conferir `API_PROXY_URL` se necessário. Rewrites relativos seguem a URL pública da API por padrão.
-5. Desativar publicação automática da `main` quando o workflow manual for ativado; acrescentar
-   a configuração abaixo a `front-react/vercel.json` (mesclando com o arquivo existente, se houver).
-   A opção pertence ao arquivo de configuração, não a um botão específico do painel.
-   Previews de PRs podem ficar habilitados,
-   mas devem apontar a uma API/banco de homologação, não ao ambiente publicado.
+Projeto atual: `camarize-frontend` (`prj_JUMJ6Nz4b4N0TDMJ8J5htb4DHl0h`, org
+`team_ykJ84mrqMxjFpMl0RDymKMEb`, conta pessoal do mantenedor), criado em 2026-10-17.
+URL: `https://camarize-frontend.vercel.app`. **Sem integração Git nativa** — isso é intencional,
+ela dispararia build a cada push ignorando o resultado do nosso CI.
 
-```json
-{
-  "git": {
-    "deploymentEnabled": {
-      "main": false
-    }
-  }
-}
-```
-
-Esse arquivo ainda não foi criado nesta entrega; acrescente-o na transição para o deploy manual,
-após preparar os acessos. O comando de publicação via CLI continuará funcionando.
+1. Framework Next.js, Root Directory `front-react`, Node 24.
+2. Variáveis de ambiente de **produção** configuradas direto no projeto (`vercel env add ... production`):
+   `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_SSE_URL` (URL do Render acima), `API_PROXY_URL` (mesma URL,
+   tipo `config` — não `secret`, senão o build não consegue ler o valor de volta), e
+   `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (mesma chave pública do Render).
+3. Quem publica: o job `deploy-frontend` em `ci.yml`, via `vercel pull/build/deploy --prebuilt --prod`,
+   autenticado com `VERCEL_TOKEN` (secret do repositório). Só roda em push na `main`, e só se
+   `ci-passed` tiver sucesso — ver `## Verificações obrigatórias` acima.
 
 O frontend usa `output: standalone` para suportar `/rel-individual/<id>` e rewrites.
 Na Vercel, o adaptador Next gerencia a publicação. No Docker, o target `production` roda `server.js`;
 o Compose de desenvolvimento seleciona explicitamente o target `development`.
 O site deixa de gerar `out/`; remova qualquer override de Output Directory `out` no painel.
 
-## Ativar publicação manual
+## Publicação manual (caminho alternativo, não o principal)
+
+Desde 2026-10-17 o deploy normal é automático (seções acima). Este workflow
+(`.github/workflows/deploy.yml`, "Publish production manually") continua existindo para um
+cenário específico: republicar um SHA já aprovado sob demanda, fora do fluxo automático — por
+exemplo, para re-tentar uma publicação sem precisar de um commit novo.
 
 Configure em GitHub → Settings → Secrets and variables → Actions (ou no environment `production`):
 
-A variável `ENABLE_MANUAL_DEPLOY` deve ficar no nível do repositório: o job inicial de ativação
-é executado antes de entrar no environment. Os tokens e demais variáveis podem ficar no environment.
-
-| Tipo | Nome | Valor |
+| Tipo | Nome | Status |
 | --- | --- | --- |
-| Secret | `RENDER_API_KEY` | Token da conta com acesso ao serviço |
-| Secret | `VERCEL_TOKEN` | Token com acesso ao projeto |
-| Variable | `RENDER_SERVICE_ID` | ID `srv-…` da API |
-| Variable | `API_URL` | URL HTTPS da API |
-| Variable | `VERCEL_ORG_ID` | Organização/conta Vercel |
-| Variable | `VERCEL_PROJECT_ID` | ID do projeto Vercel |
-| Variable | `ENABLE_MANUAL_DEPLOY` | `true`, somente após concluir as configurações |
+| Secret | `RENDER_API_KEY` | ⬜ não configurado |
+| Secret | `VERCEL_TOKEN` | ✅ configurado (reaproveitado do deploy automático da Vercel) |
+| Variable | `RENDER_SERVICE_ID` | ⬜ não configurado — usar `srv-db9vn87btjjs73d7tu30` |
+| Variable | `API_URL` | ✅ configurado |
+| Variable | `VERCEL_ORG_ID` | ✅ configurado |
+| Variable | `VERCEL_PROJECT_ID` | ✅ configurado |
+| Variable | `ENABLE_MANUAL_DEPLOY` | ⬜ não configurado — só ativar depois do `RENDER_API_KEY` acima |
 
-Os IDs da Vercel são obtidos ao vincular o projeto com a CLI e ler `.vercel/project.json`, que é ignorado.
 Nunca envie tokens na conversa nem acrescente arquivos privados ao commit.
 
 Em Actions, execute **Publish production manually**, selecione `main` e digite `PUBLICAR`.
@@ -161,9 +173,9 @@ Timeout de deploy não significa que o Render parou; confira o painel antes de r
 ## Revisão e proteções
 
 Enquanto não houver acesso de administrador, PR, revisão por outro integrante e CI aprovado são
-um procedimento da equipe; não impedem tecnicamente push direto ou merge com erro.
-O workflow manual é executável por quem tem permissão de escrita e não representa aprovação independente.
-Até desativar auto-deploys nas plataformas, os pipelines atuais também podem publicar por fora dele.
+um procedimento da equipe; não impedem tecnicamente push direto ou merge com erro. O deploy
+automático (Render "After CI Checks Pass" e o job `deploy-frontend`) dispara sozinho assim que o
+CI fica verde em um push na `main` — não há aprovação humana nesse caminho hoje.
 
 Quando o administrador estiver disponível:
 
