@@ -227,3 +227,38 @@ jobs:
           fi
 
           echo "Todos os jobs obrigatórios passaram!"
+
+  deploy-frontend:
+    name: Deploy Frontend (Vercel)
+    runs-on: ubuntu-latest
+    needs: ci-passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci-passed.result == 'success'
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Conferir configuração da Vercel
+        run: |
+          test -n "$VERCEL_TOKEN" || { echo "Configure o secret VERCEL_TOKEN."; exit 1; }
+          test -n "$VERCEL_ORG_ID" || { echo "Configure a variável VERCEL_ORG_ID."; exit 1; }
+          test -n "$VERCEL_PROJECT_ID" || { echo "Configure a variável VERCEL_PROJECT_ID."; exit 1; }
+
+      - name: Pull do ambiente de produção da Vercel
+        working-directory: front-react
+        run: npx --yes vercel@64.5.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build de produção (via Vercel)
+        working-directory: front-react
+        run: npx --yes vercel@64.5.0 build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy para produção
+        working-directory: front-react
+        run: npx --yes vercel@64.5.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
