@@ -48,6 +48,19 @@ const CativeirosSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: false
+  },
+  // Calibração do motor 28BYJ-48 (gramas por rotação) e do sensor PH-4502C (tensão em pH 7/4)
+  gramas_por_rotacao: {
+    type: Number,
+    default: null
+  },
+  tensao_ph7: {
+    type: Number,
+    default: null
+  },
+  tensao_ph4: {
+    type: Number,
+    default: null
   }
 });
 

@@ -108,14 +108,17 @@ const getDietaAtual = async (req, res) => {
   try {
     const { cativeiroId } = req.params;
     const now = new Date();
-    const rel = await DietasxCativeiros.findOne({
-      cativeiro: cativeiroId,
-      ativo: true,
-      $or: [
-        { inicioVigencia: null },
-        { inicioVigencia: { $lte: now } }
-      ],
-    }).sort({ atualizadoEm: -1 }).populate('dieta');
+    const [rel, cativeiro] = await Promise.all([
+      DietasxCativeiros.findOne({
+        cativeiro: cativeiroId,
+        ativo: true,
+        $or: [
+          { inicioVigencia: null },
+          { inicioVigencia: { $lte: now } }
+        ],
+      }).sort({ atualizadoEm: -1 }).populate('dieta'),
+      Cativeiros.findById(cativeiroId).select('gramas_por_rotacao').lean(),
+    ]);
 
     if (!rel || !rel.dieta) return res.status(404).json({ error: 'Dieta atual não encontrada' });
 
@@ -127,6 +130,7 @@ const getDietaAtual = async (req, res) => {
       quantidadeRefeicoes: rel.dieta.quantidadeRefeicoes || null,
       quantidade: rel.dieta.quantidade,
       descricao: rel.dieta.descricao || null,
+      gramas_por_rotacao: cativeiro?.gramas_por_rotacao ?? null,
     });
   } catch (err) {
     console.error('Erro ao buscar dieta atual:', err);
