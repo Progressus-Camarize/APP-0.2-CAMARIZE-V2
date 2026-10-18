@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import mongoose from 'mongoose';
 import ParametrosAtuais from '../models/Parametros_atuais.js';
+import Cativeiros from '../models/Cativeiros.js';
+import Aviso from '../models/Aviso.js';
 import { connectTestDatabase, dropTestDatabase, password, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -242,6 +244,29 @@ test('limites de sensibilidade de pH/amônia: só admin/master, com validação'
     body: { phLimiar: 0.4, amoniaLimiarPct: 0.3 } });
   assert.equal(ok.status, 200);
   assert.deepEqual(ok.body, { phLimiar: 0.4, amoniaLimiarPct: 0.3 });
+});
+
+test('sugestão de limiares: aprende com avaliações passadas, exige amostra mínima, só admin/master', async () => {
+  const pond = (await Cativeiros.create({
+    nome: 'Viveiro isolado calibração', id_tipo_camarao: fixtures.condicao.id_tipo_camarao, data_instalacao: new Date(),
+  }))._id;
+  const master = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[2].email, senha: password } })).body.token;
+
+  const semAmostra = await request(`/parametros/sugestao-limiares/${pond}`, { auth: master });
+  assert.equal(semAmostra.status, 200);
+  assert.equal(semAmostra.body.sugestoes.ph, null, 'sem amostra suficiente não deve sugerir nada');
+
+  for (let i = 0; i < 5; i++) {
+    await Aviso.create({
+      cativeiro: pond, tipo: 'ph', estado: 'recuperado', mensagem: 'teste', periodoInicio: new Date(), periodoFim: new Date(),
+      verificadoEm: new Date(), avaliacao: i < 4 ? 'falso_alarme' : 'confirmado',
+    });
+  }
+  const comAmostra = await request(`/parametros/sugestao-limiares/${pond}`, { auth: master });
+  assert.ok(comAmostra.body.sugestoes.ph, 'maioria falso alarme deve gerar sugestão');
+  assert.ok(comAmostra.body.sugestoes.ph.valorSugerido > comAmostra.body.sugestoes.ph.valorAtual);
+
+  assert.equal((await request(`/parametros/sugestao-limiares/${pond}`, { auth: otherToken })).status, 403, 'membro não pode ver sugestões de calibração');
 });
 
 test('histórico de rotação da chave do dispositivo: registra quem gerou, sem guardar a chave', async () => {

@@ -9,6 +9,7 @@ import DeviceCredentialHistory from '../models/DeviceCredentialHistory.js';
 import Aviso from '../models/Aviso.js';
 import CondicoesIdeais from '../models/Condicoes_ideais.js';
 import { processReading, freshness, evaluate, temperatureBounds, VALID_READING_FILTER } from '../services/avisoService.js';
+import { suggestThresholdAdjustments } from '../services/calibrationService.js';
 
 const validReading = ({ temperatura, ph, amonia }) =>
   [temperatura, ph, amonia].every(Number.isFinite) &&
@@ -86,6 +87,20 @@ const updateSensitivityLimits = async (req, res) => {
   await CondicoesIdeais.updateOne({ _id: cativeiro.condicoes_ideais },
     { $set: { ph_limiar: phLimiar, amonia_limiar_pct: amoniaLimiarPct } });
   res.json({ phLimiar, amoniaLimiarPct });
+};
+
+// Camada 2 da pipeline de avisos: sugestão de limiares com base no histórico de avaliações
+// (confirmado/falso_alarme) já registradas pelo admin/master. Nunca aplica sozinha — só sugere.
+const getThresholdSuggestions = async (req, res) => {
+  const { cativeiroId } = req.params;
+  if (!mongoose.isValidObjectId(cativeiroId)) return res.status(400).json({ error: 'ID inválido' });
+  if (req.loggedUser.role === 'membro') return res.status(403).json({ error: 'Acesso negado' });
+  const access = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+  if (access === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  if (!access) return res.status(403).json({ error: 'Acesso negado' });
+  const sugestoes = await suggestThresholdAdjustments(cativeiroId);
+  if (!sugestoes) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+  res.json({ sugestoes });
 };
 
 // POST - Receber dados dos sensores do ESP32
@@ -423,6 +438,7 @@ export {
   getDeviceCredentialHistory,
   updateTemperatureLimits,
   updateSensitivityLimits,
+  getThresholdSuggestions,
   getParametrosAtuais,
   getParametrosHistoricos,
   getDadosDashboard,

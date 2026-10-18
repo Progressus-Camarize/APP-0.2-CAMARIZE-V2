@@ -137,12 +137,15 @@ export default function MasterPanel() {
   const [showLimitesModal, setShowLimitesModal] = useState(false);
   const [limitesForm, setLimitesForm] = useState({ id: '', nome: '', minimo: '', maximo: '', phLimiar: '', amoniaLimiarPct: '' });
   const [limitesSubmitting, setLimitesSubmitting] = useState(false);
+  // Camada 2 da mineração de dados: sugestão de limiares com base no histórico de
+  // avaliações (confirmado/falso_alarme) — nunca aplica sozinha, só sugere.
+  const [limitesSugestoes, setLimitesSugestoes] = useState(null);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const abrirModalLimites = (c) => {
+  const abrirModalLimites = async (c) => {
     setLimitesForm({
       id: c._id,
       nome: c.nome || '',
@@ -151,7 +154,29 @@ export default function MasterPanel() {
       phLimiar: c.condicoes_ideais?.ph_limiar ?? '',
       amoniaLimiarPct: c.condicoes_ideais?.amonia_limiar_pct ?? '',
     });
+    setLimitesSugestoes(null);
     setShowLimitesModal(true);
+    try {
+      const token = getToken();
+      const res = await axios.get(`${apiUrl}/parametros/sugestao-limiares/${c._id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setLimitesSugestoes(res.data?.sugestoes || null);
+    } catch (e) {
+      console.error('Erro ao buscar sugestão de limiares:', e);
+    }
+  };
+
+  const aplicarSugestaoTemperatura = () => {
+    const sugestao = limitesSugestoes?.temperatura;
+    if (!sugestao) return;
+    setLimitesForm(form => ({ ...form, minimo: sugestao.valorSugerido.minimo, maximo: sugestao.valorSugerido.maximo }));
+  };
+
+  const aplicarSugestaoSensibilidade = (tipo) => {
+    const sugestao = limitesSugestoes?.[tipo];
+    if (!sugestao) return;
+    setLimitesForm(form => tipo === 'ph'
+      ? { ...form, phLimiar: sugestao.valorSugerido }
+      : { ...form, amoniaLimiarPct: sugestao.valorSugerido });
   };
 
   const salvarLimitesAvisos = async () => {
@@ -2644,6 +2669,12 @@ export default function MasterPanel() {
               onChange={(e) => setLimitesForm(f => ({ ...f, maximo: e.target.value }))}
               placeholder="padrão: ideal + 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
+          {limitesSugestoes?.temperatura && (
+            <div style={{ gridColumn: 'span 2', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '8px 12px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <span>{limitesSugestoes.temperatura.motivo} Sugestão: {limitesSugestoes.temperatura.valorSugerido.minimo}°C a {limitesSugestoes.temperatura.valorSugerido.maximo}°C.</span>
+              <button onClick={aplicarSugestaoTemperatura} style={{ border: '1px solid #1d4ed8', background: '#fff', color: '#1d4ed8', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>Aplicar sugestão</button>
+            </div>
+          )}
           <div>
             <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Limiar de pH</label>
             <input type="number" step="0.01" min="0.05" max="3" value={limitesForm.phLimiar}
@@ -2656,6 +2687,12 @@ export default function MasterPanel() {
               onChange={(e) => setLimitesForm(f => ({ ...f, amoniaLimiarPct: e.target.value }))}
               placeholder="padrão: 0,25 (25%)" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
+          {['ph', 'amonia'].map(tipo => limitesSugestoes?.[tipo] && (
+            <div key={tipo} style={{ gridColumn: 'span 2', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '8px 12px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <span>{limitesSugestoes[tipo].motivo} Sugestão de {tipo === 'ph' ? 'pH' : 'amônia'}: {limitesSugestoes[tipo].valorSugerido}.</span>
+              <button onClick={() => aplicarSugestaoSensibilidade(tipo)} style={{ border: '1px solid #1d4ed8', background: '#fff', color: '#1d4ed8', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>Aplicar sugestão</button>
+            </div>
+          ))}
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
             <button onClick={() => setShowLimitesModal(false)} disabled={limitesSubmitting} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancelar</button>
             <button onClick={salvarLimitesAvisos} disabled={limitesSubmitting} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>
