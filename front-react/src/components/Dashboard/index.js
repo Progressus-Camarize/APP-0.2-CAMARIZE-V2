@@ -4,6 +4,13 @@ import axios from "axios";
 import MemberLayout from "../MemberLayout";
 import Modal from "../Modal";
 import panelStyles from "@/styles/panel.module.css";
+import { TbThermometer, TbWifiOff, TbFlask2 } from "react-icons/tb";
+
+const AVISO_BANNER_ICONES = { temperatura: TbThermometer, sensor_inativo: TbWifiOff };
+const AvisoBannerIcone = ({ tipo }) => {
+  const Icone = AVISO_BANNER_ICONES[tipo] || TbFlask2;
+  return <Icone aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />;
+};
 
 const SENSOR_CFG = [
   { key: 'temperatura',  label: 'Temperatura',  unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
@@ -274,7 +281,7 @@ export default function Dashboard() {
         </div>
         {avisosAtivos.map(aviso => (
           <div key={aviso._id} style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: '#78350f' }}>
-            <strong>{aviso.tipo === 'temperatura' ? '🌡️' : aviso.tipo === 'sensor_inativo' ? '📡' : '⚗️'} Aviso ativo</strong> · {aviso.mensagem}
+            <strong><AvisoBannerIcone tipo={aviso.tipo} /> Aviso ativo</strong> · {aviso.mensagem}
             <div style={{ fontSize: '0.74rem', marginTop: 4 }}>Período analisado: {new Date(aviso.periodoInicio).toLocaleString('pt-BR')} a {new Date(aviso.periodoFim).toLocaleString('pt-BR')}{aviso.experimental ? ' · sensor sem calibração' : ''}</div>
           </div>
         ))}

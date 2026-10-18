@@ -70,6 +70,76 @@ export function evaluate(readings, bounds = {}, now = new Date()) {
   return { suficiente: true, razao: null, motivos };
 }
 
+export const TREND_WINDOW_MS = 4 * 60 * 60_000;
+export const TREND_HORIZON_MS = 3 * 60 * 60_000;
+export const TREND_MIN_POINTS = 8;
+
+// Mínimos quadrados sobre (tempo em ms desde o início da janela, valor). Pura e testável
+// isoladamente, igual ao restante das regras deste arquivo.
+export function linearRegression(points) {
+  const n = points.length;
+  const sumT = points.reduce((s, p) => s + p.t, 0);
+  const sumY = points.reduce((s, p) => s + p.y, 0);
+  const sumTY = points.reduce((s, p) => s + p.t * p.y, 0);
+  const sumTT = points.reduce((s, p) => s + p.t * p.t, 0);
+  const denom = n * sumTT - sumT * sumT;
+  if (denom === 0) return { slope: 0, intercept: sumY / n };
+  const slope = (n * sumTY - sumT * sumY) / denom;
+  const intercept = (sumY - slope * sumT) / n;
+  return { slope, intercept };
+}
+
+// Diferente de evaluate() (que só reage quando o valor já se moveu o bastante), aqui
+// projetamos a tendência atual para além da última leitura: se o padrão se mantiver,
+// o limite seria cruzado dentro do horizonte configurado? Isso é o aviso antecipado de
+// verdade — convive com o aviso reativo (preditivo:true vs preditivo:false no modelo).
+export function projectTrend(readings, bounds = {}, now = new Date()) {
+  const ordered = [...readings].sort((a, b) => new Date(a.datahora) - new Date(b.datahora));
+  if (ordered.length < TREND_MIN_POINTS) return { suficiente: false, razao: 'leituras_insuficientes', motivos: [] };
+  if (now - new Date(ordered.at(-1).datahora) > STALE_MS) return { suficiente: false, razao: 'leitura_antiga', motivos: [] };
+  const t0 = new Date(ordered[0].datahora).getTime();
+  const nowT = now.getTime() - t0;
+  const motivos = [];
+  for (const [tipo, field] of Object.entries(fields)) {
+    const points = ordered.map(r => ({ t: new Date(r.datahora).getTime() - t0, y: r[field] }));
+    const { slope, intercept } = linearRegression(points);
+    if (slope === 0) continue;
+    const current = round(slope * nowT + intercept);
+    const projetado = round(slope * (nowT + TREND_HORIZON_MS) + intercept);
+    let triggered = false, limite, direcao, horasAteCruzar;
+    if (tipo === 'temperatura') {
+      const { temp_min: min, temp_max: max } = bounds;
+      if (slope > 0 && Number.isFinite(max) && current < max && projetado >= max) {
+        triggered = true; limite = max; direcao = 'aumento'; horasAteCruzar = (max - current) / slope / 3_600_000;
+      } else if (slope < 0 && Number.isFinite(min) && current > min && projetado <= min) {
+        triggered = true; limite = min; direcao = 'queda'; horasAteCruzar = (min - current) / slope / 3_600_000;
+      }
+    } else {
+      const baseline = round(intercept);
+      const deltaAtual = current - baseline;
+      const deltaProjetado = projetado - baseline;
+      const limiar = tipo === 'ph'
+        ? (Number.isFinite(bounds.ph_limiar) ? bounds.ph_limiar : DEFAULT_PH_LIMIAR)
+        : Math.max(
+            Number.isFinite(bounds.amonia_limiar_min) ? bounds.amonia_limiar_min : DEFAULT_AMONIA_LIMIAR_MIN,
+            Math.abs(baseline) * (Number.isFinite(bounds.amonia_limiar_pct) ? bounds.amonia_limiar_pct : DEFAULT_AMONIA_LIMIAR_PCT));
+      if (Math.abs(deltaAtual) < limiar && Math.abs(deltaProjetado) >= limiar) {
+        triggered = true; direcao = deltaProjetado > 0 ? 'aumento' : 'queda';
+        horasAteCruzar = (limiar - Math.abs(deltaAtual)) / Math.abs(slope) / 3_600_000;
+      }
+    }
+    if (!triggered) continue;
+    const label = tipo === 'temperatura' ? 'Temperatura' : tipo === 'ph' ? 'pH' : 'Amônia';
+    const horas = Math.max(1, Math.round(horasAteCruzar));
+    const mensagem = tipo === 'temperatura'
+      ? `Tendência indica que a temperatura deve atingir ${limite} °C em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`
+      : `Tendência indica ${direcao} persistente de ${label.toLowerCase()} que deve ultrapassar o limite configurado em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`;
+    motivos.push({ tipo, mensagem, experimental: true, periodoInicio: ordered[0].datahora, periodoFim: now,
+      valorInicial: current, valorAtual: projetado, limite, direcao, preditivo: true });
+  }
+  return { suficiente: true, razao: null, motivos };
+}
+
 export function temperatureBounds(condition = {}) {
   const bounds = { ...condition };
   if (Number.isFinite(condition.temp_ideal)) {
@@ -87,9 +157,14 @@ export async function processReading(cativeiroId, now = new Date()) {
   if (!cativeiro) return;
   const bounds = temperatureBounds(cativeiro.condicoes_ideais || {});
   const result = evaluate(readings, bounds, now);
-  if (!result.suficiente) return;
+  const trendSince = new Date(now.getTime() - TREND_WINDOW_MS);
+  const trendReadings = await ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER, datahora: { $gte: trendSince, $lte: now } })
+    .sort({ datahora: -1 }).limit(200).lean();
+  const trendResult = projectTrend(trendReadings, bounds, now);
+  if (!result.suficiente && !trendResult.suficiente) return;
   const active = await Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' });
   const recovered = new Set();
+  const key = (tipo, preditivo) => `${tipo}|${preditivo}`;
   for (const existing of active) {
       const field = fields[existing.tipo];
       const last = [...readings].sort((a, b) => new Date(b.datahora) - new Date(a.datahora)).slice(0, 3);
@@ -111,11 +186,24 @@ export async function processReading(cativeiroId, now = new Date()) {
       });
       if (normal) {
         await Aviso.updateOne({ _id: existing._id, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
-        recovered.add(existing.tipo);
+        recovered.add(key(existing.tipo, existing.preditivo));
       }
   }
+  const reactiveCreated = new Set();
   for (const motivo of result.motivos) {
-    if (active.some(a => a.tipo === motivo.tipo) || recovered.has(motivo.tipo)) continue;
+    if (active.some(a => a.tipo === motivo.tipo && !a.preditivo) || recovered.has(key(motivo.tipo, false))) continue;
+    try {
+      const aviso = await Aviso.create({ cativeiro: cativeiroId, ...motivo, preditivo: false });
+      await deliverPending({ _id: aviso._id });
+      reactiveCreated.add(motivo.tipo);
+      // A tendência "se cumpriu": o aviso reativo já cobre o problema, o preditivo vira ruído.
+      await Aviso.updateMany({ cativeiro: cativeiroId, tipo: motivo.tipo, preditivo: true, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+    }
+  }
+  for (const motivo of trendResult.motivos) {
+    if (reactiveCreated.has(motivo.tipo) || active.some(a => a.tipo === motivo.tipo) || recovered.has(key(motivo.tipo, true))) continue;
     try {
       const aviso = await Aviso.create({ cativeiro: cativeiroId, ...motivo });
       await deliverPending({ _id: aviso._id });

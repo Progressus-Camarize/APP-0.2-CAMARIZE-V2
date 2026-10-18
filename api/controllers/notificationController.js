@@ -33,6 +33,7 @@ const serializeAviso = (aviso, reading) => ({
   valorAtual: aviso.valorAtual,
   limite: aviso.limite,
   experimental: aviso.experimental,
+  preditivo: aviso.preditivo,
   recuperadoEm: aviso.recuperadoEm,
   verificadoEm: aviso.verificadoEm,
   avaliacao: aviso.avaliacao,

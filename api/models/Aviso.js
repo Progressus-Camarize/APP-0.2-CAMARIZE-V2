@@ -23,10 +23,13 @@ const schema = new mongoose.Schema({
   pushTentativas: { type: Number, default: 0 },
   pushTentadoEm: Date,
   proximaTentativaEm: Date,
+  // Aviso de tendência projetada (avisoService.projectTrend) vs aviso reativo (limite já em curso).
+  // Os dois podem coexistir para o mesmo cativeiro+tipo: a tendência avisa cedo, o reativo confirma depois.
+  preditivo: { type: Boolean, default: false },
 });
 
 schema.index({ cativeiro: 1, criadoEm: -1 });
-schema.index({ cativeiro: 1, tipo: 1 }, { unique: true, partialFilterExpression: { estado: 'ativo' } });
+schema.index({ cativeiro: 1, tipo: 1, preditivo: 1 }, { unique: true, partialFilterExpression: { estado: 'ativo' } });
 schema.index({ pushStatus: 1, criadoEm: 1 });
 
 export default mongoose.model('Aviso', schema);

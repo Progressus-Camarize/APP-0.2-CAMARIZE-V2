@@ -6,12 +6,17 @@ import Modal from '../../components/Modal';
 import { useAuth } from '@/hooks/useAuth';
 
 import { HiOutlineClipboardList, HiOutlineBell, HiOutlineExclamationCircle, HiOutlineOfficeBuilding, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChartBar } from 'react-icons/hi';
+import { TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbTrendingUp } from 'react-icons/tb';
 import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
 
-
+const AVISO_ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
+const AvisoIcone = ({ tipo }) => {
+  const Icone = AVISO_ICONES[tipo] || TbBell;
+  return <Icone aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />;
+};
 
 export default function AdminPanel() {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -361,8 +366,6 @@ export default function AdminPanel() {
       console.error('Erro ao avaliar aviso:', e);
     }
   };
-
-  const avisoIcone = (tipo) => ({ temperatura: '🌡️', ph: '🧪', amonia: '⚗️', sensor_inativo: '📡' }[tipo] || '🔔');
 
   // Chat polling
   useEffect(() => {
@@ -976,10 +979,15 @@ export default function AdminPanel() {
                 <div key={aviso.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                     <div>
-                      <strong>{avisoIcone(aviso.tipo)} {aviso.cativeiroNome}</strong>
+                      <strong><AvisoIcone tipo={aviso.tipo} /> {aviso.cativeiroNome}</strong>
                       <span style={{ marginLeft: 8, fontSize: 12, color: aviso.estado === 'ativo' ? '#b45309' : '#16a34a', fontWeight: 600 }}>
                         {aviso.estado === 'ativo' ? 'ATIVO' : 'RECUPERADO'}
                       </span>
+                      {aviso.preditivo && (
+                        <span style={{ marginLeft: 8, fontSize: 11, color: '#1d4ed8', background: '#dbeafe', borderRadius: 999, padding: '2px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <TbTrendingUp aria-hidden="true" /> TENDÊNCIA
+                        </span>
+                      )}
                       <div style={{ marginTop: 4, color: '#334155', fontSize: '0.88rem' }}>{aviso.mensagem}</div>
                       <div style={{ marginTop: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
                         {new Date(aviso.datahora).toLocaleString('pt-BR')}

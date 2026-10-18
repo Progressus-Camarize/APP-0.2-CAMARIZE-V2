@@ -6,7 +6,7 @@ import Aviso from '../models/Aviso.js';
 import DeviceCredential from '../models/DeviceCredential.js';
 import Cativeiros from '../models/Cativeiros.js';
 import alertService from '../services/alertService.js';
-import { evaluate, processReading, checkSensorInativo, deliverPending, freshness } from '../services/avisoService.js';
+import { evaluate, processReading, checkSensorInativo, deliverPending, freshness, linearRegression, projectTrend } from '../services/avisoService.js';
 import { connectTestDatabase, dropTestDatabase, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -171,4 +171,65 @@ test('sensor_inativo: não se aplica a cativeiro sem dispositivo provisionado', 
   const pond = fixtures.cativeiros[1]._id;
   await checkSensorInativo(pond, new Date());
   assert.equal(await Aviso.countDocuments({ cativeiro: pond, tipo: 'sensor_inativo' }), 0);
+});
+
+test('linearRegression: reta exata e janela plana', () => {
+  assert.deepEqual(linearRegression([{ t: 0, y: 1 }, { t: 1, y: 3 }, { t: 2, y: 5 }]), { slope: 2, intercept: 1 });
+  const plano = linearRegression([{ t: 0, y: 7 }, { t: 10, y: 7 }, { t: 20, y: 7 }]);
+  assert.equal(plano.slope, 0);
+});
+
+test('projectTrend: insuficiente, estável e tendência que projeta cruzamento antes do limite', () => {
+  const bounds = { temp_min: 26, temp_max: 30 };
+  const poucos = Array.from({ length: 5 }, (_, i) => ({ datahora: new Date(Date.now() - i * 20 * 60_000), temp_atual: 28, ph_atual: 7, amonia_atual: 0.2 }));
+  assert.equal(projectTrend(poucos, bounds).suficiente, false);
+
+  const estavel = Array.from({ length: 9 }, (_, i) => ({ datahora: new Date(Date.now() - (160 - i * 20) * 60_000), temp_atual: 28, ph_atual: 7, amonia_atual: 0.2 }));
+  assert.deepEqual(projectTrend(estavel, bounds).motivos, []);
+
+  // Sobe 0.25°C a cada 20min: ainda longe do limite (29.0 < 29.5), mas projeta cruzar 30°C em ~1h20.
+  const subindo = Array.from({ length: 9 }, (_, i) => ({
+    datahora: new Date(Date.now() - (160 - i * 20) * 60_000), temp_atual: 27 + i * 0.25, ph_atual: 7, amonia_atual: 0.2,
+  }));
+  const result = projectTrend(subindo, bounds);
+  assert.equal(result.suficiente, true);
+  const motivo = result.motivos.find(m => m.tipo === 'temperatura');
+  assert.ok(motivo, 'deve projetar cruzamento de temperatura antes de o valor atual chegar perto do limite');
+  assert.equal(motivo.preditivo, true);
+  assert.equal(motivo.limite, 30);
+  assert.equal(motivo.direcao, 'aumento');
+});
+
+test('processReading: aviso preditivo antecipa a tendência; aviso reativo (quando chega) recupera o preditivo', async () => {
+  const pond = (await Cativeiros.create({
+    nome: 'Viveiro isolado tendencia', id_tipo_camarao: fixtures.condicao.id_tipo_camarao,
+    data_instalacao: new Date(), condicoes_ideais: fixtures.condicao._id,
+  }))._id;
+  const now = new Date();
+  const subindo = Array.from({ length: 9 }, (_, i) => ({
+    id_cativeiro: pond, autenticada: true, origem: 'dispositivo', amostraId: `trend_${Date.now()}_${i}_${Math.random()}`,
+    datahora: new Date(now.getTime() - (160 - i * 20) * 60_000), temp_atual: 27 + i * 0.25, ph_atual: 7, amonia_atual: 0.2,
+  }));
+  await ParametrosAtuais.insertMany(subindo);
+  await processReading(pond, now);
+
+  assert.equal(await Aviso.countDocuments({ cativeiro: pond, tipo: 'temperatura', preditivo: false }), 0,
+    'poucas leituras na janela reativa de 90min: não deve disparar o aviso reativo ainda');
+  const preditivo = await Aviso.findOne({ cativeiro: pond, tipo: 'temperatura', preditivo: true, estado: 'ativo' });
+  assert.ok(preditivo, 'deve abrir o aviso de tendência antes do limite ser atingido');
+  assert.equal(preditivo.limite, 30);
+
+  // A tendência continua e agora realmente se aproxima do limite: o reativo dispara.
+  const now2 = new Date(now.getTime() + 60 * 60_000);
+  const confirmando = [50, 40, 30, 20, 10, 0].map((minutosAtras, i) => ({
+    id_cativeiro: pond, autenticada: true, origem: 'dispositivo', amostraId: `confirma_${Date.now()}_${i}_${Math.random()}`,
+    datahora: new Date(now2.getTime() - minutosAtras * 60_000), temp_atual: 29.0 + i * 0.18, ph_atual: 7, amonia_atual: 0.2,
+  }));
+  await ParametrosAtuais.insertMany(confirmando);
+  await processReading(pond, now2);
+
+  const reativo = await Aviso.findOne({ cativeiro: pond, tipo: 'temperatura', preditivo: false, estado: 'ativo' });
+  assert.ok(reativo, 'a tendência confirmada deve abrir o aviso reativo de verdade');
+  const preditivoAposReativo = await Aviso.findById(preditivo._id);
+  assert.equal(preditivoAposReativo.estado, 'recuperado', 'o aviso preditivo deve ser recuperado quando o reativo confirma o problema');
 });
