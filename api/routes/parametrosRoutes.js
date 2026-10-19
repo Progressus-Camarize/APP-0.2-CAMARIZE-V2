@@ -17,7 +17,18 @@ const router = express.Router();
  *   post:
  *     summary: Registrar leitura de sensor (ESP32)
  *     tags: [Parâmetros]
- *     description: Use X-Device-Key e amostraId para leituras confiáveis e idempotentes. Sem chave, a leitura é marcada como legado e não gera aviso.
+ *     description: >
+ *       Sem o header X-Device-Key, a leitura é aceita mas marcada como legado
+ *       (`autenticada: false`) — ela fica visível no histórico, mas nunca entra na
+ *       pipeline de avisos (Camadas 1/2) nem na detecção de sensor inativo. Gere a
+ *       chave em `POST /parametros/dispositivos/{cativeiroId}/chave`.
+ *     parameters:
+ *       - in: header
+ *         name: X-Device-Key
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Chave do dispositivo. Presente e válida = leitura autenticada; presente e inválida = 401; ausente = leitura legada.
  *     requestBody:
  *       required: true
  *       content:
@@ -30,9 +41,47 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ParametroAtual'
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 message: { type: string, example: Parâmetros cadastrados com sucesso }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     cativeiro: { type: string, example: Viveiro A1 }
+ *                     temperatura: { type: number }
+ *                     ph: { type: number }
+ *                     amonia: { type: number }
+ *                     datahora: { type: string, format: date-time }
+ *                     origem: { type: string, enum: [dispositivo, legado] }
+ *       200:
+ *         description: Leitura repetida (mesmo amostraId autenticado, ou mesmo valor em até 10s) — idempotente, não duplica
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 repetida: { type: boolean, example: true }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
  *       400:
- *         description: Dados inválidos ou viveiro não encontrado
+ *         description: Dados inválidos (campo obrigatório ausente, fora da faixa física aceita, ou amostraId mal formatado)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: X-Device-Key presente, mas inválida para este viveiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Viveiro não encontrado
  *         content:
  *           application/json:
  *             schema:
@@ -349,13 +398,36 @@ router.get('/sugestao-limiares/:cativeiroId', Auth.Authorization, getThresholdSu
  *         description: ID do viveiro
  *     responses:
  *       200:
- *         description: Parâmetros atuais do viveiro
+ *         description: Última leitura válida do viveiro (campos vêm null se nunca houve leitura)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ParametroAtual'
+ *               type: object
+ *               properties:
+ *                 cativeiro:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     nome: { type: string }
+ *                 parametros:
+ *                   type: object
+ *                   properties:
+ *                     temperatura: { type: number, nullable: true }
+ *                     ph: { type: number, nullable: true }
+ *                     amonia: { type: number, nullable: true }
+ *                     datahora: { type: string, format: date-time, nullable: true }
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
- *         description: Nenhuma leitura encontrada para este viveiro
+ *         description: Viveiro não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get("/atuais/:cativeiroId", Auth.Authorization, getParametrosAtuais);
 
@@ -363,7 +435,7 @@ router.get("/atuais/:cativeiroId", Auth.Authorization, getParametrosAtuais);
  * @swagger
  * /parametros/historicos/{cativeiroId}:
  *   get:
- *     summary: Buscar histórico de leituras de um viveiro
+ *     summary: Buscar histórico paginado de leituras de um viveiro
  *     tags: [Parâmetros]
  *     security:
  *       - BearerAuth: []
@@ -374,15 +446,66 @@ router.get("/atuais/:cativeiroId", Auth.Authorization, getParametrosAtuais);
  *         schema:
  *           type: string
  *         description: ID do viveiro
+ *       - in: query
+ *         name: dias
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *           minimum: 1
+ *           maximum: 365
+ *         description: Janela de dias retroativos
+ *       - in: query
+ *         name: pagina
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *           minimum: 1
+ *       - in: query
+ *         name: limite
+ *         schema:
+ *           type: integer
+ *           default: 500
+ *           maximum: 1000
+ *         description: Registros por página
  *     responses:
  *       200:
- *         description: Lista de leituras históricas ordenadas por data
+ *         description: Página de leituras históricas, ordenadas por data crescente
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/ParametroAtual'
+ *               type: object
+ *               properties:
+ *                 cativeiro:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     nome: { type: string }
+ *                 periodo: { type: string, example: 7 dias }
+ *                 total_registros: { type: integer, description: Quantidade nesta página }
+ *                 pagina: { type: integer }
+ *                 proximaPagina: { type: integer, nullable: true, description: null quando não há mais páginas }
+ *                 dados:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       datahora: { type: string, format: date-time }
+ *                       temperatura: { type: number }
+ *                       ph: { type: number }
+ *                       amonia: { type: number }
+ *                       origem: { type: string, enum: [dispositivo, legado] }
+ *       400:
+ *         description: Período ou paginação inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get("/historicos/:cativeiroId", Auth.Authorization, getParametrosHistoricos);
 
@@ -403,32 +526,102 @@ router.get("/historicos/:cativeiroId", Auth.Authorization, getParametrosHistoric
  *         description: ID do viveiro
  *     responses:
  *       200:
- *         description: Dados consolidados — leitura atual, histórico, médias e condições ideais
+ *         description: Dados consolidados para a tela de dashboard — leitura atual, médias dos últimos 7 dias, frescor da leitura, análise de tendência e avisos ativos
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 parametrosAtuais:
- *                   $ref: '#/components/schemas/ParametroAtual'
- *                 historico:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/ParametroAtual'
- *                 condicoesIdeais:
- *                   $ref: '#/components/schemas/CondicoesIdeais'
- *                 medias:
+ *                 cativeiro:
  *                   type: object
  *                   properties:
- *                     temp_media:
- *                       type: number
- *                     ph_medio:
- *                       type: number
- *                     amonia_media:
- *                       type: number
+ *                     id: { type: string }
+ *                     nome: { type: string }
+ *                 dadosAtuais:
+ *                   type: object
+ *                   properties:
+ *                     temperatura: { type: number, nullable: true }
+ *                     ph: { type: number, nullable: true }
+ *                     amonia: { type: number, nullable: true }
+ *                     datahora: { type: string, format: date-time, nullable: true }
+ *                 dadosSemanais:
+ *                   type: array
+ *                   description: Um ponto por dia dos últimos 7 dias (médias), null nos dias sem leitura
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       data: { type: string, example: '2026-10-19' }
+ *                       temperatura: { type: number, nullable: true }
+ *                       ph: { type: number, nullable: true }
+ *                       amonia: { type: number, nullable: true }
+ *                 frescor:
+ *                   type: object
+ *                   properties:
+ *                     estado: { type: string, enum: [sem_dados, recente, antigo] }
+ *                     ultimaLeitura: { type: string, format: date-time, nullable: true }
+ *                     idadeMinutos: { type: integer, nullable: true }
+ *                 analise:
+ *                   type: object
+ *                   description: Se a janela recente de leituras é suficiente para a detecção de tendência (avisoService.evaluate)
+ *                   properties:
+ *                     suficiente: { type: boolean }
+ *                     razao: { type: string, nullable: true, enum: [lacuna, leitura_antiga, leituras_insuficientes, null] }
+ *                 avisosAtivos:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Aviso'
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Viveiro não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.get("/dashboard/:cativeiroId", Auth.Authorization, getDadosDashboard);
 
+/**
+ * @swagger
+ * /parametros/stream/{cativeiroId}:
+ *   get:
+ *     summary: Stream (SSE) dos dados do dashboard de um viveiro
+ *     tags: [Parâmetros]
+ *     description: >
+ *       Server-Sent Events — mesma forma de dados de `GET /parametros/dashboard/{cativeiroId}`,
+ *       enviada imediatamente na conexão e novamente a cada nova leitura registrada para o
+ *       viveiro. Mantém a conexão aberta com um ping de keepalive a cada 15s. Aceita o token
+ *       tanto no header Authorization quanto na query string `?token=` (útil porque o
+ *       EventSource do navegador não permite enviar headers customizados).
+ *     parameters:
+ *       - in: path
+ *         name: cativeiroId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do viveiro
+ *       - in: query
+ *         name: token
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Token JWT, alternativa ao header Authorization
+ *     responses:
+ *       200:
+ *         description: Conexão SSE estabelecida (text/event-stream); cada evento `data:` tem o mesmo formato do corpo de GET /parametros/dashboard/{cativeiroId}
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *       404:
+ *         description: Viveiro não encontrado
+ */
 router.get("/stream/:cativeiroId", Auth.AuthorizationSSE, streamDashboard);
 
 export default router;

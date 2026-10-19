@@ -20,35 +20,32 @@ router.use(Auth.Authorization);
  * @swagger
  * /notifications:
  *   get:
- *     summary: Listar notificações do usuário autenticado
+ *     summary: Listar avisos de todos os viveiros acessíveis ao usuário autenticado
  *     tags: [Notificações]
+ *     description: Master vê todos os viveiros; demais papéis, só os viveiros das fazendas associadas.
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
  *     responses:
  *       200:
- *         description: Lista de notificações/alertas
+ *         description: Avisos, mais recentes primeiro
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                   tipo:
- *                     type: string
- *                     enum: [temperature, pH, amonia]
- *                   severidade:
- *                     type: string
- *                     enum: [baixa, media, alta]
- *                   mensagem:
- *                     type: string
- *                   cativeiro:
- *                     type: string
- *                   createdAt:
- *                     type: string
- *                     format: date-time
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 total: { type: integer }
+ *                 notifications:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Aviso'
  */
 router.get('/', notificationController.getNotifications);
 
@@ -56,7 +53,50 @@ router.get('/', notificationController.getNotifications);
  * @swagger
  * /notifications/cativeiro/{cativeiroId}:
  *   get:
- *     summary: Listar notificações de um viveiro específico
+ *     summary: Listar avisos de um viveiro específico
+ *     tags: [Notificações]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cativeiroId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *     responses:
+ *       200:
+ *         description: Avisos do viveiro, mais recentes primeiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 total: { type: integer }
+ *                 notifications:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Aviso'
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/cativeiro/:cativeiroId', notificationController.getNotificationsByCativeiro);
+
+/**
+ * @swagger
+ * /notifications/cativeiro/{cativeiroId}/resumo:
+ *   get:
+ *     summary: Resumo estatístico dos avisos de um viveiro
  *     tags: [Notificações]
  *     security:
  *       - BearerAuth: []
@@ -68,16 +108,91 @@ router.get('/', notificationController.getNotifications);
  *           type: string
  *     responses:
  *       200:
- *         description: Notificações do viveiro
+ *         description: Totais, falsos alarmes e tempo médio de conferência
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
+ *               type: object
+ *               properties:
+ *                 total: { type: integer }
+ *                 porParametro:
+ *                   type: object
+ *                   properties:
+ *                     temperatura: { type: integer }
+ *                     ph: { type: integer }
+ *                     amonia: { type: integer }
+ *                     sensor_inativo: { type: integer }
+ *                 verificados: { type: integer }
+ *                 falsosAlarmes: { type: integer }
+ *                 tempoMedioConferenciaMinutos: { type: number, nullable: true }
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.get('/cativeiro/:cativeiroId', notificationController.getNotificationsByCativeiro);
 router.get('/cativeiro/:cativeiroId/resumo', notificationController.getNotificationSummary);
+
+/**
+ * @swagger
+ * /notifications/{id}/avaliacao:
+ *   patch:
+ *     summary: Avaliar um aviso como confirmado ou falso alarme
+ *     tags: [Notificações]
+ *     description: >
+ *       Só a primeira avaliação é registrada (idempotente — reenviar não sobrescreve).
+ *       Alimenta a Camada 2 (sugestão de calibração de limiares).
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do aviso
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [avaliacao]
+ *             properties:
+ *               avaliacao:
+ *                 type: string
+ *                 enum: [confirmado, falso_alarme]
+ *     responses:
+ *       200:
+ *         description: Avaliação registrada (ou já existente)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 verificadoEm: { type: string, format: date-time }
+ *                 avaliacao: { type: string, enum: [confirmado, falso_alarme] }
+ *       400:
+ *         description: Avaliação inválida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Usuário sem acesso ao viveiro deste aviso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Aviso não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.patch('/:id/avaliacao', notificationController.evaluateNotification);
 
 /**
@@ -91,6 +206,13 @@ router.patch('/:id/avaliacao', notificationController.evaluateNotification);
  *     responses:
  *       200:
  *         description: Contagem de avisos não vistos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 naoVistos: { type: integer }
  */
 router.get('/nao-vistos', notificationController.getUnreadCount);
 

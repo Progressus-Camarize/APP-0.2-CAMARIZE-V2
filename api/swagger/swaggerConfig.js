@@ -187,6 +187,9 @@ A maioria dos endpoints requer um token JWT. Para obtê-lo:
         },
 
         // ─── PARÂMETROS ──────────────────────────────────────────────────────
+        // Leitura como persistida/retornada em consultas (campos _atual) — não é o
+        // formato do corpo de POST /parametros/cadastrar, que usa nomes diferentes
+        // (ver ParametroCreate).
         ParametroAtual: {
           type: 'object',
           properties: {
@@ -196,16 +199,26 @@ A maioria dos endpoints requer um token JWT. Para obtê-lo:
             ph_atual: { type: 'number', example: 7.1 },
             amonia_atual: { type: 'number', example: 0.05 },
             id_cativeiro: { type: 'string', example: '664a1b2c3d4e5f6a7b8c9d10' },
+            origem: { type: 'string', enum: ['dispositivo', 'legado'], example: 'dispositivo' },
+            autenticada: { type: 'boolean', example: true },
+            amostraId: { type: 'string', nullable: true, example: 'esp32-01:1792300123' },
           },
         },
+        // Corpo real aceito por POST /parametros/cadastrar.
         ParametroCreate: {
           type: 'object',
-          required: ['temp_atual', 'ph_atual', 'amonia_atual', 'id_cativeiro'],
+          required: ['id_cativeiro', 'temperatura', 'ph', 'amonia'],
           properties: {
-            temp_atual: { type: 'number', example: 27.3 },
-            ph_atual: { type: 'number', example: 7.1 },
-            amonia_atual: { type: 'number', example: 0.05 },
             id_cativeiro: { type: 'string', example: '664a1b2c3d4e5f6a7b8c9d10' },
+            temperatura: { type: 'number', example: 27.3, description: 'Entre -5 e 50' },
+            ph: { type: 'number', example: 7.1, description: 'Entre 0 e 14' },
+            amonia: { type: 'number', example: 0.05, description: 'Entre 0 e 500' },
+            amostraId: {
+              type: 'string',
+              pattern: '^[A-Za-z0-9:_-]{1,80}$',
+              example: 'esp32-01:1792300123',
+              description: 'Opcional. Só tem efeito de idempotência em leituras autenticadas (com X-Device-Key); reenviar o mesmo amostraId não duplica a leitura.',
+            },
           },
         },
 
@@ -449,6 +462,39 @@ A maioria dos endpoints requer um token JWT. Para obtê-lo:
             readAt: { type: 'string', format: 'date-time', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+
+        // ─── AVISOS (alertas gerados pela pipeline de monitoramento) ─────────
+        Aviso: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            tipo: { type: 'string', enum: ['temperatura', 'ph', 'amonia', 'sensor_inativo'] },
+            cativeiro: { type: 'string', example: '664a1b2c3d4e5f6a7b8c9d10' },
+            cativeiroNome: { type: 'string', example: 'Viveiro A1' },
+            mensagem: { type: 'string' },
+            datahora: { type: 'string', format: 'date-time', description: 'Quando o aviso foi criado' },
+            estado: { type: 'string', enum: ['ativo', 'recuperado'] },
+            periodoInicio: { type: 'string', format: 'date-time' },
+            periodoFim: { type: 'string', format: 'date-time' },
+            valorInicial: { type: 'number', nullable: true },
+            valorAtual: { type: 'number', nullable: true },
+            limite: { type: 'number', nullable: true },
+            experimental: { type: 'boolean', description: 'pH/amônia (e todo aviso preditivo) são medições experimentais' },
+            preditivo: { type: 'boolean', description: 'true = tendência projetada (Camada 1); false = limite já cruzado de fato' },
+            recuperadoEm: { type: 'string', format: 'date-time', nullable: true },
+            verificadoEm: { type: 'string', format: 'date-time', nullable: true },
+            avaliacao: { type: 'string', enum: ['confirmado', 'falso_alarme'], nullable: true },
+            frescor: {
+              type: 'object',
+              properties: {
+                estado: { type: 'string', enum: ['sem_dados', 'recente', 'antigo'] },
+                ultimaLeitura: { type: 'string', format: 'date-time', nullable: true },
+                idadeMinutos: { type: 'integer', nullable: true },
+                origem: { type: 'string', example: 'dispositivo' },
+              },
+            },
           },
         },
 
