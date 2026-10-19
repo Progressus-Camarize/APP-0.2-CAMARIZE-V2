@@ -452,6 +452,33 @@ A maioria dos endpoints requer um token JWT. Para obtê-lo:
           },
         },
 
+        // ─── CALIBRAÇÃO DE LIMIARES (Camada 2 da pipeline de avisos) ─────────
+        SugestaoLimiar: {
+          type: 'object',
+          nullable: true,
+          description: 'null quando não há amostra suficiente (mínimo 5 avisos avaliados) ou a taxa de falso alarme não justifica mudança.',
+          properties: {
+            campo: { type: 'string', enum: ['temperatura', 'ph', 'amonia'], example: 'ph' },
+            amostras: { type: 'integer', example: 5 },
+            taxaFalsoAlarme: { type: 'number', example: 0.8, description: 'Fração de avisos avaliados como falso_alarme' },
+            motivo: { type: 'string', example: '4 de 5 avisos recentes foram marcados como falso alarme.' },
+            valorAtual: {
+              description: 'Número (pH/amônia) ou { minimo, maximo } (temperatura)',
+              oneOf: [
+                { type: 'number', example: 0.35 },
+                { type: 'object', properties: { minimo: { type: 'number' }, maximo: { type: 'number' } } },
+              ],
+            },
+            valorSugerido: {
+              description: 'Mesmo formato de valorAtual, sempre mais frouxo (nunca sugere apertar)',
+              oneOf: [
+                { type: 'number', example: 0.42 },
+                { type: 'object', properties: { minimo: { type: 'number' }, maximo: { type: 'number' } } },
+              ],
+            },
+          },
+        },
+
         // ─── RESPOSTAS GENÉRICAS ─────────────────────────────────────────────
         Error: {
           type: 'object',
