@@ -54,6 +54,8 @@ const updateSensor = async (req, res) => {
     const { id } = req.params;
     const usuarioId = req.loggedUser?.id;
     const data = { ...req.body };
+    delete data.user; // o dono do sensor não muda pela edição
+    delete data._id;
     
     if (req.file) {
       data.foto_sensor = req.file.buffer;

@@ -29,6 +29,8 @@ import './models/UsuariosxFazendas.js';
 
 export function createApp({ isDatabaseReady = () => mongoose.connection.readyState === 1 } = {}) {
   const app = express();
+  // Atrás do proxy do Render: req.ip passa a ser o IP real do cliente (usado no limite de tentativas)
+  app.set('trust proxy', 1);
 
   app.use(cors({
     origin: "*",

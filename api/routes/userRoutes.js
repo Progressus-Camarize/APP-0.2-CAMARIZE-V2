@@ -1,6 +1,7 @@
 import express from "express";
 const userRoutes = express.Router();
 import userController from "../controllers/userController.js";
+import { limitarLogin, limitarCadastro } from '../middleware/rateLimit.js';
 import Auth from "../middleware/Auth.js";
 import Cache from '../middleware/cache.js';
 
@@ -49,7 +50,7 @@ import Cache from '../middleware/cache.js';
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-userRoutes.post("/user", userController.createUser);
+userRoutes.post("/user", Auth.Authorization, Auth.RequireRole(['master']), userController.createUser);
 
 /**
  * @swagger
@@ -77,7 +78,7 @@ userRoutes.post("/user", userController.createUser);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-userRoutes.post("/auth", userController.loginUser);
+userRoutes.post("/auth", limitarLogin, userController.loginUser);
 
 /**
  * @swagger
@@ -126,7 +127,7 @@ userRoutes.post("/auth", userController.loginUser);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-userRoutes.post("/register", userController.register);
+userRoutes.post("/register", limitarCadastro, userController.register);
 
 /**
  * @swagger
@@ -167,7 +168,7 @@ userRoutes.post("/register", userController.register);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-userRoutes.post("/register/proprietario", userController.registerProprietario);
+userRoutes.post("/register/proprietario", limitarCadastro, userController.registerProprietario);
 
 /**
  * @swagger
@@ -207,7 +208,7 @@ userRoutes.post("/register/proprietario", userController.registerProprietario);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-userRoutes.post("/register/funcionario", userController.registerFuncionario);
+userRoutes.post("/register/funcionario", limitarCadastro, userController.registerFuncionario);
 
 /**
  * @swagger
@@ -237,7 +238,7 @@ userRoutes.post("/register/funcionario", userController.registerFuncionario);
  *                 exists:
  *                   type: boolean
  */
-userRoutes.post("/check-email", userController.checkEmailExists);
+userRoutes.post("/check-email", Auth.Authorization, Auth.RequireRole(['master']), userController.checkEmailExists);
 
 /**
  * @swagger
@@ -324,7 +325,7 @@ userRoutes.get('/masters/all', Auth.Authorization, Auth.RequireRole(['admin','ma
  *       404:
  *         description: Usuário não encontrado
  */
-userRoutes.get('/:id', userController.getUserById);
+userRoutes.get('/:id', Auth.Authorization, userController.getUserById);
 
 /**
  * @swagger
@@ -354,7 +355,7 @@ userRoutes.get('/:id', userController.getUserById);
  *       400:
  *         description: Nenhuma foto enviada
  */
-userRoutes.patch('/:id/photo', userController.updateUserPhoto);
+userRoutes.patch('/:id/photo', Auth.Authorization, userController.updateUserPhoto);
 
 /**
  * @swagger

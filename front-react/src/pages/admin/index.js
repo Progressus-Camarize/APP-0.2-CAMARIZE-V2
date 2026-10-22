@@ -11,6 +11,7 @@ import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
+import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const AVISO_ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
 const AvisoIcone = ({ tipo }) => {
@@ -19,6 +20,7 @@ const AvisoIcone = ({ tipo }) => {
 };
 
 export default function AdminPanel() {
+  const authToken = useAuthToken();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const router = useRouter();
   const [initialTabApplied, setInitialTabApplied] = useState(false);
@@ -535,7 +537,7 @@ export default function AdminPanel() {
 
   const loadDietaAtual = async (cativeiroId) => {
     try {
-      const res = await axios.get(`${apiUrl}/dietas/atual/${cativeiroId}`);
+      const res = await axios.get(`${apiUrl}/dietas/atual/${cativeiroId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
       if (res?.data) {
         setCativeiroDieta(prev => ({ ...prev, [cativeiroId]: res.data }));
       }
@@ -1314,7 +1316,7 @@ export default function AdminPanel() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               {(previewImage[cativeiro._id] || !photoErrors[cativeiro._id]) ? (
                                 <img
-                                  src={previewImage[cativeiro._id] || `${apiUrl}/cativeiros/${cativeiro._id}/foto`}
+                                  src={previewImage[cativeiro._id] || fotoCativeiroUrl(apiUrl, cativeiro._id, authToken)}
                                   alt="Foto do cativeiro"
                                   style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0 }}
                                   onError={() => { if (!previewImage[cativeiro._id]) setPhotoErrors(prev => ({ ...prev, [cativeiro._id]: true })); }}
@@ -2313,7 +2315,7 @@ export default function AdminPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
             Tem certeza que deseja excluir esta conversa com <strong>{getConversationTitle(chatConversations.find(c => c._id === chatSelectedId) || {})}</strong>?
-            Todas as mensagens serão apagadas permanentemente.
+            A conversa será apagada só para você. A outra pessoa continua vendo as mensagens.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteConvModal(false)}>Cancelar</button>

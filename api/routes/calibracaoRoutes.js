@@ -60,7 +60,10 @@ router.get("/atual/:cativeiroId", calibracaoController.getCalibracaoAtual);
  *       409:
  *         description: Sem calibração ativa, ou tipo/etapa diferente do estado atual
  */
-router.post("/resultado", calibracaoController.registrarResultado);
+// A etapa "peso" é enviada pela aplicação e exige login; as demais vêm do ESP32 com X-Device-Key
+const loginNaPesagem = (req, res, next) =>
+  req.body?.etapa === "peso" ? Auth.Authorization(req, res, next) : next();
+router.post("/resultado", loginNaPesagem, calibracaoController.registrarResultado);
 
 /**
  * @swagger

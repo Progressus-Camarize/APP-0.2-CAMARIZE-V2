@@ -1,22 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 function getToken() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('tokenCamarize');
+  return sessionStorage.getItem('token') || localStorage.getItem('token');
 }
+
+const TIPOS_ALERTA = ['temperatura', 'ph', 'amonia'];
+
+// A API guarda as severidades por tipo de alerta; a tela liga/desliga cada severidade para todos os tipos
+const severidadeAtiva = (alertTypes, nivel) =>
+  TIPOS_ALERTA.some(tipo => alertTypes?.[tipo]?.severity?.[nivel]);
 
 export default function EmailSettings() {
   const [settings, setSettings] = useState({
-    notificacoesAtivas: false,
-    emailDestinatario: '',
-    frequencia: 'diaria',
-    horarioEnvio: '08:00',
+    emailEnabled: false,
+    emailAddress: '',
     alertasCriticos: true,
-    resumoDiario: false,
+    alertasModerados: true,
+    silencioAtivo: false,
+    silencioInicio: '22:00',
+    silencioFim: '07:00',
   });
+  // Configuração completa vinda da API, para não perder o que a tela não edita
+  const alertTypesSalvos = useRef({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -27,8 +36,18 @@ export default function EmailSettings() {
       const res = await axios.get(`${API_URL}/email/settings`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data) {
-        setSettings(prev => ({ ...prev, ...res.data }));
+      const salvo = res.data?.emailSettings;
+      if (salvo) {
+        alertTypesSalvos.current = salvo.alertTypes || {};
+        setSettings({
+          emailEnabled: !!salvo.emailEnabled,
+          emailAddress: salvo.emailAddress || '',
+          alertasCriticos: severidadeAtiva(salvo.alertTypes, 'alta'),
+          alertasModerados: severidadeAtiva(salvo.alertTypes, 'media'),
+          silencioAtivo: !!salvo.quietHours?.enabled,
+          silencioInicio: salvo.quietHours?.startTime || '22:00',
+          silencioFim: salvo.quietHours?.endTime || '07:00',
+        });
       }
     } catch (err) {
       console.error('Erro ao buscar configurações de email:', err);
@@ -46,12 +65,34 @@ export default function EmailSettings() {
     setMessage(null);
     try {
       const token = getToken();
-      await axios.put(`${API_URL}/email/settings`, settings, {
+      const alertTypes = Object.fromEntries(TIPOS_ALERTA.map(tipo => {
+        const atual = alertTypesSalvos.current?.[tipo] || {};
+        return [tipo, {
+          enabled: atual.enabled ?? true,
+          severity: {
+            baixa: atual.severity?.baixa ?? false,
+            media: settings.alertasModerados,
+            alta: settings.alertasCriticos,
+          },
+        }];
+      }));
+      const res = await axios.put(`${API_URL}/email/settings`, {
+        emailEnabled: settings.emailEnabled,
+        emailAddress: settings.emailAddress.trim(),
+        alertTypes,
+        quietHours: {
+          enabled: settings.silencioAtivo,
+          startTime: settings.silencioInicio,
+          endTime: settings.silencioFim,
+        },
+      }, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      alertTypesSalvos.current = res.data?.emailSettings?.alertTypes || alertTypes;
       setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.error || 'Erro ao salvar configurações.' });
+      const { error, details } = err.response?.data || {};
+      setMessage({ type: 'error', text: details ? `${error}: ${details}` : (error || 'Erro ao salvar configurações.') });
     } finally {
       setSaving(false);
     }
@@ -109,13 +150,6 @@ export default function EmailSettings() {
     boxSizing: 'border-box',
   };
 
-  const selectStyle = {
-    ...inputStyle,
-    appearance: 'none',
-    background: '#fff url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%236b7280\' stroke-width=\'2\'%3e%3cpolyline points=\'6 9 12 15 18 9\'/%3e%3c/svg%3e") no-repeat right 12px center / 16px',
-    paddingRight: '36px',
-  };
-
   const toggleStyle = (active) => ({
     width: '48px',
     height: '26px',
@@ -169,11 +203,12 @@ export default function EmailSettings() {
             </p>
           </div>
           <button
-            onClick={() => handleChange('notificacoesAtivas', !settings.notificacoesAtivas)}
-            style={toggleStyle(settings.notificacoesAtivas)}
+            onClick={() => handleChange('emailEnabled', !settings.emailEnabled)}
+            style={toggleStyle(settings.emailEnabled)}
             aria-label="Ativar notificações"
+            aria-pressed={settings.emailEnabled}
           >
-            <div style={toggleDotStyle(settings.notificacoesAtivas)} />
+            <div style={toggleDotStyle(settings.emailEnabled)} />
           </button>
         </div>
       </div>
@@ -185,36 +220,53 @@ export default function EmailSettings() {
           type="email"
           style={inputStyle}
           placeholder="seu@email.com"
-          value={settings.emailDestinatario}
-          onChange={(e) => handleChange('emailDestinatario', e.target.value)}
+          value={settings.emailAddress}
+          onChange={(e) => handleChange('emailAddress', e.target.value)}
         />
       </div>
 
-      {/* Frequência e Horário */}
+      {/* Horário de silêncio */}
       <div style={cardStyle}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: settings.silencioAtivo ? '16px' : 0 }}>
           <div>
-            <label style={labelStyle}>Frequência</label>
-            <select
-              style={selectStyle}
-              value={settings.frequencia}
-              onChange={(e) => handleChange('frequencia', e.target.value)}
-            >
-              <option value="imediata">Imediata</option>
-              <option value="diaria">Diária</option>
-              <option value="semanal">Semanal</option>
-            </select>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
+              Horário de silêncio
+            </h3>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
+              Não enviar emails nesse intervalo (ex.: durante a noite)
+            </p>
           </div>
-          <div>
-            <label style={labelStyle}>Horário de envio</label>
-            <input
-              type="time"
-              style={inputStyle}
-              value={settings.horarioEnvio}
-              onChange={(e) => handleChange('horarioEnvio', e.target.value)}
-            />
-          </div>
+          <button
+            onClick={() => handleChange('silencioAtivo', !settings.silencioAtivo)}
+            style={toggleStyle(settings.silencioAtivo)}
+            aria-label="Ativar horário de silêncio"
+            aria-pressed={settings.silencioAtivo}
+          >
+            <div style={toggleDotStyle(settings.silencioAtivo)} />
+          </button>
         </div>
+        {settings.silencioAtivo && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={labelStyle}>Início</label>
+              <input
+                type="time"
+                style={inputStyle}
+                value={settings.silencioInicio}
+                onChange={(e) => handleChange('silencioInicio', e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Fim</label>
+              <input
+                type="time"
+                style={inputStyle}
+                value={settings.silencioFim}
+                onChange={(e) => handleChange('silencioFim', e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tipos de Notificação */}
@@ -227,13 +279,14 @@ export default function EmailSettings() {
           <div>
             <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Alertas Críticos</span>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>
-              Parâmetros fora dos limites ideais
+              Parâmetros muito fora dos limites ideais (severidade alta)
             </p>
           </div>
           <button
             onClick={() => handleChange('alertasCriticos', !settings.alertasCriticos)}
             style={toggleStyle(settings.alertasCriticos)}
             aria-label="Ativar alertas críticos"
+            aria-pressed={settings.alertasCriticos}
           >
             <div style={toggleDotStyle(settings.alertasCriticos)} />
           </button>
@@ -241,17 +294,18 @@ export default function EmailSettings() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Resumo Diário</span>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Alertas Moderados</span>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>
-              Receber resumo diário dos cativeiros
+              Parâmetros saindo dos limites ideais (severidade média)
             </p>
           </div>
           <button
-            onClick={() => handleChange('resumoDiario', !settings.resumoDiario)}
-            style={toggleStyle(settings.resumoDiario)}
-            aria-label="Ativar resumo diário"
+            onClick={() => handleChange('alertasModerados', !settings.alertasModerados)}
+            style={toggleStyle(settings.alertasModerados)}
+            aria-label="Ativar alertas moderados"
+            aria-pressed={settings.alertasModerados}
           >
-            <div style={toggleDotStyle(settings.resumoDiario)} />
+            <div style={toggleDotStyle(settings.alertasModerados)} />
           </button>
         </div>
       </div>

@@ -104,7 +104,8 @@ class userService {
 
   // Atualizar role do usuário
   async updateRole(id, role) {
-    return await User.findByIdAndUpdate(id, { role }, { new: true });
+    // O role vai no token: mudar o role exige novo login
+    return await User.findByIdAndUpdate(id, { role, $inc: { tokenVersion: 1 } }, { new: true });
   }
 
   // Atualizar dados do usuário (nome, email, senha)

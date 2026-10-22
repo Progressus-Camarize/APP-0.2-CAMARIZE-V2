@@ -1,5 +1,16 @@
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
+import mongoose from 'mongoose';
+import User from '../models/Users.js';
+
+// Data em que o usuário excluiu a conversa (null se nunca excluiu)
+const excluidaEm = (conversation, userId) => conversation.clearedAt?.get(String(userId)) || null;
+
+// Conversa excluída pelo usuário e sem mensagem nova depois disso fica fora da lista dele
+const visivelPara = (conversation, userId) => {
+  const limpaEm = excluidaEm(conversation, userId);
+  return !limpaEm || conversation.lastMessageAt > limpaEm;
+};
 
 // GET /chat/conversations/mine - Listar conversas do usuário autenticado
 export const getMyConversations = async (req, res) => {
@@ -9,7 +20,7 @@ export const getMyConversations = async (req, res) => {
       .populate('participants', 'nome email foto_perfil role')
       .sort({ lastMessageAt: -1 });
 
-    res.json(conversations);
+    res.json(conversations.filter(c => visivelPara(c, userId)));
   } catch (error) {
     console.error('Erro ao buscar conversas:', error);
     res.status(500).json({ error: 'Erro ao buscar conversas' });
@@ -21,8 +32,20 @@ export const createConversation = async (req, res) => {
   try {
     const { adminId, masterId } = req.body;
 
-    if (!adminId || !masterId) {
+    if (!mongoose.isValidObjectId(adminId) || !mongoose.isValidObjectId(masterId)) {
       return res.status(400).json({ error: 'adminId e masterId são obrigatórios' });
+    }
+
+    // Só um dos dois participantes abre a conversa, e ela é sempre entre um admin e um master
+    if (![String(adminId), String(masterId)].includes(String(req.loggedUser.id))) {
+      return res.status(403).json({ error: 'Você só pode abrir conversas das quais participa' });
+    }
+    const [admin, master] = await Promise.all([
+      User.findById(adminId).select('role').lean(),
+      User.findById(masterId).select('role').lean(),
+    ]);
+    if (admin?.role !== 'admin' || master?.role !== 'master') {
+      return res.status(400).json({ error: 'A conversa deve ser entre um admin e um master' });
     }
 
     // Verifica se já existe conversa entre os dois participantes
@@ -74,7 +97,9 @@ export const getMessages = async (req, res) => {
     conversation.unreadCounts.set(userId, 0);
     await conversation.save();
 
-    const messages = await Message.find({ conversationId: id })
+    // Quem excluiu a conversa só vê o que chegou depois da exclusão
+    const limpaEm = excluidaEm(conversation, userId);
+    const messages = await Message.find({ conversationId: id, ...(limpaEm ? { createdAt: { $gt: limpaEm } } : {}) })
       .populate('senderId', 'nome email foto_perfil role')
       .sort({ createdAt: 1 });
 
@@ -137,7 +162,8 @@ export const sendMessage = async (req, res) => {
   }
 };
 
-// DELETE /chat/conversations/:id - Excluir uma conversa e todas as suas mensagens
+// DELETE /chat/conversations/:id - Excluir a conversa só para quem pediu.
+// Quando todos os participantes já excluíram, apaga conversa e mensagens de vez.
 export const deleteConversation = async (req, res) => {
   try {
     const { id } = req.params;
@@ -155,10 +181,20 @@ export const deleteConversation = async (req, res) => {
       return res.status(403).json({ error: 'Você não participa desta conversa' });
     }
 
-    // Remove todas as mensagens da conversa
-    await Message.deleteMany({ conversationId: id });
-    // Remove a conversa
-    await Conversation.findByIdAndDelete(id);
+    const agora = new Date();
+    conversation.clearedAt.set(userId, agora);
+    conversation.unreadCounts.set(userId, 0);
+
+    const todosExcluiram = conversation.participants.every(p => {
+      const limpaEm = excluidaEm(conversation, p);
+      return limpaEm && limpaEm >= conversation.lastMessageAt;
+    });
+    if (todosExcluiram) {
+      await Message.deleteMany({ conversationId: id });
+      await Conversation.findByIdAndDelete(id);
+    } else {
+      await conversation.save();
+    }
 
     res.json({ message: 'Conversa excluída com sucesso' });
   } catch (error) {

@@ -147,6 +147,9 @@ void buscarDietaDaAPI()
     String url = String(apiBaseUrl) + "/dietas/atual/" + cativeiroId;
     http.begin(url);
     http.setTimeout(8000);
+    // Prepara a API para exigir a chave do dispositivo também na leitura da dieta
+    if (!deviceKey.isEmpty())
+        http.addHeader("X-Device-Key", deviceKey);
 
     int code = http.GET();
     if (code == 200)

@@ -4,6 +4,7 @@ import axios from 'axios';
 import MemberLayout from '@/components/MemberLayout';
 import panelStyles from '@/styles/panel.module.css';
 import { carregarHistorico } from '@/lib/parametros';
+import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const PERIODO_MAP = {
   dia:    { label: 'Últimas 24 horas', dias: 1 },
@@ -30,6 +31,7 @@ function fmt(v, decimals, unit) {
 }
 
 export default function RelatorioGeral() {
+  const authToken = useAuthToken();
   const router = useRouter();
   const { periodo } = router.query;
   const relatorioRef = useRef();
@@ -187,7 +189,7 @@ export default function RelatorioGeral() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {cativeiros.map((cativeiro) => {
                 const dados = dadosPorCativeiro[cativeiro._id] || [];
-                const fotoUrl = `${apiUrl}/cativeiros/${cativeiro._id}/foto`;
+                const fotoUrl = fotoCativeiroUrl(apiUrl, cativeiro._id, authToken);
                 return (
                   <div
                     key={cativeiro._id}

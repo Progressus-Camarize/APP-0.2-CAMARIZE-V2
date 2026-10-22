@@ -1,6 +1,7 @@
 import Dietas from "../models/Dietas.js";
 import Cativeiros from "../models/Cativeiros.js";
 import DietasxCativeiros from "../models/DietasxCativeiros.js";
+import cativeiroController from "./cativeiroController.js";
 
 // Admin: criar dieta (somente descricao é obrigatória; demais campos são opcionais)
 const createDieta = async (req, res) => {
@@ -78,6 +79,10 @@ const assignDietaToCativeiro = async (req, res) => {
   try {
     const { cativeiroId } = req.params;
     const { dietaId, inicioVigencia, fimVigencia, ativo = true } = req.body;
+    // A dieta comanda o alimentador do ESP32: só quem tem acesso ao cativeiro pode trocá-la
+    const acesso = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+    if (acesso === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+    if (!acesso) return res.status(403).json({ error: 'Acesso negado a este cativeiro' });
     const c = await Cativeiros.findById(cativeiroId);
     if (!c) return res.status(404).json({ error: 'Cativeiro não encontrado' });
     const d = await Dietas.findById(dietaId);

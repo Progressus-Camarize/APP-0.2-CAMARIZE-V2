@@ -7,8 +7,11 @@ import axios from "axios";
 import Notification from "../Notification";
 import Modal from '../Modal';
 import GuidedTour from "../GuidedTour";
+import SolicitarVinculo from "../SolicitarVinculo";
+import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 export default function HomeContent({ sidebarRefs, hideTour = false }) {
+  const authToken = useAuthToken();
   const router = useRouter();
   const [role, setRole] = useState('membro');
   const [cativeiros, setCativeiros] = useState([]);
@@ -213,20 +216,26 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
         {cativeiros.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyMessage}>Sem cativeiros cadastrados</div>
-            <div className={panelStyles.infoPanel} style={{ maxWidth: 480 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Comece por aqui</div>
-              <div style={{ fontSize: 13, marginBottom: 12 }}>Crie seu primeiro cativeiro e conecte sensores para ver dados no dashboard.</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {role !== 'membro' && (
-                  <button className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`} onClick={() => router.push('/create-cativeiros')}>+ Cadastrar cativeiro</button>
-                )}
-                <button className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`} onClick={() => router.push('/sensores')}>🔧 Gerenciar sensores</button>
-              </div>
-            </div>
+            {(() => {
+              const comeceAqui = (
+                <div className={panelStyles.infoPanel} style={{ maxWidth: 480 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Comece por aqui</div>
+                  <div style={{ fontSize: 13, marginBottom: 12 }}>Crie seu primeiro cativeiro e conecte sensores para ver dados no dashboard.</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {role !== 'membro' && (
+                      <button className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`} onClick={() => router.push('/create-cativeiros')}>+ Cadastrar cativeiro</button>
+                    )}
+                    <button className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`} onClick={() => router.push('/sensores')}>🔧 Gerenciar sensores</button>
+                  </div>
+                </div>
+              );
+              // Funcionário sem fazenda vê o pedido de vínculo no lugar das dicas
+              return role === 'membro' ? <SolicitarVinculo fallback={comeceAqui} /> : comeceAqui;
+            })()}
           </div>
         ) : (
           cativeiros.map((cativeiro, idx) => {
-            const fotoUrl = `${process.env.NEXT_PUBLIC_API_URL || '/api'}/cativeiros/${cativeiro._id}/foto`;
+            const fotoUrl = fotoCativeiroUrl(process.env.NEXT_PUBLIC_API_URL || '/api', cativeiro._id, authToken);
             return (
               <div
                 key={cativeiro._id}

@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import axios from "axios";
 import MemberLayout from "../components/MemberLayout";
 import Notification from "../components/Notification";
+import SolicitarVinculo from "../components/SolicitarVinculo";
 
 
 
@@ -128,11 +129,16 @@ export default function Settings() {
       }
       try {
         // Buscar a relação usuario-fazenda
-        const relRes = await axios.get(`${apiUrl}/usuariosxfazendas?usuario=${USER_ID}`);
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const relRes = await axios.get(`${apiUrl}/usuariosxfazendas?usuario=${USER_ID}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const rel = relRes.data && relRes.data.length > 0 ? relRes.data[0] : null;
         if (rel && rel.fazenda) {
           // Buscar os dados completos da fazenda
-          const fazendaRes = await axios.get(`${apiUrl}/fazendas/${rel.fazenda}`);
+          const fazendaRes = await axios.get(`${apiUrl}/fazendas/${rel.fazenda}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
           setFazenda(fazendaRes.data);
         } else {
           setFazenda(null);
@@ -150,7 +156,10 @@ export default function Settings() {
     if (!fazenda || previewFoto) return;
     const fetchFoto = async () => {
       try {
-        const res = await axios.get(`${apiUrl}/fazendas/${fazenda._id}/foto`);
+        const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+        const res = await axios.get(`${apiUrl}/fazendas/${fazenda._id}/foto`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setFotoFazenda(res.data.foto || SVG_AVATAR_FAZENDA);
       } catch {
         setFotoFazenda(SVG_AVATAR_FAZENDA);
@@ -181,7 +190,10 @@ export default function Settings() {
     if (!previewFoto || !fazenda._id) return;
     setSalvandoFoto(true);
     try {
-      await axios.patch(`${apiUrl}/fazendas/${fazenda._id}/foto`, { foto_sitio: previewFoto });
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      await axios.patch(`${apiUrl}/fazendas/${fazenda._id}/foto`, { foto_sitio: previewFoto }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       showNotification("Foto atualizada com sucesso!", 'success');
       setPreviewFoto(null);
       setFazenda({ ...fazenda, foto_sitio: true });
@@ -208,9 +220,14 @@ export default function Settings() {
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '48px 32px', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
           <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.35 }}>🏡</div>
           <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>Nenhuma fazenda encontrada</h3>
-          <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
-            Este usuário ainda não está associado a nenhuma fazenda. Aguarde o administrador adicionar você a uma fazenda para acessar as configurações.
+          <p style={{ margin: '0 0 16px', fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
+            Este usuário ainda não está associado a nenhuma fazenda.
           </p>
+          {usuario?.role === 'membro' && (
+            <div style={{ display: 'flex', justifyContent: 'center', textAlign: 'left' }}>
+              <SolicitarVinculo />
+            </div>
+          )}
         </div>
       </MemberLayout>
     );

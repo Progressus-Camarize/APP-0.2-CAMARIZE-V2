@@ -7,6 +7,13 @@ const ConversationSchema = new mongoose.Schema({
     type: Map,
     of: Number,
     default: {}
+  },
+  // Quando cada participante excluiu a conversa (userId -> data). Para ele, só aparecem
+  // mensagens posteriores a essa data; para o outro participante, nada muda.
+  clearedAt: {
+    type: Map,
+    of: Date,
+    default: {}
   }
 }, { timestamps: true });
 

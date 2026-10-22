@@ -27,7 +27,7 @@ import Cache from '../middleware/cache.js';
  *               items:
  *                 $ref: '#/components/schemas/Fazenda'
  */
-fazendaRoutes.get("/public", Cache.cacheControl(120, 180), fazendaController.getAllFazendasPublic);
+fazendaRoutes.get("/public", Auth.Authorization, Auth.RequireRole(['master']), Cache.cacheControl(120, 180), fazendaController.getAllFazendasPublic);
 
 /**
  * @swagger
@@ -59,7 +59,7 @@ fazendaRoutes.get("/public", Cache.cacheControl(120, 180), fazendaController.get
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-fazendaRoutes.post("/", Auth.Authorization, fazendaController.createFazenda);
+fazendaRoutes.post("/", Auth.Authorization, Auth.RequireRole(['master']), fazendaController.createFazenda);
 
 /**
  * @swagger
@@ -106,7 +106,7 @@ fazendaRoutes.get("/", Auth.Authorization, Cache.cacheControl(120, 180), fazenda
  *       404:
  *         description: Fazenda não encontrada
  */
-fazendaRoutes.get("/:id", Cache.cacheControl(120, 180), fazendaController.getFazendaById);
+fazendaRoutes.get("/:id", Auth.Authorization, Cache.cacheControl(120, 180), fazendaController.getFazendaById);
 
 /**
  * @swagger
@@ -221,7 +221,7 @@ fazendaRoutes.delete("/:id", Auth.Authorization, Auth.RequireRole(['master']), f
  *       404:
  *         description: Sem foto cadastrada
  */
-fazendaRoutes.patch("/:id/foto", fazendaController.updateFotoFazenda);
-fazendaRoutes.get("/:id/foto", fazendaController.getFotoFazenda);
+fazendaRoutes.patch("/:id/foto", Auth.Authorization, fazendaController.updateFotoFazenda);
+fazendaRoutes.get("/:id/foto", Auth.Authorization, fazendaController.getFotoFazenda);
 
 export default fazendaRoutes;

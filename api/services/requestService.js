@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Request from "../models/Requests.js";
 import userService from "../services/userService.js";
 import Fazendas from "../models/Fazendas.js";
@@ -8,11 +9,75 @@ import Dietas from "../models/Dietas.js";
 import DietasxCativeiros from "../models/DietasxCativeiros.js";
 import Sensores from "../models/Sensores.js";
 import SensoresxCativeiros from "../models/SensoresxCativeiros.js";
+import FazendasxCativeiros from "../models/FazendasxCativeiros.js";
 
 class RequestService {
   async create({ requesterUser, requesterRole, targetRole, type, action, payload, fazenda }) {
     const req = new Request({ requesterUser, requesterRole, targetRole, type, action, payload, fazenda });
     return await req.save();
+  }
+
+  // Fazendas do usuário (vínculo ativo ou legado sem o campo) e todos os usuários ligados a elas
+  async getFazendaScope(userId) {
+    const ativo = { $or: [{ ativo: true }, { ativo: { $exists: false } }] };
+    const fazendaIds = await UsuariosxFazendas.find({ usuario: userId, ...ativo }).distinct('fazenda');
+    if (fazendaIds.length === 0) return { fazendaIds: [], userIds: [] };
+    const userIds = await UsuariosxFazendas.find({ fazenda: { $in: fazendaIds }, ...ativo }).distinct('usuario');
+    return { fazendaIds, userIds };
+  }
+
+  // Filtro das solicitações que um admin pode ver e decidir: destinadas a admin e das fazendas dele.
+  // Solicitações sem fazenda (anteriores a essa regra) caem no vínculo de quem pediu.
+  // Retorna null quando o admin não tem fazenda (não enxerga nada).
+  async adminScopeFilter(adminId) {
+    const { fazendaIds, userIds } = await this.getFazendaScope(adminId);
+    if (fazendaIds.length === 0) return null;
+    return {
+      targetRole: 'admin',
+      $or: [{ fazenda: { $in: fazendaIds } }, { fazenda: null, requesterUser: { $in: userIds } }],
+    };
+  }
+
+  // Descobre a qual fazenda a solicitação de um funcionário se refere: a informada no corpo,
+  // a do cativeiro ou sensor do payload, ou a única fazenda do funcionário.
+  // Sempre confere se o funcionário pertence à fazenda encontrada.
+  async resolveMemberFazenda(memberId, { fazenda, action, payload = {} }) {
+    const { fazendaIds } = await this.getFazendaScope(memberId);
+    const doFuncionario = new Set(fazendaIds.map(String));
+
+    // O alvo do pedido (cativeiro/sensor) manda; a fazenda informada no corpo só vale sem alvo
+    let encontrada = null;
+    if (mongoose.isValidObjectId(payload.cativeiroId)) {
+      encontrada = (await FazendasxCativeiros.findOne({ cativeiro: payload.cativeiroId }).lean())?.fazenda;
+    }
+    if (!encontrada && action === 'editar_sensor' && mongoose.isValidObjectId(payload.id)) {
+      const vinculo = await SensoresxCativeiros.findOne({ id_sensor: payload.id }).lean();
+      if (vinculo) encontrada = (await FazendasxCativeiros.findOne({ cativeiro: vinculo.id_cativeiro }).lean())?.fazenda;
+    }
+    if (!encontrada) encontrada = fazenda || payload.fazendaId || null;
+
+    if (encontrada) {
+      if (!doFuncionario.has(String(encontrada))) {
+        throw Object.assign(new Error('Você não pertence à fazenda desta solicitação'), { status: 403 });
+      }
+      return encontrada;
+    }
+    if (fazendaIds.length === 1) return fazendaIds[0];
+    throw Object.assign(new Error('Informe a fazenda desta solicitação'), { status: 400 });
+  }
+
+  async hasPending(requesterUser, action) {
+    return !!(await Request.exists({ requesterUser, action, status: 'pendente' }));
+  }
+
+  // Busca a solicitação só se o usuário puder decidir sobre ela (master decide qualquer uma)
+  async findDecidable(id, user) {
+    if (!mongoose.isValidObjectId(id)) return null;
+    if (user.role === 'master') return await Request.findById(id);
+    if (user.role !== 'admin') return null;
+    const scope = await this.adminScopeFilter(user._id);
+    if (!scope) return null;
+    return await Request.findOne({ _id: id, ...scope });
   }
 
   async list(filter = {}) {
@@ -93,10 +158,13 @@ class RequestService {
           throw new Error('Fazenda não encontrada');
         }
 
-        // Buscar usuário pelo email
-        const user = await userService.getOne(emailFuncionario);
+        // Buscar usuário pelo email (pedido feito por admin) ou o próprio solicitante
+        // (funcionário sem fazenda pedindo vínculo ao master)
+        const user = emailFuncionario
+          ? await userService.getOne(emailFuncionario)
+          : (request.requesterUser ? await userService.getById(request.requesterUser) : null);
         if (!user) {
-          throw new Error(`Funcionário com email '${emailFuncionario}' não encontrado. O funcionário deve se cadastrar primeiro.`);
+          throw new Error(`Funcionário com email '${emailFuncionario || 'do solicitante'}' não encontrado. O funcionário deve se cadastrar primeiro.`);
         }
 
         // Verificar se o usuário é membro (funcionário)
@@ -173,7 +241,10 @@ class RequestService {
         const existingLinks = await SensoresxCativeiros.find({ id_cativeiro: cativeiroId });
         const linkedSensorIds = new Set(existingLinks.map(l => String(l.id_sensor)));
 
-        const allSensors = await Sensores.find({}).populate('id_tipo_sensor');
+        // Só sensores de usuários da fazenda do cativeiro (nunca de outras fazendas)
+        const fazendasDoCativeiro = await FazendasxCativeiros.find({ cativeiro: cativeiroId }).distinct('fazenda');
+        const donosPermitidos = await UsuariosxFazendas.find({ fazenda: { $in: fazendasDoCativeiro } }).distinct('usuario');
+        const allSensors = await Sensores.find({ user: { $in: donosPermitidos } }).populate('id_tipo_sensor');
 
         for (const tipoStr of tipos) {
           const tipoNorm = normalize(tipoStr);

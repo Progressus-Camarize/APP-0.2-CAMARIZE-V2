@@ -95,7 +95,9 @@ export default function Profile() {
         const decoded = jwtDecode(token);
         const userId = decoded.id;
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-        const res = await axios.get(`${apiUrl}/users/${userId}`);
+        const res = await axios.get(`${apiUrl}/users/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         let foto_perfil = res.data.foto_perfil;
         if (foto_perfil && typeof foto_perfil === "string" && foto_perfil.startsWith("data:image")) {
           // already prefixed

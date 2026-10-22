@@ -2,6 +2,7 @@ import fazendaService from "../services/fazendaService.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
 import mongoose from "mongoose";
 import userService from "../services/userService.js";
+import accessService from "../services/accessService.js";
 
 // Função para cadastrar fazenda (padrão Express)
 const createFazenda = async (req, res) => {
@@ -230,6 +231,9 @@ const getAllFazendas = async (req, res) => {
 
 const getFazendaById = async (req, res) => {
   try {
+    if (!(await accessService.podeAcessarFazenda(req.loggedUser, req.params.id))) {
+      return res.status(404).json({ error: "Fazenda não encontrada" });
+    }
     const fazenda = await fazendaService.getById(req.params.id);
     if (!fazenda) return res.status(404).json({ error: "Fazenda não encontrada" });
     res.json(fazenda);
@@ -300,6 +304,12 @@ const updateFotoFazenda = async (req, res) => {
   try {
     const { id } = req.params;
     const { foto_sitio } = req.body;
+    if (!(await accessService.podeAcessarFazenda(req.loggedUser, id))) {
+      return res.status(404).json({ error: "Fazenda não encontrada" });
+    }
+    if (typeof foto_sitio !== 'string' || !/^data:image\/[a-z0-9.+-]+;base64,/i.test(foto_sitio)) {
+      return res.status(400).json({ error: "Foto inválida." });
+    }
     const fazenda = await fazendaService.updateFoto(id, foto_sitio);
     if (!fazenda) return res.status(404).json({ error: "Fazenda não encontrada" });
     res.json({ message: "Foto da fazenda atualizada com sucesso!", fazenda });
@@ -312,6 +322,9 @@ const updateFotoFazenda = async (req, res) => {
 const getFotoFazenda = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!(await accessService.podeAcessarFazenda(req.loggedUser, id))) {
+      return res.status(404).send("Sem foto");
+    }
     const fazenda = await fazendaService.getById(id);
     if (!fazenda || !fazenda.foto_sitio) {
       return res.status(404).send("Sem foto");

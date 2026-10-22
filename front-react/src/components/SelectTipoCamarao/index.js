@@ -4,6 +4,11 @@ import axios from "axios";
 
 const CreatableSelect = dynamic(() => import("react-select/creatable"), { ssr: false });
 
+const authHeaders = () => {
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+
 export default function SelectTipoCamarao({ value, onChange }) {
   const [tipos, setTipos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,7 +18,7 @@ export default function SelectTipoCamarao({ value, onChange }) {
       setLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-        const res = await axios.get(`${apiUrl}/tipos-camarao`);
+        const res = await axios.get(`${apiUrl}/tipos-camarao`, authHeaders());
         setTipos(res.data.map(tc => ({ value: tc._id, label: tc.nome })));
       } catch {
         setTipos([]);
@@ -31,8 +36,8 @@ export default function SelectTipoCamarao({ value, onChange }) {
     const nome = inputValue.trim();
     if (!nome) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-    const res = await axios.post(`${apiUrl}/camaroes`, { nome });
-    const lista = await axios.get(`${apiUrl}/tipos-camarao`);
+    const res = await axios.post(`${apiUrl}/camaroes`, { nome }, authHeaders());
+    const lista = await axios.get(`${apiUrl}/tipos-camarao`, authHeaders());
     setTipos(lista.data.map(tc => ({ value: tc._id, label: tc.nome })));
     onChange({ value: res.data._id, label: res.data.nome });
   };

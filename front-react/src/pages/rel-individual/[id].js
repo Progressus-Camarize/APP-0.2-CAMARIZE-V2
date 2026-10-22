@@ -5,6 +5,7 @@ import MemberLayout from '@/components/MemberLayout';
 import Modal from '@/components/Modal';
 import panelStyles from '@/styles/panel.module.css';
 import { carregarHistorico } from '@/lib/parametros';
+import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const PERIODO_MAP = {
   dia:    { label: 'Últimas 24 horas', dias: 1 },
@@ -31,6 +32,7 @@ function fmt(v, decimals, unit) {
 }
 
 export default function RelatorioIndividual() {
+  const authToken = useAuthToken();
   const router = useRouter();
   const { id, periodo: periodoFromQuery } = router.query;
   const relatorioRef = useRef();
@@ -116,7 +118,7 @@ export default function RelatorioIndividual() {
   };
 
   const periodoInfo = PERIODO_MAP[periodo] || {};
-  const fotoUrl = `${apiUrl}/cativeiros/${id}/foto`;
+  const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken);
 
   return (
     <MemberLayout

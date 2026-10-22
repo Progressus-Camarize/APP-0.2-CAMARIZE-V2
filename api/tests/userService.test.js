@@ -109,13 +109,13 @@ describe('userService', () => {
 
   // ── updateRole ──────────────────────────────────────────────────
   describe('updateRole', () => {
-    it('deve atualizar o role do usuário', async () => {
+    it('deve atualizar o role do usuário e invalidar os tokens emitidos', async () => {
       const updated = { ...mockUserInstance, role: 'admin' };
       User.findByIdAndUpdate.mockResolvedValue(updated);
 
       const result = await userService.updateRole('user-id-123', 'admin');
 
-      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('user-id-123', { role: 'admin' }, { new: true });
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith('user-id-123', { role: 'admin', $inc: { tokenVersion: 1 } }, { new: true });
       expect(result.role).toBe('admin');
     });
   });

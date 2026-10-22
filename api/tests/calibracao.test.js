@@ -19,11 +19,20 @@ let baseURL;
 let fixtures;
 let otherToken;
 let masterToken;
+const deviceKeys = {};
 
-async function request(path, { method = 'GET', body, auth } = {}) {
+// /calibracao/resultado exige credencial: login na etapa "peso" (aplicação) e X-Device-Key
+// nas demais (ESP32). O helper envia a credencial certa, salvo com { semCredencial: true }.
+async function request(path, { method = 'GET', body, auth, semCredencial = false } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (path === '/calibracao/resultado' && !semCredencial && !auth) {
+    if (body?.etapa === 'peso') auth = masterToken;
+    else if (deviceKeys[body?.id_cativeiro]) headers['X-Device-Key'] = deviceKeys[body.id_cativeiro];
+  }
+  if (auth) headers.Authorization = `Bearer ${auth}`;
   const response = await fetch(`${baseURL}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: `Bearer ${auth}` } : {}) },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(5000),
   });
@@ -38,6 +47,9 @@ beforeAll(async () => {
   baseURL = `http://127.0.0.1:${server.address().port}`;
   otherToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[1].email, senha: password } })).body.token;
   masterToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[2].email, senha: password } })).body.token;
+  for (const cativeiro of fixtures.cativeiros) {
+    deviceKeys[cativeiro.id] = (await request(`/parametros/dispositivos/${cativeiro.id}/chave`, { method: 'POST', auth: masterToken })).body.chave;
+  }
 }, 15000);
 
 afterAll(async () => {
@@ -157,6 +169,7 @@ test('resultado com etapa diferente da atual responde 409 e não salva dados', a
   const pond = (await Cativeiros.create({
     nome: 'Viveiro etapa errada', id_tipo_camarao: fixtures.condicao.id_tipo_camarao, data_instalacao: new Date(),
   }))._id;
+  deviceKeys[pond] = (await request(`/parametros/dispositivos/${pond}/chave`, { method: 'POST', auth: masterToken })).body.chave;
   await request('/calibracao/iniciar', { method: 'POST', auth: masterToken, body: { id_cativeiro: pond, tipo: 'ph' } });
 
   const etapaErrada = await request('/calibracao/resultado', { method: 'POST',
@@ -172,6 +185,7 @@ test('resultado sem calibração ativa responde 409', async () => {
   const pond = (await Cativeiros.create({
     nome: 'Viveiro sem calibração', id_tipo_camarao: fixtures.condicao.id_tipo_camarao, data_instalacao: new Date(),
   }))._id;
+  deviceKeys[pond] = (await request(`/parametros/dispositivos/${pond}/chave`, { method: 'POST', auth: masterToken })).body.chave;
   const resultado = await request('/calibracao/resultado', { method: 'POST',
     body: { id_cativeiro: pond, tipo: 'motor', etapa: 'executar', rotacoes: 1 } });
   assert.equal(resultado.status, 409);
@@ -216,4 +230,28 @@ test('iniciar e cancelar calibração exigem autenticação e acesso ao cativeir
     body: { id_cativeiro: pond, tipo: 'motor', rotacoes: 10 } })).status, 401);
   assert.equal((await request('/calibracao/iniciar', { method: 'POST', auth: otherToken,
     body: { id_cativeiro: pond, tipo: 'motor', rotacoes: 10 } })).status, 403);
+});
+
+test('resultado sem credencial é recusado: ESP32 sem chave e pesagem sem login', async () => {
+  const pond = fixtures.cativeiros[1].id;
+  assert.equal((await request('/calibracao/iniciar', { method: 'POST', auth: masterToken,
+    body: { id_cativeiro: pond, tipo: 'motor', rotacoes: 5 } })).status, 201);
+
+  const semChave = await request('/calibracao/resultado', { method: 'POST', semCredencial: true,
+    body: { id_cativeiro: pond, tipo: 'motor', etapa: 'executar', rotacoes: 5 } });
+  assert.equal(semChave.status, 401);
+  const chaveErrada = await fetch(`${baseURL}/calibracao/resultado`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Device-Key': 'chave-errada' },
+    body: JSON.stringify({ id_cativeiro: pond, tipo: 'motor', etapa: 'executar', rotacoes: 5 }),
+  });
+  assert.equal(chaveErrada.status, 401);
+  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: true, tipo: 'motor', etapa: 'executar', rotacoes: 5 });
+
+  assert.equal((await request('/calibracao/resultado', { method: 'POST',
+    body: { id_cativeiro: pond, tipo: 'motor', etapa: 'executar', rotacoes: 5 } })).status, 200);
+  const pesoSemLogin = await request('/calibracao/resultado', { method: 'POST', semCredencial: true,
+    body: { id_cativeiro: pond, tipo: 'motor', etapa: 'peso', rotacoes: 5, gramas: 10 } });
+  assert.equal(pesoSemLogin.status, 401);
+
+  assert.equal((await request('/calibracao/cancelar', { method: 'POST', auth: masterToken, body: { id_cativeiro: pond } })).status, 200);
 });

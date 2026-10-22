@@ -92,7 +92,7 @@ router.post('/test', notificationController.sendTestEmail);
  *                 message:
  *                   type: string
  */
-router.get('/status', notificationController.checkEmailServiceStatus);
+router.get('/status', Auth.RequireRole(['master']), notificationController.checkEmailServiceStatus);
 
 /**
  * @swagger

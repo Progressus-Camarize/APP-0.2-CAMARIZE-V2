@@ -30,7 +30,26 @@ const create = async (req, res) => {
       return res.status(403).json({ error: 'Funcionário não pode solicitar criação/remoção. Peça ao Admin.' });
     }
     let targetRole = null;
-    if (requesterRole === 'membro') targetRole = 'admin';
+    let fazendaDaSolicitacao = fazenda;
+    if (requesterRole === 'membro') {
+      if (action === 'associar_funcionario') {
+        // Pedido de vínculo vai ao master, que escolhe a fazenda na aprovação
+        if (await requestService.hasPending(requester._id, action)) {
+          return res.status(409).json({ error: 'Você já tem um pedido de vínculo aguardando aprovação.' });
+        }
+        targetRole = 'master';
+        fazendaDaSolicitacao = null;
+      } else {
+        // Toda solicitação de funcionário fica presa a uma fazenda dele,
+        // para só o admin dessa fazenda vê-la
+        const { fazendaIds } = await requestService.getFazendaScope(requester._id);
+        if (fazendaIds.length === 0) {
+          return res.status(403).json({ error: 'Você ainda não está vinculado a nenhuma fazenda.' });
+        }
+        fazendaDaSolicitacao = await requestService.resolveMemberFazenda(requester._id, { fazenda, action, payload });
+        targetRole = 'admin';
+      }
+    }
     if (requesterRole === 'admin') targetRole = 'master';
     if (requesterRole === 'master') targetRole = 'master';
     if (!targetRole) return res.status(400).json({ error: 'Role do solicitante inválida' });
@@ -46,11 +65,11 @@ const create = async (req, res) => {
       type: computedType,
       action,
       payload,
-      fazenda
+      fazenda: fazendaDaSolicitacao
     });
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 };
 
@@ -59,7 +78,12 @@ const listForTarget = async (req, res) => {
   try {
     const user = await userService.getById(req.loggedUser.id);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-    const filter = { status: 'pendente', targetRole: user.role };
+    let filter = { status: 'pendente', targetRole: user.role };
+    if (user.role === 'admin') {
+      const scope = await requestService.adminScopeFilter(user._id);
+      if (!scope) return res.json([]);
+      filter = { ...filter, ...scope };
+    }
     const items = await requestService.list(filter);
     res.json(items);
   } catch (err) {
@@ -72,6 +96,10 @@ const approve = async (req, res) => {
   try {
     const { id } = req.params;
     const { fazendaId } = req.body; // FazendaId opcional (obrigatório para cadastrar_funcionario)
+    const user = await userService.getById(req.loggedUser.id);
+    if (!user || !(await requestService.findDecidable(id, user))) {
+      return res.status(404).json({ error: 'Solicitação não encontrada' });
+    }
     const updated = await requestService.approve(id, req.loggedUser.id, fazendaId);
     if (!updated) return res.status(404).json({ error: 'Solicitação não encontrada' });
     res.json(updated);
@@ -84,6 +112,10 @@ const approve = async (req, res) => {
 const reject = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = await userService.getById(req.loggedUser.id);
+    if (!user || !(await requestService.findDecidable(id, user))) {
+      return res.status(404).json({ error: 'Solicitação não encontrada' });
+    }
     const updated = await requestService.reject(id, req.loggedUser.id);
     if (!updated) return res.status(404).json({ error: 'Solicitação não encontrada' });
     res.json(updated);
@@ -114,6 +146,11 @@ const listAll = async (req, res) => {
           return true;
         }
         
+        // Funcionário sem fazenda pedindo vínculo vai direto ao master
+        if (request.requesterRole === 'membro' && request.targetRole === 'master') {
+          return true;
+        }
+
         // Ignorar requests de membros
         if (request.requesterRole === 'membro') {
           console.log('Request de membro ignorado na aba Requests do master:', {
@@ -144,12 +181,19 @@ const listAllForAdmin = async (req, res) => {
       return res.status(403).json({ error: 'Acesso restrito a Admin/Master' });
     }
 
-    // Mostrar histórico aprovado/recusado de solicitações feitas por membros para admins
-    const items = await requestService.list({
+    // Mostrar histórico aprovado/recusado de solicitações feitas por membros para admins.
+    // Admin só vê as das próprias fazendas; master vê todas.
+    let filter = {
       targetRole: 'admin',
       requesterRole: 'membro',
       status: { $in: ['aprovado', 'recusado'] }
-    });
+    };
+    if (user.role === 'admin') {
+      const scope = await requestService.adminScopeFilter(user._id);
+      if (!scope) return res.json([]);
+      filter = { ...filter, ...scope };
+    }
+    const items = await requestService.list(filter);
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });

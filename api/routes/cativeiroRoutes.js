@@ -51,7 +51,7 @@ import Cache from '../middleware/cache.js';
  *       401:
  *         description: Não autenticado
  */
-cativeiroRoutes.post("/cativeiros", Auth.Authorization, upload.single('foto_cativeiro'), cativeiroController.createCativeiro);
+cativeiroRoutes.post("/cativeiros", Auth.Authorization, Auth.RequireRole(['admin', 'master']), upload.single('foto_cativeiro'), cativeiroController.createCativeiro);
 
 /**
  * @swagger
@@ -168,7 +168,7 @@ cativeiroRoutes.get("/cativeiros/:cativeiroId/sensores", Auth.Authorization, Cac
  *               items:
  *                 $ref: '#/components/schemas/TipoCamarao'
  */
-cativeiroRoutes.get("/tipos-camarao", Cache.cacheControl(120, 180), cativeiroController.getAllTiposCamarao);
+cativeiroRoutes.get("/tipos-camarao", Auth.Authorization, Cache.cacheControl(120, 180), cativeiroController.getAllTiposCamarao);
 
 /**
  * @swagger
@@ -186,7 +186,7 @@ cativeiroRoutes.get("/tipos-camarao", Cache.cacheControl(120, 180), cativeiroCon
  *               items:
  *                 $ref: '#/components/schemas/CondicoesIdeais'
  */
-cativeiroRoutes.get("/condicoes-ideais", Cache.cacheControl(120, 180), cativeiroController.getAllCondicoesIdeais);
+cativeiroRoutes.get("/condicoes-ideais", Auth.Authorization, Cache.cacheControl(120, 180), cativeiroController.getAllCondicoesIdeais);
 
 /**
  * @swagger
@@ -264,9 +264,9 @@ cativeiroRoutes.get("/condicoes-ideais", Cache.cacheControl(120, 180), cativeiro
  *       404:
  *         description: Viveiro não encontrado
  */
-cativeiroRoutes.put("/cativeiros/:id", Auth.Authorization, upload.single('foto_cativeiro'), cativeiroController.updateCativeiro);
-cativeiroRoutes.patch("/cativeiros/:id", Auth.Authorization, cativeiroController.updateCativeiro);
-cativeiroRoutes.delete("/cativeiros/:id", Auth.Authorization, cativeiroController.deleteCativeiro);
+cativeiroRoutes.put("/cativeiros/:id", Auth.Authorization, Auth.RequireRole(['admin', 'master']), upload.single('foto_cativeiro'), cativeiroController.updateCativeiro);
+cativeiroRoutes.patch("/cativeiros/:id", Auth.Authorization, Auth.RequireRole(['admin', 'master']), cativeiroController.updateCativeiro);
+cativeiroRoutes.delete("/cativeiros/:id", Auth.Authorization, Auth.RequireRole(['admin', 'master']), cativeiroController.deleteCativeiro);
 
 /**
  * @swagger
@@ -327,12 +327,16 @@ cativeiroRoutes.post("/cativeiros/:id/foto", Auth.Authorization, upload.single('
       return res.status(403).json({ error: "Apenas administradores e masters podem alterar a foto do cativeiro." });
     }
 
+    const acesso = await cativeiroController.assertCativeiroAccess(id, req.loggedUser.id, req.loggedUser.role);
+    if (acesso === null) return res.status(404).json({ error: "Cativeiro não encontrado." });
+    if (!acesso) return res.status(403).json({ error: "Acesso negado a este cativeiro." });
+
     if (!req.file) {
       return res.status(400).json({ error: "Nenhuma foto foi enviada." });
     }
 
+    // Só a foto: os demais campos do cativeiro mudam pelo PATCH, que valida o acesso e os campos
     await cativeiroController.updateCativeiroData(id, { foto_cativeiro: req.file.buffer });
-    await cativeiroController.updateCativeiroData(id, req.body);
 
     res.status(200).json({ message: "Foto do cativeiro atualizada com sucesso!" });
   } catch (error) {
@@ -341,9 +345,12 @@ cativeiroRoutes.post("/cativeiros/:id/foto", Auth.Authorization, upload.single('
   }
 });
 
-cativeiroRoutes.get("/cativeiros/:id/foto", async (req, res) => {
+// Aceita o token por header ou ?token= (a foto é carregada por <img>, que não envia header)
+cativeiroRoutes.get("/cativeiros/:id/foto", Auth.AuthorizationSSE, async (req, res) => {
   try {
     const { id } = req.params;
+    const acesso = await cativeiroController.assertCativeiroAccess(id, req.loggedUser.id, req.loggedUser.role);
+    if (!acesso) return res.status(404).send("Sem foto");
     const cativeiro = await Cativeiros.findById(id).select('foto_cativeiro');
 
     if (!cativeiro || !cativeiro.foto_cativeiro) {

@@ -41,6 +41,15 @@ const userSchema = new mongoose.Schema({
   }
 });
 
+// Hash da senha e versão do token nunca saem em respostas JSON
+userSchema.set('toJSON', {
+  transform: (_doc, ret) => {
+    delete ret.senha;
+    delete ret.tokenVersion;
+    return ret;
+  },
+});
+
 const User = mongoose.model("User", userSchema);
 
 export default User;

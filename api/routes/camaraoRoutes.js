@@ -1,3 +1,4 @@
+import Auth from '../middleware/Auth.js';
 import express from "express";
 const camaraoRoutes = express.Router();
 import camaraoController from "../controllers/camaraoController.js";
@@ -46,7 +47,7 @@ import Cache from '../middleware/cache.js';
  *               items:
  *                 $ref: '#/components/schemas/TipoCamarao'
  */
-camaraoRoutes.post("/camaroes", camaraoController.createCamarao);
-camaraoRoutes.get("/camaroes", Cache.cacheControl(120, 180), camaraoController.getAllCamaroes);
+camaraoRoutes.post("/camaroes", Auth.Authorization, Auth.RequireRole(['admin', 'master']), camaraoController.createCamarao);
+camaraoRoutes.get("/camaroes", Auth.Authorization, Cache.cacheControl(120, 180), camaraoController.getAllCamaroes);
 
 export default camaraoRoutes;

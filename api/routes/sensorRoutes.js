@@ -65,7 +65,7 @@ const upload = multer();
  *       401:
  *         description: Não autenticado
  */
-sensorRoutes.post("/sensores", Auth.Authorization, upload.single('foto_sensor'), sensorController.createSensor);
+sensorRoutes.post("/sensores", Auth.Authorization, Auth.RequireRole(['admin', 'master']), upload.single('foto_sensor'), sensorController.createSensor);
 sensorRoutes.get("/sensores", Auth.Authorization, Cache.cacheControl(60, 120), sensorController.getAllSensores);
 
 /**
@@ -138,7 +138,7 @@ sensorRoutes.get("/sensores", Auth.Authorization, Cache.cacheControl(60, 120), s
  *         description: Sensor não encontrado
  */
 sensorRoutes.get("/sensores/:id", Auth.Authorization, Cache.cacheControl(60, 120), sensorController.getSensorById);
-sensorRoutes.put("/sensores/:id", Auth.Authorization, upload.single('foto_sensor'), sensorController.updateSensor);
-sensorRoutes.delete("/sensores/:id", Auth.Authorization, sensorController.deleteSensor);
+sensorRoutes.put("/sensores/:id", Auth.Authorization, Auth.RequireRole(['admin', 'master']), upload.single('foto_sensor'), sensorController.updateSensor);
+sensorRoutes.delete("/sensores/:id", Auth.Authorization, Auth.RequireRole(['admin', 'master']), sensorController.deleteSensor);
 
 export default sensorRoutes;

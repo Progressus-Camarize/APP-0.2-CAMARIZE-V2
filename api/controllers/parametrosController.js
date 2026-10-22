@@ -5,6 +5,7 @@ import cativeiroController from "../controllers/cativeiroController.js";
 import parametrosEmitter from "../services/parametrosEmitter.js";
 import crypto from 'node:crypto';
 import DeviceCredential from '../models/DeviceCredential.js';
+import { credentialHash, verificarChaveDispositivo } from '../services/deviceAuthService.js';
 import DeviceCredentialHistory from '../models/DeviceCredentialHistory.js';
 import Aviso from '../models/Aviso.js';
 import CondicoesIdeais from '../models/Condicoes_ideais.js';
@@ -15,7 +16,6 @@ const validReading = ({ temperatura, ph, amonia }) =>
   [temperatura, ph, amonia].every(Number.isFinite) &&
   temperatura >= -5 && temperatura <= 50 && ph >= 0 && ph <= 14 && amonia >= 0 && amonia <= 500;
 
-const credentialHash = key => crypto.createHash('sha256').update(key).digest('hex');
 
 const provisionDevice = async (req, res) => {
   const { cativeiroId } = req.params;
@@ -125,14 +125,12 @@ const cadastrarParametros = async (req, res) => {
       return res.status(404).json({ error: "Cativeiro não encontrado" });
     }
 
-    const suppliedKey = req.get('X-Device-Key');
-    const credential = await DeviceCredential.findOne({ cativeiro: id_cativeiro }).lean();
-    let authenticated = false;
-    if (suppliedKey) {
-      const suppliedHash = credentialHash(suppliedKey);
-      authenticated = !!credential && crypto.timingSafeEqual(Buffer.from(suppliedHash, 'hex'), Buffer.from(credential.keyHash, 'hex'));
-      if (!authenticated) return res.status(401).json({ error: 'Chave do dispositivo inválida' });
-    }
+    // Sem chave só é aceito enquanto o cativeiro não tem credencial (dispositivos legados);
+    // depois de gerada a chave, toda leitura precisa dela
+    const chave = await verificarChaveDispositivo(id_cativeiro, req.get('X-Device-Key'));
+    if (chave === 'invalida') return res.status(401).json({ error: 'Chave do dispositivo inválida' });
+    if (chave === 'ausente') return res.status(401).json({ error: 'Chave do dispositivo obrigatória' });
+    const authenticated = chave === 'valida';
     const amostraId = req.body.amostraId;
     if (amostraId !== undefined && (typeof amostraId !== 'string' || !/^[A-Za-z0-9:_-]{1,80}$/.test(amostraId))) {
       return res.status(400).json({ error: 'amostraId inválido' });

@@ -1,8 +1,13 @@
+import mongoose from "mongoose";
 import userService from "../services/userService.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Fazendas from "../models/Fazendas.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
+import accessService from "../services/accessService.js";
+
+// Só os campos de endereço da fazenda vêm do cliente no cadastro (codigo, foto etc. ficam fora)
+const camposFazenda = ({ nome, rua, bairro, cidade, numero } = {}) => ({ nome, rua, bairro, cidade, numero });
 
 // JWTSecret — obrigatório no .env, sem fallback
 const JWTSecret = process.env.JWT_SECRET;
@@ -15,6 +20,9 @@ if (!JWTSecret) {
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!(await accessService.podeAcessarUsuario(req.loggedUser, id))) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
     
     const user = await userService.getById(id);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
@@ -79,7 +87,7 @@ const register = async (req, res) => {
     
     let fazendaDoc = null;
     if (fazenda) {
-      fazendaDoc = new Fazendas(fazenda);
+      fazendaDoc = new Fazendas(camposFazenda(fazenda));
       await fazendaDoc.save();
       console.log("✅ [REGISTER] Fazenda criada:", fazendaDoc._id);
     }
@@ -97,6 +105,9 @@ const register = async (req, res) => {
 
 // Removido o método registerUser, pois não será mais usado
 
+// Hash bcrypt de uma senha aleatória, comparado quando o e-mail não existe
+const HASH_FICTICIO = bcrypt.hashSync(`ficticio-${Date.now()}-${Math.random()}`, 10);
+
 // Autenticando um usuário
 const loginUser = async (req, res) => {
   try {
@@ -108,7 +119,10 @@ const loginUser = async (req, res) => {
 
     const user = await userService.getOne(email);
     if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado." });
+      // Mesma resposta (e mesmo custo de bcrypt) de senha errada: o login não revela
+      // quais e-mails têm conta
+      await bcrypt.compare(String(senha ?? ''), HASH_FICTICIO);
+      return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
     // Detecta se a senha armazenada é um hash bcrypt ou texto puro (banco legado)
@@ -160,13 +174,24 @@ const logoutUser = async (req, res) => {
   }
 };
 
+// Master gerencia qualquer usuário; admin só funcionários (membro) das próprias fazendas.
+// Retorna o usuário alvo ou null (tratado como "não encontrado").
+const adminPodeGerenciar = async (loggedUser, id) => {
+  if (!mongoose.isValidObjectId(id)) return null;
+  const user = await userService.getById(id);
+  if (!user) return null;
+  if (loggedUser.role === 'master') return user;
+  if (user.role !== 'membro') return null;
+  return (await accessService.podeAcessarUsuario(loggedUser, id)) ? user : null;
+};
+
 // Atualizar dados do usuário (nome, email, senha) — apenas admin e master
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { nome, email, senha } = req.body;
 
-    const user = await userService.getById(id);
+    const user = await adminPodeGerenciar(req.loggedUser, id);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
     // Verificar duplicidade de email se foi alterado
@@ -187,6 +212,8 @@ const updateUser = async (req, res) => {
     }
 
     const updated = await userService.updateUser(id, fields);
+    // Troca de email ou senha derruba as sessões abertas do usuário
+    if (fields.email || fields.senha) await userService.incrementTokenVersion(id);
     const userObj = updated.toObject();
     delete userObj.senha;
     res.json({ message: "Usuário atualizado com sucesso!", user: userObj });
@@ -200,7 +227,7 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await userService.getById(id);
+    const user = await adminPodeGerenciar(req.loggedUser, id);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
     await userService.deleteUser(id);
@@ -215,6 +242,12 @@ const updateUserPhoto = async (req, res) => {
   try {
     const { id } = req.params;
     const { foto_perfil } = req.body;
+    if (req.loggedUser.role !== 'master' && String(id) !== String(req.loggedUser.id)) {
+      return res.status(403).json({ error: "Você só pode alterar a própria foto." });
+    }
+    if (foto_perfil != null && (typeof foto_perfil !== 'string' || !/^data:image\/[a-z0-9.+-]+;base64,/i.test(foto_perfil))) {
+      return res.status(400).json({ error: "Foto inválida." });
+    }
     
     const user = await userService.updatePhoto(id, foto_perfil);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
@@ -273,7 +306,7 @@ const changeUserRole = async (req, res) => {
 // Cadastro de funcionário (cria usuário diretamente, sem fazenda associada)
 const registerFuncionario = async (req, res) => {
   try {
-    console.log("🔍 [REGISTER FUNCIONARIO] Dados recebidos:", req.body);
+    console.log("🔍 [REGISTER FUNCIONARIO] Cadastro recebido:", req.body?.email);
     const { nome, email, senha, foto_perfil } = req.body;
     
     // Verificar se o usuário já existe
@@ -303,7 +336,7 @@ const registerFuncionario = async (req, res) => {
 // Cadastro de proprietário (cria usuário e fazenda diretamente)
 const registerProprietario = async (req, res) => {
   try {
-    console.log("🔍 [REGISTER PROPRIETARIO] Dados recebidos:", req.body);
+    console.log("🔍 [REGISTER PROPRIETARIO] Cadastro recebido:", req.body?.email);
     const { nome, email, senha, foto_perfil, fazenda } = req.body;
     
     // Verificar se o usuário já existe
@@ -325,7 +358,7 @@ const registerProprietario = async (req, res) => {
     // Criar fazenda primeiro
     let fazendaDoc = null;
     if (fazenda) {
-      fazendaDoc = new Fazendas(fazenda);
+      fazendaDoc = new Fazendas(camposFazenda(fazenda));
       await fazendaDoc.save();
       console.log("✅ [REGISTER PROPRIETARIO] Fazenda criada:", fazendaDoc._id);
     }
@@ -643,6 +676,12 @@ const atualizarStatusFuncionario = async (req, res) => {
     }
 
     if (!relFuncionario) {
+      return res.status(404).json({ error: 'Funcionário não está associado à sua fazenda.' });
+    }
+
+    // Admin só ativa/desativa funcionários, nunca outros admins ou o master
+    const alvo = await userService.getById(funcionarioId);
+    if (!alvo || alvo.role !== 'membro') {
       return res.status(404).json({ error: 'Funcionário não está associado à sua fazenda.' });
     }
 

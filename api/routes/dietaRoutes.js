@@ -125,7 +125,8 @@ router.get("/", Auth.Authorization, Auth.RequireRole(['master']), Cache.cacheCon
  *       404:
  *         description: Dieta não encontrada
  */
-router.put("/:id", Auth.Authorization, Auth.RequireRole(['admin','master']), dietaController.updateDieta);
+// Dieta é compartilhada entre cativeiros de fazendas diferentes: só o master edita
+router.put("/:id", Auth.Authorization, Auth.RequireRole(['master']), dietaController.updateDieta);
 router.delete("/:id", Auth.Authorization, Auth.RequireRole(['master']), dietaController.deleteDieta);
 
 /**

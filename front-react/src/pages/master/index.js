@@ -9,6 +9,7 @@ import { TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbTrendingUp } fro
 import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
+import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const AVISO_ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
 const AvisoIcone = ({ tipo }) => {
@@ -17,6 +18,7 @@ const AvisoIcone = ({ tipo }) => {
 };
 
 export default function MasterPanel() {
+  const authToken = useAuthToken();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState([]);
@@ -542,8 +544,11 @@ export default function MasterPanel() {
         // Para associar_funcionario, usar a fazenda do admin solicitante (já vem no request)
         if (request.action === 'associar_funcionario') {
           const fazendaId = request.fazenda?._id || request.fazenda || null;
+          // Funcionário sem fazenda pedindo vínculo: o master escolhe a fazenda no modal
           if (!fazendaId) {
-            alert('Erro: Fazenda não encontrada na solicitação.');
+            setPendingApproveRequestId(id);
+            setSelectedFazendaId('');
+            setShowApproveFuncionarioModal(true);
             return;
           }
           try {
@@ -767,7 +772,9 @@ export default function MasterPanel() {
           marginTop: 8,
           border: '1px solid #e2e8f0'
         }}>
-          <div><strong>Email do Funcionário:</strong> {payload.email || 'N/A'}</div>
+          {payload.nome && <div><strong>Funcionário:</strong> {payload.nome}</div>}
+          <div><strong>Email do Funcionário:</strong> {payload.email || payload.emailFuncionario || 'N/A'}</div>
+          {payload.fazendaInformada && <div><strong>Fazenda informada:</strong> {payload.fazendaInformada}</div>}
           <div style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>
             Selecione a fazenda ao aprovar para associar este funcionário.
           </div>
@@ -917,7 +924,7 @@ export default function MasterPanel() {
 
   const loadDietaAtual = async (cativeiroId) => {
     try {
-      const res = await axios.get(`${apiUrl}/dietas/atual/${cativeiroId}`);
+      const res = await axios.get(`${apiUrl}/dietas/atual/${cativeiroId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
       const data = res?.data || null;
       setCativeiroDieta(prev => ({ ...prev, [cativeiroId]: data }));
       if (data) {
@@ -1564,7 +1571,7 @@ export default function MasterPanel() {
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                         {(previewImage[c._id] || !photoErrors[c._id]) ? (
                                           <img
-                                            src={previewImage[c._id] || `${apiUrl}/cativeiros/${c._id}/foto`}
+                                            src={previewImage[c._id] || fotoCativeiroUrl(apiUrl, c._id, authToken)}
                                             alt="Foto do cativeiro"
                                             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0 }}
                                             onError={() => {
@@ -2848,7 +2855,7 @@ export default function MasterPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
             Tem certeza que deseja excluir esta conversa com <strong>{getConversationTitle(chatConversations.find(c => c._id === chatSelectedId) || {})}</strong>?
-            Todas as mensagens serão apagadas permanentemente.
+            A conversa será apagada só para você. A outra pessoa continua vendo as mensagens.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteConvModal(false)}>Cancelar</button>

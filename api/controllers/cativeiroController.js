@@ -8,6 +8,25 @@ import ParametrosAtuais from "../models/Parametros_atuais.js";
 import Dietas from "../models/Dietas.js";
 import DietasxCativeiros from "../models/DietasxCativeiros.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
+import Sensores from "../models/Sensores.js";
+import mongoose from "mongoose";
+import accessService from "../services/accessService.js";
+
+// Campos que só o servidor define: dono, calibração e condições ideais (criadas a partir do tipo de camarão)
+const CAMPOS_PROTEGIDOS = ['_id', 'user', 'gramas_por_rotacao', 'tensao_ph7', 'tensao_ph4', 'condicoes_ideais', 'createdAt', 'updatedAt'];
+const semCamposProtegidos = (body) => {
+  const data = { ...body };
+  for (const campo of CAMPOS_PROTEGIDOS) delete data[campo];
+  return data;
+};
+
+// Mantém só os sensores que o usuário pode vincular (master: qualquer um; demais: os próprios)
+const sensoresPermitidos = async (ids, loggedUser) => {
+  const validos = [...new Set(ids.filter(id => mongoose.isValidObjectId(id)).map(String))];
+  if (validos.length === 0 || loggedUser.role === 'master') return validos;
+  const proprios = await Sensores.find({ _id: { $in: validos }, user: loggedUser.id }).distinct('_id');
+  return proprios.map(String);
+};
 import Aviso from '../models/Aviso.js';
 import { freshness, VALID_READING_FILTER } from '../services/avisoService.js';
 
@@ -18,6 +37,7 @@ import { freshness, VALID_READING_FILTER } from '../services/avisoService.js';
  * @returns {null}  cativeiro não encontrado
  */
 const assertCativeiroAccess = async (cativeiroId, userId, role) => {
+  if (!mongoose.isValidObjectId(cativeiroId)) return null;
   if (role === 'master') return true;
 
   const cativeiro = await Cativeiros.findById(cativeiroId).select('user').lean();
@@ -44,7 +64,12 @@ const assertCativeiroAccess = async (cativeiroId, userId, role) => {
 
 const createCativeiro = async (req, res) => {
   try {
-    const data = { ...req.body };
+    // Só cria cativeiro em fazenda à qual o usuário pertence
+    if (!(await accessService.podeAcessarFazenda(req.loggedUser, req.body.fazendaId))) {
+      return res.status(403).json({ error: 'Você não tem acesso a esta fazenda.' });
+    }
+
+    const data = semCamposProtegidos(req.body);
     if (req.file) {
       data.foto_cativeiro = req.file.buffer;
     }
@@ -117,8 +142,8 @@ const createCativeiro = async (req, res) => {
 
          if (sensoresParaProcessar.length > 0) {
        try {
-         // Filtra apenas sensores válidos e remove duplicatas
-         const sensoresValidos = [...new Set(sensoresParaProcessar.filter(sensorId => sensorId && sensorId !== ""))];
+         // Filtra apenas sensores válidos, do próprio usuário, e remove duplicatas
+         const sensoresValidos = await sensoresPermitidos(sensoresParaProcessar, req.loggedUser);
 
          if (sensoresValidos.length > 0) {
            // Cria novas relações para todos os sensores válidos
@@ -141,8 +166,10 @@ const createCativeiro = async (req, res) => {
     } else if (req.body.sensorId && req.body.sensorId !== "") {
       // Fallback para compatibilidade com sensorId único
       try {
+        const [sensorPermitido] = await sensoresPermitidos([req.body.sensorId], req.loggedUser);
+        if (!sensorPermitido) throw new Error('Sensor não pertence ao usuário');
         await SensoresxCativeiros.create({
-          id_sensor: req.body.sensorId,
+          id_sensor: sensorPermitido,
           id_cativeiro: result._id
         });
         console.log(`✅ Relação sensor-cativeiro criada: Sensor ${req.body.sensorId} -> Cativeiro ${result._id}`);
@@ -254,7 +281,11 @@ const getCativeiroById = async (req, res) => {
 const updateCativeiro = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = { ...req.body };
+    const acesso = await assertCativeiroAccess(id, req.loggedUser.id, req.loggedUser.role);
+    if (acesso === null) return res.status(404).json({ error: 'Cativeiro não encontrado.' });
+    if (!acesso) return res.status(403).json({ error: 'Acesso negado a este cativeiro.' });
+
+    const data = semCamposProtegidos(req.body);
 
     if (req.file) {
       data.foto_cativeiro = req.file.buffer;
@@ -324,8 +355,8 @@ const updateCativeiro = async (req, res) => {
       }
 
       if (sensoresParaProcessar.length > 0) {
-        // Filtra apenas sensores válidos e remove duplicatas
-        const sensoresValidos = [...new Set(sensoresParaProcessar.filter(sensorId => sensorId && sensorId !== ""))];
+        // Filtra apenas sensores válidos, do próprio usuário, e remove duplicatas
+        const sensoresValidos = await sensoresPermitidos(sensoresParaProcessar, req.loggedUser);
 
         if (sensoresValidos.length > 0) {
           // Cria novas relações para todos os sensores válidos
@@ -346,8 +377,10 @@ const updateCativeiro = async (req, res) => {
     } else if (req.body.sensorId && req.body.sensorId !== "") {
       // Fallback para compatibilidade com sensorId único
       try {
+        const [sensorPermitido] = await sensoresPermitidos([req.body.sensorId], req.loggedUser);
+        if (!sensorPermitido) throw new Error('Sensor não pertence ao usuário');
         await SensoresxCativeiros.create({
-          id_sensor: req.body.sensorId,
+          id_sensor: sensorPermitido,
           id_cativeiro: id
         });
         console.log(`✅ Relação sensor-cativeiro atualizada: Sensor ${req.body.sensorId} -> Cativeiro ${id}`);
@@ -376,6 +409,9 @@ const updateCativeiro = async (req, res) => {
 const deleteCativeiro = async (req, res) => {
   try {
     const { id } = req.params;
+    const acesso = await assertCativeiroAccess(id, req.loggedUser.id, req.loggedUser.role);
+    if (acesso === null) return res.status(404).json({ error: 'Cativeiro não encontrado.' });
+    if (!acesso) return res.status(403).json({ error: 'Acesso negado a este cativeiro.' });
     const result = await cativeiroService.delete(id);
     if (!result) {
       return res.status(404).json({ error: 'Cativeiro não encontrado.' });

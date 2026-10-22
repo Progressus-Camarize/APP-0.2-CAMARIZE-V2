@@ -216,11 +216,15 @@ const unsubscribeFromPush = async (req, res) => {
   }
 
   try {
-    const { subscription, userId } = req.body;
+    const { subscription } = req.body || {};
+    const userId = req.loggedUser.id;
+    if (typeof subscription?.endpoint !== 'string') {
+      return res.status(400).json({ success: false, error: 'Inscrição inválida' });
+    }
 
-    // Marcar subscription como inativa
+    // Marcar subscription como inativa (só a do próprio usuário)
     await PushSubscription.findOneAndUpdate(
-      { 'subscription.endpoint': subscription.endpoint },
+      { 'subscription.endpoint': subscription.endpoint, userId },
       { isActive: false }
     );
 
@@ -309,7 +313,11 @@ const validateEmail = async (req, res) => {
 const updateEmailSettings = async (req, res) => {
   try {
     const userId = req.loggedUser?.id;
-    const updateData = req.body;
+    // Só campos editáveis pelo usuário; userId, lastEmailSent e afins ficam fora
+    const CAMPOS_EDITAVEIS = ['emailEnabled', 'emailAddress', 'alertTypes', 'quietHours', 'frequency', 'template'];
+    const updateData = Object.fromEntries(
+      Object.entries(req.body || {}).filter(([campo]) => CAMPOS_EDITAVEIS.includes(campo))
+    );
 
     if (!userId) {
       return res.status(401).json({
@@ -335,6 +343,27 @@ const updateEmailSettings = async (req, res) => {
       if (validation.warning) {
         console.log(`⚠️ Aviso na validação do email: ${validation.message}`);
       }
+    }
+
+    // Horário de silêncio: horários no formato HH:MM
+    if (updateData.quietHours !== undefined) {
+      const { enabled, startTime, endTime } = updateData.quietHours || {};
+      const hora = /^([01]\d|2[0-3]):[0-5]\d$/;
+      if (!hora.test(startTime) || !hora.test(endTime)) {
+        return res.status(400).json({ success: false, error: 'Horário de silêncio inválido (use HH:MM)' });
+      }
+      updateData.quietHours = { enabled: !!enabled, startTime, endTime };
+    }
+
+    // Tipos de alerta: só os tipos e severidades conhecidos, como booleanos
+    if (updateData.alertTypes !== undefined) {
+      const tipos = ['temperatura', 'ph', 'amonia'];
+      const niveis = ['baixa', 'media', 'alta'];
+      const recebido = updateData.alertTypes || {};
+      updateData.alertTypes = Object.fromEntries(tipos.map(tipo => [tipo, {
+        enabled: recebido[tipo]?.enabled !== false,
+        severity: Object.fromEntries(niveis.map(n => [n, !!recebido[tipo]?.severity?.[n]])),
+      }]));
     }
 
     // Sanitizar/validar frequência se enviada
@@ -398,6 +427,14 @@ const sendTestEmail = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Configurações de email não encontradas ou desabilitadas'
+      });
+    }
+
+    // Limite de 1 email de teste por minuto para o endpoint não virar disparador de spam
+    if (emailSettings.lastTestEmail && Date.now() - new Date(emailSettings.lastTestEmail).getTime() < 60_000) {
+      return res.status(429).json({
+        success: false,
+        error: 'Aguarde 1 minuto antes de enviar outro email de teste'
       });
     }
 

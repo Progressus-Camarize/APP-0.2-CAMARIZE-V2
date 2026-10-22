@@ -328,7 +328,8 @@ router.post('/push/unsubscribe', notificationController.unsubscribeFromPush);
  *                       type: string
  *                       format: date-time
  */
-router.get('/monitoring/status', (req, res) => {
+// Monitoramento é global (todas as fazendas): só o master controla
+router.get('/monitoring/status', Auth.RequireRole(['master']), (req, res) => {
   try {
     const status = monitoringService.getStatus();
     res.status(200).json({ success: true, monitoring: status });
@@ -364,9 +365,12 @@ router.get('/monitoring/status', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Success'
  */
-router.post('/monitoring/start', (req, res) => {
+router.post('/monitoring/start', Auth.RequireRole(['master']), (req, res) => {
   try {
-    const { intervalMinutes = 5 } = req.body;
+    const intervalMinutes = Number(req.body?.intervalMinutes ?? 5);
+    if (!Number.isFinite(intervalMinutes) || intervalMinutes < 1 || intervalMinutes > 1440) {
+      return res.status(400).json({ success: false, error: 'intervalMinutes deve ser um número entre 1 e 1440' });
+    }
     monitoringService.startMonitoring(intervalMinutes);
     res.status(200).json({ success: true, message: `Monitoramento iniciado a cada ${intervalMinutes} minutos` });
   } catch (error) {
@@ -391,7 +395,7 @@ router.post('/monitoring/start', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Success'
  */
-router.post('/monitoring/stop', (req, res) => {
+router.post('/monitoring/stop', Auth.RequireRole(['master']), (req, res) => {
   try {
     monitoringService.stopMonitoring();
     res.status(200).json({ success: true, message: 'Monitoramento parado' });
@@ -417,7 +421,7 @@ router.post('/monitoring/stop', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Success'
  */
-router.post('/monitoring/check', async (req, res) => {
+router.post('/monitoring/check', Auth.RequireRole(['master']), async (req, res) => {
   try {
     await monitoringService.manualCheck();
     res.status(200).json({ success: true, message: 'Verificação manual executada' });

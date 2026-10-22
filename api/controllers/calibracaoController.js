@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import Cativeiros from "../models/Cativeiros.js";
 import cativeiroController from "./cativeiroController.js";
+import { verificarChaveDispositivo } from "../services/deviceAuthService.js";
 import * as calibracaoService from "../services/calibracaoService.js";
 import { isPositiveInteger, isPositiveNumber, isFiniteNumber } from "../services/calibracaoService.js";
 
@@ -83,6 +84,17 @@ const registrarResultado = async (req, res) => {
 
     const cativeiro = await Cativeiros.findById(id_cativeiro).select("_id").lean();
     if (!cativeiro) return res.status(404).json({ error: "Cativeiro não encontrado" });
+
+    // A pesagem é informada pela aplicação (usuário logado com acesso ao cativeiro);
+    // as demais etapas vêm do ESP32 e exigem a chave do dispositivo
+    if (tipo === "motor" && etapa === "peso") {
+      if (!req.loggedUser) return res.status(401).json({ error: "Login obrigatório para informar a pesagem" });
+      if (req.loggedUser.role === "membro") return res.status(403).json({ error: "Acesso negado" });
+      const acesso = await cativeiroController.assertCativeiroAccess(id_cativeiro, req.loggedUser.id, req.loggedUser.role);
+      if (!acesso) return res.status(403).json({ error: "Acesso negado a este cativeiro" });
+    } else if (await verificarChaveDispositivo(id_cativeiro, req.get("X-Device-Key")) !== "valida") {
+      return res.status(401).json({ error: "Chave do dispositivo inválida ou ausente" });
+    }
 
     const resultado = await calibracaoService.registrarResultado({ id_cativeiro, tipo, etapa, rotacoes, gramas, tensao });
 

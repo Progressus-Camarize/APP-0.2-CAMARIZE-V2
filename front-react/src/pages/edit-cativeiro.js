@@ -5,8 +5,10 @@ import MemberLayout from "@/components/MemberLayout";
 import Modal from "@/components/Modal";
 import Notification from "@/components/Notification";
 import panelStyles from "@/styles/panel.module.css";
+import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 export default function EditCativeiroPage() {
+  const authToken = useAuthToken();
   const router = useRouter();
   const { id } = router.query;
 
@@ -31,7 +33,7 @@ export default function EditCativeiroPage() {
   useEffect(() => {
     async function fetchTipos() {
       try {
-        const res = await axios.get(`${apiUrl}/tipos-camarao`);
+        const res = await axios.get(`${apiUrl}/tipos-camarao`, { headers: { Authorization: `Bearer ${getToken()}` } });
         setTiposCamarao(Array.isArray(res.data) ? res.data : []);
       } catch { setTiposCamarao([]); }
     }
@@ -105,7 +107,7 @@ export default function EditCativeiroPage() {
     );
   }
 
-  const fotoUrl = `${apiUrl}/cativeiros/${id}/foto`;
+  const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken);
 
   return (
     <MemberLayout title="Editar Cativeiro" subtitle="Solicite alterações ao administrador">
