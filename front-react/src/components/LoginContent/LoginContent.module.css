@@ -1,112 +1,153 @@
+/* Tela de Login — Figma "Telas do sistema / Login" (frame 1920x1200, conteúdo 823px) */
 .loginMobileWrapper {
   min-height: 100vh;
-  width: 100vw;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
+  gap: 48px;
   background: #fff;
-  padding: 0;
+  padding: clamp(48px, 13.4vh, 161px) 16px clamp(32px, 13.5vh, 162px);
+  box-sizing: border-box;
 }
 
 .loginForm {
   width: 100%;
-  max-width: 340px;
-  margin: 0 auto;
+  max-width: 823px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 48px;
-  background: transparent;
-  
+  gap: 24px;
 }
 
 .loginTitle {
-  font-size: 1.15rem;
-  font-weight: 600;
-  margin-bottom: 24px;
-  color: #222;
-  text-align: left;
   width: 100%;
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 28px;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  transform: scaleY(0.5);
+  background: linear-gradient(90deg, #fec3c5 0%, #b0d6fe 100%);
+}
+
+.fields {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .inputGroup {
   width: 100%;
   position: relative;
-  margin-bottom: 16px;
 }
 
 .input {
   width: 100%;
-  padding: 12px 44px 12px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  background: #f6f6f6;
+  height: 48px;
+  margin: 0; /* anula a margem global de input */
+  box-sizing: border-box;
+  padding: 0 48px 0 16px;
+  background: #f2f2f2;
+  border: 0.5px solid #e5e5e5;
+  border-radius: 6px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  color: #1a1a1a;
   outline: none;
-  transition: border 0.2s;
+  transition: border-color 0.2s;
+}
+.input::placeholder {
+  font-family: 'Roboto', sans-serif;
+  color: #808080;
 }
 .input:focus {
-  border: 1.5px solid #bdbdbd;
-}
-
-.inputError {
-  border: 1.5px solid #dc3545 !important;
-  background: #fff5f5;
-}
-.inputError:focus {
-  border: 1.5px solid #dc3545 !important;
-}
-
-.inputValid {
-  border: 1.5px solid #28a745 !important;
-  background: #f8fff9;
-}
-.inputValid:focus {
-  border: 1.5px solid #28a745 !important;
+  border-color: #146ac7;
 }
 
 .eyeIcon {
   position: absolute;
-  right: 12px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  cursor: pointer;
+  padding: 8px;
   display: flex;
   align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.eyeIconOff {
+  opacity: 0.4;
 }
 
 .rememberRow {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  font-size: 0.95rem;
-  color: #444;
-}
-.checkbox {
-  accent-color: #bdbdbd;
-  width: 16px;
-  height: 16px;
-}
-.rememberLabel {
+  gap: 16px;
   cursor: pointer;
+}
+
+/* Checkbox nativo fica acessível, mas visualmente substituído pelo do Figma */
+.checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.checkboxBox {
+  width: 14.25px;
+  height: 14.25px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 0.75px solid #000;
+  border-radius: 0.45px;
+}
+.checkboxBox img {
+  display: block;
+  margin: -0.75px;
+}
+.checkbox:focus-visible + .checkboxBox {
+  outline: 2px solid #146ac7;
+  outline-offset: 2px;
+}
+
+.rememberLabel {
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  line-height: 20px;
+  letter-spacing: 0.3px;
+  color: #1a1a1a;
 }
 
 .loginButton {
   width: 100%;
-  padding: 12px 0;
+  padding: 10px 24px;
   border: none;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f7b0b7 0%, #a3c7f7 100%);
-  color: #000;
-  font-size: 1.05rem;
+  border-radius: 6px;
+  background: var(--azul-camarize, #146ac7);
+  color: #fff;
+  font-family: 'Roboto', sans-serif;
   font-weight: 700;
-  margin-bottom: 16px;
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: 0.3px;
   cursor: pointer;
-  transition: opacity 0.2s;
-  opacity: 1;
+  transition: opacity 0.2s, background 0.2s;
+}
+.loginButton:hover:not(:disabled) {
+  background: #105aab;
 }
 .loginButton:disabled {
   opacity: 0.5;
@@ -123,8 +164,8 @@
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 0, 0, 0.25);
-  border-top-color: #000;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
@@ -136,47 +177,156 @@
 
 .slowHint {
   width: 100%;
+  margin-top: -12px;
   text-align: center;
-  font-size: 0.82rem;
+  font-size: 12px;
   color: #6b7280;
-  margin-top: -8px;
-  margin-bottom: 12px;
   line-height: 1.4;
 }
 
 .errorMsg {
-  color: #ff4d4f;
-  font-size: 0.95rem;
-  margin-bottom: 8px;
-  margin-top: -8px;
   width: 100%;
+  margin-top: -12px;
+  color: #ff4d4f;
+  font-size: 13px;
   text-align: left;
 }
 
 .registerRow {
-  width: 100%;
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.97rem;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  line-height: 20px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  color: #1a1a1a;
+}
+.registerRow > * {
+  font-family: inherit;
 }
 .registerLink {
-  color: #3b82f6;
+  color: #007aff;
   text-decoration: none;
-  font-weight: 500;
-  transition: text-decoration 0.2s;
 }
 .registerLink:hover {
   text-decoration: underline;
 }
 
 .logoWrapper {
-  width: 100vw;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-  margin-bottom: 32px;
-  margin-top: 32px;
+}
+.logoWrapper img {
+  display: block;
+}
+
+/* ---- Cadastro: Figma "Tipo usuário", "Cadastro" e "Cadastro fazenda" ---- */
+.loginTitleCenter {
+  text-align: center;
+}
+
+.typeCard {
+  width: 521px;
+  max-width: 100%;
+  height: 220px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--azul-camarize, #146ac7);
+  border: none;
+  border-radius: 20px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.typeCard:hover {
+  background: #105aab;
+  transform: translateY(-2px);
+}
+.typeCard img {
+  display: block;
+}
+.typeCardName,
+.typeCardDesc {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  line-height: 28px;
+  text-align: center;
+}
+.typeCardName {
+  font-size: 20px;
+}
+.typeCardDesc {
+  font-size: 15px;
+}
+
+.userDataBox {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #f2f2f2;
+  border: 0.5px solid #e5e5e5;
+  border-radius: 6px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+}
+.userDataBox * {
+  font-family: inherit;
+}
+.userDataTitle {
+  font-weight: 700;
+  color: #878787;
+}
+.userDataRow {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+.userDataRow span:first-child {
+  color: #000;
+  flex-shrink: 0;
+}
+.userDataRow span:last-child {
+  color: #808080;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldLabel {
+  font-family: 'Roboto', sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  color: #000;
+}
+
+.fieldRow {
+  width: 100%;
+  display: flex;
+  gap: 24px;
+}
+.fieldRow > * {
+  flex: 1;
+  min-width: 0;
+}
+.fieldRow .input {
+  padding-right: 16px;
+}
+
+@media (max-width: 480px) {
+  .typeCard {
+    height: auto;
+    gap: 12px;
+  }
+  .fieldRow {
+    gap: 12px;
+  }
 }

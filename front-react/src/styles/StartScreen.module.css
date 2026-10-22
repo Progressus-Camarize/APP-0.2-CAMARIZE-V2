@@ -1,75 +1,61 @@
+/* Tela Inicial — Figma "Telas do sistema / Tela Inicial" (frame 1920x1200) */
 .startMain {
   min-height: 100vh;
   width: 100vw;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
   position: relative;
   background: #fff;
   overflow: hidden;
 }
 
-.logoBox {
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  margin-top: 18vh;
-  z-index: 2;
-}
-
-/* Torna a logo responsiva dentro do container */
-.logoBox img {
-  width: 80vw;
-  max-width: 360px;
-  height: auto;
-}
-
+/* Onda em gradiente: no Figma ocupa 1920x1241 a partir do topo, espelhada na horizontal */
 .waveBg {
   position: absolute;
   left: 0;
-  bottom: 0;
-  width: 100vw;
-  min-width: 100%;
-  height: 60vh;
-  min-height: 300px;
-  max-height: 700px;
+  top: 0;
+  width: 100%;
+  height: 103.42%; /* 1241 / 1200 */
+  transform: scaleX(-1);
+  pointer-events: none;
   z-index: 1;
-  background: none;
-  /* SVG onda suave, mas subindo mais na tela */
-  background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' viewBox='0 0 1440 600' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23f7b0b7'/%3E%3Cstop offset='100%25' stop-color='%23a3c7f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,350 Q360,250 720,350 T1440,350 L1440,600 L0,600 Z' fill='url(%23grad)'/%3E%3C/svg%3E");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: bottom;
-  border-radius: 0;
 }
 
-@media (max-width: 600px) {
-  .waveBg {
-    height: 65vh;
-    min-height: 220px;
-    max-height: 700px;
-  }
+/* Logo: 470x98, topo em 523px (43,58%) */
+.logoBox {
+  position: absolute;
+  left: 50%;
+  top: 43.58%;
+  transform: translateX(-50%);
+  width: clamp(240px, 24.48vw, 470px); /* 470 / 1920 */
+  z-index: 2;
 }
 
+.logoBox img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Botão: 263x46, topo em 976px (81,33%) */
 .startButton {
   position: absolute;
   left: 50%;
-  bottom: 40px;
+  top: 81.33%;
   transform: translateX(-50%);
-  background: #111;
+  width: 263px;
+  height: 46px;
+  background: #000;
   color: #fff;
   border: none;
-  border-radius: 10px;
-  padding: 12px 28px;
-  font-size: 1rem;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-radius: 6px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 28px;
   cursor: pointer;
   z-index: 3;
   transition: background 0.2s;
 }
+
 .startButton:hover {
   background: #222;
-} 
+}

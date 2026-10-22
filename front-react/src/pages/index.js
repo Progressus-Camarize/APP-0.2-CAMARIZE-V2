@@ -25,16 +25,16 @@ export default function StartScreen() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main className={styles.startMain}>
+        <img src="/images/onda-tela-inicial.svg" alt="" className={styles.waveBg} />
         <div className={styles.logoBox}>
-          <Image 
-            src="/images/logo.svg" 
-            alt="Logo" 
-            width={360} 
-            height={120} 
-            sizes="(max-width: 600px) 80vw, 360px"
+          <Image
+            src="/images/logo-tela-inicial.png"
+            alt="Camarize"
+            width={470}
+            height={98}
+            priority
           />
         </div>
-        <div className={styles.waveBg}></div>
         <button className={styles.startButton} onClick={() => router.push("/login")}>Conecte-se</button>
       </main>
     </>
