@@ -73,7 +73,7 @@ jobs:
           retention-days: 14
 
   build-frontend:
-    name: 🏗️ Build Frontend
+    name: Build Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
