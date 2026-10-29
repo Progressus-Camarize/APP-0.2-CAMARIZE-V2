@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import MemberLayout from "../components/MemberLayout";
 import axios from "axios";
 import { useUnreadAvisos } from "../hooks/useUnreadAvisos";
+import { formatarTempoDesde } from "@/lib/tempo";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -187,7 +188,7 @@ export default function NotificationsPage() {
                       {formatDate(notification.datahora)} às {formatTime(notification.datahora)}
                     </div>
                     <div style={{ color: '#475569', fontSize: 12, marginTop: 4 }}>
-                      {notification.estado === 'recuperado' ? 'Recuperado' : 'Ativo'} · Última leitura: {notification.frescor?.idadeMinutos ?? '—'} min · {notification.frescor?.estado === 'recente' ? 'dados recentes' : 'dados antigos ou ausentes'}
+                      {notification.estado === 'recuperado' ? 'Recuperado' : 'Ativo'} · Última leitura: {formatarTempoDesde(notification.frescor?.idadeMinutos) ?? '—'} · {notification.frescor?.estado === 'recente' ? 'dados recentes' : 'dados antigos ou ausentes'}
                       {notification.experimental ? ' · sensor sem calibração · medição experimental' : ''}
                     </div>
                     <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>

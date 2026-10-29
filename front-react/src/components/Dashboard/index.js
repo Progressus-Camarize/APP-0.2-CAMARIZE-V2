@@ -6,6 +6,7 @@ import Modal from "../Modal";
 import panelStyles from "@/styles/panel.module.css";
 import { TbThermometer, TbWifiOff, TbFlask2 } from "react-icons/tb";
 import { rotaListaDeCativeiros } from "../Sidebar/menus";
+import { formatarTempoDesde } from "@/lib/tempo";
 
 const AVISO_BANNER_ICONES = { temperatura: TbThermometer, sensor_inativo: TbWifiOff };
 const AvisoBannerIcone = ({ tipo }) => {
@@ -275,7 +276,7 @@ export default function Dashboard() {
     <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Parâmetros monitorados em tempo real">
       <div className={panelStyles.section}>
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#1e3a8a', fontSize: '0.82rem' }}>
-          Última leitura: {idadeLeitura !== null ? `${idadeLeitura} min atrás` : 'sem dados'} · {dadosRecentes ? 'dados recentes' : 'dados antigos'}
+          Última leitura: {idadeLeitura !== null ? formatarTempoDesde(idadeLeitura) : 'sem dados'} · {dadosRecentes ? 'dados recentes' : 'dados antigos'}
           {frescor?.origem === 'legado' && ' · origem não autenticada'}
           <div style={{ marginTop: 4 }}>Análise: {dadosRecentes && analise?.suficiente ? 'leituras suficientes' : ({ lacuna: 'insuficiente: lacuna entre leituras', leitura_antiga: 'insuficiente: última leitura autenticada antiga', leituras_insuficientes: 'insuficiente: menos de seis leituras autenticadas' }[analise?.razao] || 'insuficiente para o momento')}</div>
           <div style={{ marginTop: 4 }}>pH e amônia: sensor sem calibração; medições experimentais. A fração de NH₃ livre depende de pH e temperatura e não é estimada aqui.</div>
