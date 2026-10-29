@@ -3,6 +3,10 @@ import { useRouter } from 'next/router';
 import { HiOutlineChip } from 'react-icons/hi';
 import styles from '@/styles/panel.module.css';
 import Modal from '../Modal';
+import Sidebar from '../Sidebar';
+import { ADMIN_MENU, MASTER_MENU, ABA_DAS_PAGINAS_DE_CATIVEIRO } from '../Sidebar/menus';
+import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
+import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 
 const NAV_ITEMS = [
   {
@@ -73,6 +77,8 @@ const NAV_ITEMS = [
   },
 ];
 
+const ROLE_LABELS = { membro: 'Membro', admin: 'Admin', master: 'Master' };
+
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
     <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -85,6 +91,7 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { count: avisosNaoVistos } = useUnreadAvisos();
 
   useEffect(() => {
     const raw = sessionStorage.getItem('usuarioCamarize') || localStorage.getItem('usuarioCamarize');
@@ -111,12 +118,40 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
     window.location.href = '/';
   };
 
-  const initials = (user?.nome || '?').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-
   const isActive = (href) => {
     if (href === '/home') return router.pathname === '/home';
     return router.pathname === href || router.pathname.startsWith(href + '/');
   };
+
+  // Admin e master também abrem estas páginas (dashboard, edição de cativeiro, relatórios...)
+  // a partir do painel: a barra deve continuar sendo a do papel deles, voltando às abas do painel
+  const role = user?.role || 'membro';
+  const painel = role === 'admin' ? ADMIN_MENU : role === 'master' ? MASTER_MENU : null;
+  // Membro não decide solicitações: o contador só consulta a API para admin/master
+  const { count: solicitacoesPendentes } = useSolicitacoesPendentes({ ativo: !!painel });
+  // Contadores compartilhados com os painéis (mesmo valor em todas as telas)
+  const badges = { avisos: avisosNaoVistos, solicitacoes: solicitacoesPendentes };
+  // Até ler o usuário, a barra fica sem itens (evita piscar o menu de outro papel)
+  const sidebarItems = !user ? [] : painel
+    ? painel.map(({ id, icon: Icon, label, disabled, hint }) => ({
+        key: id,
+        label,
+        disabled,
+        hint,
+        badge: badges[id],
+        icon: <Icon />,
+        active: id === ABA_DAS_PAGINAS_DE_CATIVEIRO[role],
+        onClick: () => { router.push(`/${role}?tab=${id}`); setMobileMenuOpen(false); },
+      }))
+    : NAV_ITEMS.map(item => ({
+        key: item.href,
+        label: item.label,
+        icon: item.icon,
+        badge: item.href === '/notifications' ? avisosNaoVistos : undefined,
+        ref: navItemRefs?.[item.href],
+        active: isActive(item.href),
+        onClick: () => { router.push(item.href); setMobileMenuOpen(false); },
+      }));
 
   return (
     <div className={styles.layout}>
@@ -124,42 +159,13 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
         <div className={styles.backdrop} onClick={() => setMobileMenuOpen(false)} />
       )}
 
-      <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.sidebarHeader}>
-          <img src="/images/logo.svg" className={styles.sidebarLogo} alt="Logo" />
-          <div className={styles.sidebarRole}>Painel Membro</div>
-        </div>
-
-        <nav className={styles.sidebarNav}>
-          {NAV_ITEMS.map(item => (
-            <button
-              key={item.href}
-              ref={navItemRefs?.[item.href]}
-              className={`${styles.navItem} ${isActive(item.href) ? styles.navItemActive : ''}`}
-              onClick={() => { router.push(item.href); setMobileMenuOpen(false); }}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              <span className={styles.navLabel}>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className={styles.sidebarFooter}>
-          <div className={styles.userCard}>
-            <div className={styles.userAvatar}>{initials}</div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>{user?.nome || ''}</div>
-              <div className={styles.userRoleBadge}>Membro</div>
-            </div>
-          </div>
-          <button
-            className={styles.sidebarLogoutBtn}
-            onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}
-          >
-            Sair da conta
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        open={mobileMenuOpen}
+        userName={user?.nome}
+        roleLabel={ROLE_LABELS[role] || 'Membro'}
+        onLogout={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}
+        items={sidebarItems}
+      />
 
       <main className={styles.main}>
         {(title || subtitle) && (

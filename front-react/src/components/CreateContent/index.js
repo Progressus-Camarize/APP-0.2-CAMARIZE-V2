@@ -7,6 +7,7 @@ import Notification from "@/components/Notification";
 import AuthError from "@/components/AuthError";
 import Loading from "@/components/Loading";
 import RequestButton from "@/components/RequestButton";
+import { rotaListaDeCativeiros } from "@/components/Sidebar/menus";
 
 export default function CreateContent() {
   const router = useRouter();
@@ -166,7 +167,7 @@ export default function CreateContent() {
       showNotification(message);
       // Aguardar 2 segundos antes de redirecionar para a notificação aparecer
       setTimeout(() => {
-        router.push("/home");
+        router.push(rotaListaDeCativeiros());
       }, 2000);
     } catch {
       showNotification("Erro ao cadastrar cativeiro.", 'error');

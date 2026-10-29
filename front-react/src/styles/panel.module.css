@@ -11,10 +11,11 @@
 }
 
 /* ===================== SIDEBAR ===================== */
+/* Figma "components / sidebar" (variantes membro, admin e master) */
 .sidebar {
   width: 260px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #2a6db5 0%, #1e5a9e 100%);
+  background: var(--azul-camarize, #146ac7);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -22,43 +23,31 @@
   left: 0;
   bottom: 0;
   z-index: 100;
-  box-shadow: 2px 0 16px rgba(30,90,158,0.25);
+  box-shadow: 0 4px 5px rgba(0, 0, 0, 0.25);
+}
+
+.sidebar * {
+  font-family: 'Poppins', sans-serif;
 }
 
 .sidebarHeader {
-  padding: 22px 20px 18px;
+  height: 75px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.18);
+  justify-content: center;
+  border-bottom: 1px solid #fff;
 }
 
 .sidebarLogo {
-  height: 26px;
-  width: auto;
-  filter: brightness(0) invert(1);
-  opacity: 0.9;
-}
-
-.sidebarBrand {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.92);
-  letter-spacing: 0.01em;
-  line-height: 1.2;
-}
-
-.sidebarRole {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.65);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  display: block;
+  width: 152px;
+  height: 28px;
 }
 
 .sidebarNav {
   flex: 1;
-  padding: 14px 12px;
+  padding: 20px 15px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -68,59 +57,88 @@
 .navItem {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 20px;
   padding: 10px 12px;
-  border-radius: 9px;
+  border-radius: 10px;
   border: none;
   background: transparent;
-  color: rgba(255,255,255,0.72);
-  font-size: 0.855rem;
-  font-family: 'Poppins', sans-serif;
+  color: #fff;
+  font-size: 14px;
   font-weight: 500;
+  line-height: normal;
   cursor: pointer;
   text-align: left;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease;
   width: 100%;
   position: relative;
 }
 
 .navItem:hover {
-  background: rgba(255,255,255,0.13);
-  color: rgba(255,255,255,0.96);
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.navItemActive {
-  background: linear-gradient(135deg, #f7b0b7 0%, #a3c7f7 100%) !important;
-  color: #0f172a !important;
-  box-shadow: 0 4px 12px rgba(247,176,183,0.45);
+.navItemActive,
+.navItemActive:hover {
+  background: var(--salmao-camarize, #ffc2c2);
+  color: #000;
+}
+
+.navItemDisabled,
+.navItemDisabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: not-allowed;
 }
 
 .navIcon {
-  font-size: 17px;
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+.navIcon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .navLabel {
   flex: 1;
+  white-space: nowrap;
+}
+
+.navHint {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .navBadge {
-  background: #ef4444;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
+  min-width: 25px;
+  height: 21px;
+  padding: 1px 8px 0;
+  box-sizing: border-box;
   border-radius: 10px;
-  min-width: 18px;
+  background: #ff0000;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
   text-align: center;
-  line-height: 16px;
 }
 
 .sidebarFooter {
-  padding: 14px 12px 16px;
-  border-top: 1px solid rgba(255,255,255,0.18);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px 12px 16px;
+  border-top: 1px solid #fff;
 }
 
 .userCard {
@@ -128,65 +146,64 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 9px;
-  margin-bottom: 8px;
-  background: rgba(255,255,255,0.12);
+  border-radius: 10px;
+  background: var(--azul-escuro, #0d4a8d);
 }
 
 .userAvatar {
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f7b0b7, #a3c7f7);
+  background: var(--salmao-camarize, #ffc2c2);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: #000;
   flex-shrink: 0;
 }
 
 .userInfo {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .userName {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.88);
+  font-size: 12.8px;
+  font-weight: 900;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .userRoleBadge {
-  font-size: 0.65rem;
-  color: rgba(255,255,255,0.38);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #fff;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .sidebarLogoutBtn {
   width: 100%;
   padding: 9px 12px;
-  border-radius: 9px;
-  border: 1px solid rgba(239,68,68,0.28);
-  background: transparent;
-  color: rgba(239,68,68,0.75);
-  font-size: 0.82rem;
-  font-family: 'Poppins', sans-serif;
+  border-radius: 10px;
+  border: none;
+  background: #be0000;
+  color: #fff;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease;
   text-align: center;
 }
 
 .sidebarLogoutBtn:hover {
-  background: rgba(239,68,68,0.1);
-  border-color: rgba(239,68,68,0.6);
-  color: #ef4444;
+  background: #a30000;
 }
 
 /* ===================== MAIN AREA ===================== */
@@ -1232,8 +1249,21 @@
   .sidebar {
     width: 60px;
   }
-  .sidebarBrand, .sidebarRole, .navLabel, .userInfo, .sidebarLogoutBtn {
+  .sidebarLogo {
+    width: 27px;
+    object-fit: cover;
+    object-position: left center;
+  }
+  .sidebarNav {
+    padding: 20px 8px;
+  }
+  .navLabel, .navHint, .userInfo, .sidebarLogoutBtn {
     display: none;
+  }
+  .userAvatar {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
   }
   .navBadge {
     position: absolute;

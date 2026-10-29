@@ -4,12 +4,15 @@ import Modal from '../../components/Modal';
 import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
 
-import { HiOutlineClipboardList, HiOutlineBell, HiOutlineExclamationCircle, HiOutlineOfficeBuilding, HiOutlineChatAlt2, HiOutlineUser, HiOutlineChip, HiOutlineBeaker } from 'react-icons/hi';
 import { TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbTrendingUp } from 'react-icons/tb';
 import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
+import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
+import Sidebar from '../../components/Sidebar';
+import { MASTER_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
+import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
 
 const AVISO_ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
 const AvisoIcone = ({ tipo }) => {
@@ -21,15 +24,17 @@ export default function MasterPanel() {
   const authToken = useAuthToken();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const router = useRouter();
-  const [items, setItems] = useState([]);
+  // Dados da última visita ao painel (mesmo usuário): mostrados na hora ao voltar
+  const [cacheInicial] = useState(() => lerCachePainel('master'));
+  const [items, setItems] = useState(() => cacheInicial?.items ?? []);
   const [allRequests, setAllRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [fazendas, setFazendas] = useState([]);
-  const [cativeiros, setCativeiros] = useState([]);
-  const [tiposCamarao, setTiposCamarao] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [dietas, setDietas] = useState([]);
+  const [users, setUsers] = useState(() => cacheInicial?.users ?? []);
+  const [fazendas, setFazendas] = useState(() => cacheInicial?.fazendas ?? []);
+  const [cativeiros, setCativeiros] = useState(() => cacheInicial?.cativeiros ?? []);
+  const [tiposCamarao, setTiposCamarao] = useState(() => cacheInicial?.tiposCamarao ?? []);
+  const [loading, setLoading] = useState(!cacheInicial);
+  const [dietas, setDietas] = useState(() => cacheInicial?.dietas ?? []);
   const [dietaForm, setDietaForm] = useState({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
   const [editingDietaId, setEditingDietaId] = useState('');
   const [editingDieta, setEditingDieta] = useState({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
@@ -50,7 +55,12 @@ export default function MasterPanel() {
   const [requesterFilter, setRequesterFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
-  const [tab, setTab] = useState('requests'); // requests | solicitacoes | usuarios | cativeiros | sensores | dietas
+  const [tab, setTab] = useState(() => abaInicialDaUrl(router, MASTER_MENU, 'requests'));
+  // Abrir direto a aba de ?tab=... (as páginas compartilhadas voltam ao painel por aqui)
+  useEffect(() => {
+    const qTab = new URLSearchParams(window.location.search).get('tab');
+    if (qTab && abasNavegaveis(MASTER_MENU).includes(qTab)) setTab(qTab);
+  }, []);
   const [chatConversations, setChatConversations] = useState([]);
   const [chatSelectedId, setChatSelectedId] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
@@ -80,8 +90,12 @@ export default function MasterPanel() {
     const u = (users || []).find(x => String(x.id || x._id) === String(otherId));
     return u?.nome || u?.email || 'Admin';
   };
-  const [sensores, setSensores] = useState([]);
+  const [sensores, setSensores] = useState(() => cacheInicial?.sensores ?? []);
   const [showCreateSensor, setShowCreateSensor] = useState(false);
+  // Mantém a memória do painel igual ao que está na tela (inclusive após aprovar/editar)
+  useEffect(() => {
+    if (!loading) salvarCachePainel('master', { items, users, fazendas, cativeiros, tiposCamarao, dietas, sensores });
+  }, [loading, items, users, fazendas, cativeiros, tiposCamarao, dietas, sensores]);
   const [sensorForm, setSensorForm] = useState({ id_tipo_sensor: 'temperatura', apelido: '', fotoFile: null });
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showCreateDieta, setShowCreateDieta] = useState(false);
@@ -299,7 +313,6 @@ export default function MasterPanel() {
 
   const load = async () => {
     try {
-      setLoading(true);
       const token = getToken();
       const headers = { Authorization: `Bearer ${token}` };
       const [reqs, us, fzs, cats, tipos, sens, dts] = await Promise.all([
@@ -436,6 +449,11 @@ export default function MasterPanel() {
   const [avisos, setAvisos] = useState([]);
   const [avisosLoading, setAvisosLoading] = useState(false);
   const { count: avisosNaoVistos, markSeen: marcarAvisosVistos } = useUnreadAvisos();
+  // A barra lateral das outras telas usa o mesmo contador: publica o total ao (re)carregar a lista
+  const { definir: definirSolicitacoesPendentes } = useSolicitacoesPendentes();
+  useEffect(() => {
+    if (!loading) definirSolicitacoesPendentes(items.length);
+  }, [loading, items, definirSolicitacoesPendentes]);
 
   const loadAvisos = async () => {
     setAvisosLoading(true);
@@ -1060,19 +1078,12 @@ export default function MasterPanel() {
 
   const localRole = typeof window !== 'undefined' ? (JSON.parse(sessionStorage.getItem('usuarioCamarize') || localStorage.getItem('usuarioCamarize') || '{}')?.role) : undefined;
   const effectiveRole = user?.role || localRole;
-  if (authLoading || loading || !isAuthenticated || !effectiveRole || effectiveRole !== 'master') return <div className={styles.loadingScreen}>Carregando...</div>;
+  // Com dados guardados, o login é conferido em segundo plano (se falhar, o efeito acima manda para /login)
+  const conferindoLogin = authLoading ? !cacheInicial : !isAuthenticated;
+  if (conferindoLogin || loading || effectiveRole !== 'master') return <div className={styles.loadingScreen}>Carregando...</div>;
   if (error) return <div className={styles.loadingScreen} style={{ color: '#ef4444' }}>{error}</div>;
 
-  const masterNavItems = [
-    { id: 'requests', icon: HiOutlineClipboardList, label: 'Histórico' },
-    { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Avisos', badge: avisosNaoVistos || null },
-    { id: 'solicitacoes', icon: HiOutlineBell, label: 'Solicitações', badge: items.length || null },
-    { id: 'usuarios', icon: HiOutlineUser, label: 'Usuários' },
-    { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Cativeiros' },
-    { id: 'sensores', icon: HiOutlineChip, label: 'Sensores' },
-    { id: 'dietas', icon: HiOutlineBeaker, label: 'Dietas' },
-    { id: 'chat', icon: HiOutlineChatAlt2, label: 'Chat' },
-  ];
+  const badges = { avisos: avisosNaoVistos, solicitacoes: items.length };
 
   const masterPageTitles = {
     requests: ['Histórico', 'Histórico de ações dos admins'],
@@ -1093,37 +1104,22 @@ export default function MasterPanel() {
       )}
 
       {/* SIDEBAR */}
-      <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.sidebarHeader}>
-          <img src="/images/logo.svg" className={styles.sidebarLogo} alt="Logo" />
-          <div className={styles.sidebarRole}>Painel Master</div>
-        </div>
-        <nav className={styles.sidebarNav}>
-          {masterNavItems.map(({ id, icon: Icon, label, badge }) => (
-            <button
-              key={id}
-              className={`${styles.navItem} ${tab === id ? styles.navItemActive : ''}`}
-              onClick={() => { setTab(id); setMobileMenuOpen(false); }}
-            >
-              <Icon className={styles.navIcon} />
-              <span className={styles.navLabel}>{label}</span>
-              {badge > 0 && <span className={styles.navBadge}>{badge}</span>}
-            </button>
-          ))}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          <div className={styles.userCard}>
-            <div className={styles.userAvatar}>{user?.nome?.[0]?.toUpperCase() || 'M'}</div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>{user?.nome || 'Master'}</div>
-              <div className={styles.userRoleBadge}>Master</div>
-            </div>
-          </div>
-          <button className={styles.sidebarLogoutBtn} onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}>
-            Sair da conta
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        open={mobileMenuOpen}
+        userName={user?.nome}
+        roleLabel="Master"
+        onLogout={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}
+        items={MASTER_MENU.map(({ id, icon: Icon, label, disabled, hint }) => ({
+          key: id,
+          label,
+          disabled,
+          hint,
+          badge: badges[id],
+          icon: <Icon />,
+          active: tab === id,
+          onClick: () => { setTab(id); setMobileMenuOpen(false); },
+        }))}
+      />
 
       {/* MAIN */}
       <div className={styles.main}>

@@ -5,13 +5,16 @@ import Modal from '../../components/Modal';
 
 import { useAuth } from '@/hooks/useAuth';
 
-import { HiOutlineClipboardList, HiOutlineBell, HiOutlineExclamationCircle, HiOutlineOfficeBuilding, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChartBar } from 'react-icons/hi';
 import { TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbTrendingUp } from 'react-icons/tb';
 import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
+import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
+import Sidebar from '../../components/Sidebar';
+import { ADMIN_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
+import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
 
 const AVISO_ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
 const AvisoIcone = ({ tipo }) => {
@@ -23,20 +26,22 @@ export default function AdminPanel() {
   const authToken = useAuthToken();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const router = useRouter();
+  // Dados da última visita ao painel (mesmo usuário): mostrados na hora ao voltar
+  const [cacheInicial] = useState(() => lerCachePainel('admin'));
   const [initialTabApplied, setInitialTabApplied] = useState(false);
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(() => cacheInicial?.items ?? []);
   const [allRequests, setAllRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
-  const [cativeiros, setCativeiros] = useState([]);
-  const [fazendas, setFazendas] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [tiposCamarao, setTiposCamarao] = useState([]);
+  const [cativeiros, setCativeiros] = useState(() => cacheInicial?.cativeiros ?? []);
+  const [fazendas, setFazendas] = useState(() => cacheInicial?.fazendas ?? []);
+  const [users, setUsers] = useState(() => cacheInicial?.users ?? []);
+  const [tiposCamarao, setTiposCamarao] = useState(() => cacheInicial?.tiposCamarao ?? []);
   const [, setCondicoesIdeais] = useState([]);
-  const [sensores, setSensores] = useState([]); // mantemos carregado para futuras funcionalidades
+  const [sensores, setSensores] = useState(() => cacheInicial?.sensores ?? []); // mantemos carregado para futuras funcionalidades
   const [previewImage, setPreviewImage] = useState({});  // cativeiroId -> imageUrl
   const [photoErrors, setPhotoErrors] = useState({});   // cativeiroId -> bool (foto não encontrada)
   const [showSwapModal, setShowSwapModal] = useState(false);
-  const [funcionarios, setFuncionarios] = useState([]);
+  const [funcionarios, setFuncionarios] = useState(() => cacheInicial?.funcionarios ?? []);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const fileInputRef = useRef(null);
   const [uploadTargetCativeiro, setUploadTargetCativeiro] = useState(null);
@@ -47,9 +52,13 @@ export default function AdminPanel() {
   const [newTipoNome, setNewTipoNome] = useState('');
   const [swapForm, setSwapForm] = useState({ cativeiroId: '', temperatura: false, ph: false, amonia: false });
   const [linkForm, setLinkForm] = useState({ cativeiroId: '', temperatura: false, ph: false, amonia: false, allowed: { temperatura: true, ph: true, amonia: true } });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cacheInicial);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState('cativeiros'); // requests | solicitacoes | cativeiros
+  // Mantém a memória do painel igual ao que está na tela (inclusive após aprovar/editar)
+  useEffect(() => {
+    if (!loading) salvarCachePainel('admin', { items, cativeiros, fazendas, users, tiposCamarao, sensores, funcionarios });
+  }, [loading, items, cativeiros, fazendas, users, tiposCamarao, sensores, funcionarios]);
+  const [tab, setTab] = useState(() => abaInicialDaUrl(router, ADMIN_MENU, 'cativeiros'));
   const [requesterFilter, setRequesterFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
@@ -279,7 +288,6 @@ export default function AdminPanel() {
 
   const load = async () => {
     try {
-      setLoading(true);
       setError('');
       const token = getToken();
       const headers = { Authorization: `Bearer ${token}` };
@@ -347,8 +355,9 @@ export default function AdminPanel() {
     try {
       const params = new URLSearchParams(window.location.search);
       const qTab = params.get('tab');
-      if (qTab && ['requests', 'solicitacoes', 'cativeiros', 'monitoramento'].includes(qTab)) {
+      if (qTab && abasNavegaveis(ADMIN_MENU).includes(qTab)) {
         setTab(qTab);
+        if (qTab === 'chat') loadConversationsOnce();
       }
       setInitialTabApplied(true);
     } catch {}
@@ -363,6 +372,11 @@ export default function AdminPanel() {
   const [avisos, setAvisos] = useState([]);
   const [avisosLoading, setAvisosLoading] = useState(false);
   const { count: avisosNaoVistos, markSeen: marcarAvisosVistos } = useUnreadAvisos();
+  // A barra lateral das outras telas usa o mesmo contador: publica o total ao (re)carregar a lista
+  const { definir: definirSolicitacoesPendentes } = useSolicitacoesPendentes();
+  useEffect(() => {
+    if (!loading) definirSolicitacoesPendentes(items.length);
+  }, [loading, items, definirSolicitacoesPendentes]);
 
   const loadAvisos = async () => {
     setAvisosLoading(true);
@@ -915,18 +929,12 @@ export default function AdminPanel() {
 
   const localRole = typeof window !== 'undefined' ? (JSON.parse(sessionStorage.getItem('usuarioCamarize') || localStorage.getItem('usuarioCamarize') || '{}')?.role) : undefined;
   const effectiveRole = user?.role || localRole;
-  if (authLoading || loading || !isAuthenticated || !effectiveRole || effectiveRole !== 'admin') return <div className={styles.loadingScreen}>Carregando...</div>;
+  // Com dados guardados, o login é conferido em segundo plano (se falhar, o efeito acima manda para /login)
+  const conferindoLogin = authLoading ? !cacheInicial : !isAuthenticated;
+  if (conferindoLogin || loading || effectiveRole !== 'admin') return <div className={styles.loadingScreen}>Carregando...</div>;
   if (error) return <div className={styles.loadingScreen} style={{ color: '#ef4444' }}>{error}</div>;
 
-  const adminNavItems = [
-    { id: 'requests', icon: HiOutlineClipboardList, label: 'Histórico' },
-    { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Avisos', badge: avisosNaoVistos || null },
-    { id: 'solicitacoes', icon: HiOutlineBell, label: 'Solicitações', badge: items.length || null },
-    { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Cativeiros' },
-    { id: 'monitoramento', icon: HiOutlineChartBar, label: 'Monitoramento' },
-    { id: 'funcionarios', icon: HiOutlineUsers, label: 'Funcionários' },
-    { id: 'chat', icon: HiOutlineChatAlt2, label: 'Chat' },
-  ];
+  const badges = { avisos: avisosNaoVistos, solicitacoes: items.length };
 
   const adminPageTitles = {
     requests: ['Histórico', 'Histórico de ações dos funcionários'],
@@ -947,37 +955,20 @@ export default function AdminPanel() {
       )}
 
       {/* SIDEBAR */}
-      <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.sidebarHeader}>
-          <img src="/images/logo.svg" className={styles.sidebarLogo} alt="Logo" />
-          <div className={styles.sidebarRole}>Painel Admin</div>
-        </div>
-        <nav className={styles.sidebarNav}>
-          {adminNavItems.map(({ id, icon: Icon, label, badge }) => (
-            <button
-              key={id}
-              className={`${styles.navItem} ${tab === id ? styles.navItemActive : ''}`}
-              onClick={() => { setTab(id); if (id === 'chat') loadConversationsOnce(); setMobileMenuOpen(false); }}
-            >
-              <Icon className={styles.navIcon} />
-              <span className={styles.navLabel}>{label}</span>
-              {badge > 0 && <span className={styles.navBadge}>{badge}</span>}
-            </button>
-          ))}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          <div className={styles.userCard}>
-            <div className={styles.userAvatar}>{user?.nome?.[0]?.toUpperCase() || 'A'}</div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>{user?.nome || 'Admin'}</div>
-              <div className={styles.userRoleBadge}>Administrador</div>
-            </div>
-          </div>
-          <button className={styles.sidebarLogoutBtn} onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}>
-            Sair da conta
-          </button>
-        </div>
-      </aside>
+      <Sidebar
+        open={mobileMenuOpen}
+        userName={user?.nome}
+        roleLabel="Admin"
+        onLogout={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}
+        items={ADMIN_MENU.map(({ id, icon: Icon, label }) => ({
+          key: id,
+          label,
+          badge: badges[id],
+          icon: <Icon />,
+          active: tab === id,
+          onClick: () => { setTab(id); if (id === 'chat') loadConversationsOnce(); setMobileMenuOpen(false); },
+        }))}
+      />
 
       {/* MAIN */}
       <div className={styles.main}>

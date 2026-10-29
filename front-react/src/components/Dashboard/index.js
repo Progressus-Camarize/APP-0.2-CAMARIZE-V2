@@ -5,6 +5,7 @@ import MemberLayout from "../MemberLayout";
 import Modal from "../Modal";
 import panelStyles from "@/styles/panel.module.css";
 import { TbThermometer, TbWifiOff, TbFlask2 } from "react-icons/tb";
+import { rotaListaDeCativeiros } from "../Sidebar/menus";
 
 const AVISO_BANNER_ICONES = { temperatura: TbThermometer, sensor_inativo: TbWifiOff };
 const AvisoBannerIcone = ({ tipo }) => {
@@ -259,7 +260,7 @@ export default function Dashboard() {
               Reconectar
             </button>
             <button
-              onClick={() => router.push('/home')}
+              onClick={() => router.push(rotaListaDeCativeiros())}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.82rem', color: '#94a3b8', padding: '2px 8px' }}
             >
               ← Voltar para cativeiros
@@ -327,7 +328,7 @@ export default function Dashboard() {
           <div className={panelStyles.sectionActions}>
             <button
               className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
-              onClick={() => router.push('/home')}
+              onClick={() => router.push(rotaListaDeCativeiros())}
               title="Voltar para cativeiros"
             >
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24">

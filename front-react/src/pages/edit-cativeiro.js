@@ -6,6 +6,7 @@ import Modal from "@/components/Modal";
 import Notification from "@/components/Notification";
 import panelStyles from "@/styles/panel.module.css";
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
+import { rotaListaDeCativeiros } from "@/components/Sidebar/menus";
 
 export default function EditCativeiroPage() {
   const authToken = useAuthToken();
@@ -51,7 +52,7 @@ export default function EditCativeiroPage() {
         setCativeiro(res.data);
       } catch {
         setNotification({ show: true, message: 'Erro ao carregar dados do cativeiro.', type: 'error' });
-        router.push('/home');
+        router.push(rotaListaDeCativeiros());
       } finally {
         setLoading(false);
       }
@@ -89,7 +90,7 @@ export default function EditCativeiroPage() {
       await axios.post(`${apiUrl}/requests`, { action: 'editar_cativeiro', payload }, { headers });
       setShowEditModal(false);
       setNotification({ show: true, message: 'Solicitação de edição enviada ao administrador!', type: 'success' });
-      setTimeout(() => router.push('/home'), 2200);
+      setTimeout(() => router.push(rotaListaDeCativeiros()), 2200);
     } catch (e) {
       setNotification({ show: true, message: 'Erro ao enviar solicitação: ' + (e?.response?.data?.error || e.message), type: 'error' });
     } finally {
