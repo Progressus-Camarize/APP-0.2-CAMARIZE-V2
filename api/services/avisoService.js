@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import ParametrosAtuais from '../models/Parametros_atuais.js';
 import Cativeiros, { SEM_FOTO } from '../models/Cativeiros.js';
 import Aviso from '../models/Aviso.js';
@@ -19,8 +20,37 @@ export const DEFAULT_PH_LIMIAR = 0.35;
 export const DEFAULT_AMONIA_LIMIAR_PCT = 0.25;
 export const DEFAULT_AMONIA_LIMIAR_MIN = 0.05;
 const RECOVERY_RATIO = 0.6;
+// Depois que um aviso se encerra, outro do mesmo tipo (e mesmo modo: reativo ou preditivo) só abre
+// no mesmo viveiro após este intervalo. É o tempo da janela do aviso reativo (6 médias de 5 min):
+// um aviso novo reflete dados novos, não o resto da variação que acabou de se encerrar.
+export const INTERVALO_REABRIR_MS = 30 * 60_000;
 const round = value => Number(value.toFixed(3));
 const mean = values => values.reduce((sum, n) => sum + n, 0) / values.length;
+
+// As regras analisam médias por janela de tempo, não leituras brutas: assim valem para qualquer
+// frequência de envio da placa (5 s, 1 min, 10 min) e o ruído entre leituras é suavizado.
+// Com a placa a cada 5 s, "6 últimas leituras" eram 30 s e "200 leituras" eram ~16 min.
+export const JANELA_AGREGACAO_MIN = 5;
+
+// Médias de 5 min das leituras autenticadas do cativeiro no período, calculadas no MongoDB
+// (devolve poucas dezenas de pontos em vez de milhares de leituras). Cada ponto tem o mesmo
+// formato de uma leitura: datahora (a última da janela) e as médias de temperatura, pH e amônia.
+export async function leiturasAgregadas(cativeiroId, desde, ate = new Date()) {
+  return ParametrosAtuais.aggregate([
+    { $match: { id_cativeiro: new mongoose.Types.ObjectId(String(cativeiroId)), autenticada: true,
+      ...VALID_READING_FILTER, datahora: { $gte: desde, $lte: ate } } },
+    { $group: {
+      // Início da janela de 5 min (aritmética em ms: funciona em qualquer versão do MongoDB)
+      _id: { $subtract: [{ $toLong: '$datahora' }, { $mod: [{ $toLong: '$datahora' }, JANELA_AGREGACAO_MIN * 60_000] }] },
+      datahora: { $max: '$datahora' },
+      temp_atual: { $avg: '$temp_atual' }, ph_atual: { $avg: '$ph_atual' }, amonia_atual: { $avg: '$amonia_atual' },
+      leituras: { $sum: 1 },
+    } },
+    { $project: { _id: 0, datahora: 1, leituras: 1,
+      temp_atual: { $round: ['$temp_atual', 3] }, ph_atual: { $round: ['$ph_atual', 3] }, amonia_atual: { $round: ['$amonia_atual', 3] } } },
+    { $sort: { datahora: 1 } },
+  ]);
+}
 
 export function freshness(reading, now = new Date()) {
   if (!reading) return { estado: 'sem_dados', ultimaLeitura: null, idadeMinutos: null };
@@ -63,8 +93,9 @@ export function evaluate(readings, bounds = {}, now = new Date()) {
     const label = tipo === 'temperatura' ? 'Temperatura' : tipo === 'ph' ? 'pH' : 'Amônia';
     const mensagem = tipo === 'temperatura'
       ? `Temperatura se aproxima do limite de ${limite} °C (${round(base)} → ${round(current)} °C). Confira o sensor e a água.`
-      : `${label} apresenta ${direcao} persistente (${round(base)} → ${round(current)}). Medição experimental: confira o sensor e a água.`;
-    motivos.push({ tipo, mensagem, experimental: tipo !== 'temperatura', periodoInicio: recent[0].datahora,
+      : `${label} apresenta ${direcao} persistente (${round(base)} → ${round(current)}).${tipo === 'amonia' ? ' Medição experimental:' : ''} Confira o sensor e a água.`;
+    // Só a amônia é medição experimental (sensor sem calibração); pH só gera aviso com calibração (processReading)
+    motivos.push({ tipo, mensagem, experimental: tipo === 'amonia', periodoInicio: recent[0].datahora,
       periodoFim: recent.at(-1).datahora, valorInicial: round(base), valorAtual: round(current), limite, direcao });
   }
   return { suficiente: true, razao: null, motivos };
@@ -100,12 +131,14 @@ export function projectTrend(readings, bounds = {}, now = new Date()) {
   const t0 = new Date(ordered[0].datahora).getTime();
   const nowT = now.getTime() - t0;
   const motivos = [];
+  const projecoes = {};
   for (const [tipo, field] of Object.entries(fields)) {
     const points = ordered.map(r => ({ t: new Date(r.datahora).getTime() - t0, y: r[field] }));
     const { slope, intercept } = linearRegression(points);
-    if (slope === 0) continue;
     const current = round(slope * nowT + intercept);
     const projetado = round(slope * (nowT + TREND_HORIZON_MS) + intercept);
+    projecoes[tipo] = { current, projetado, baseline: round(intercept) };
+    if (slope === 0) continue;
     let triggered = false, limite, direcao, horasAteCruzar;
     if (tipo === 'temperatura') {
       const { temp_min: min, temp_max: max } = bounds;
@@ -123,6 +156,7 @@ export function projectTrend(readings, bounds = {}, now = new Date()) {
         : Math.max(
             Number.isFinite(bounds.amonia_limiar_min) ? bounds.amonia_limiar_min : DEFAULT_AMONIA_LIMIAR_MIN,
             Math.abs(baseline) * (Number.isFinite(bounds.amonia_limiar_pct) ? bounds.amonia_limiar_pct : DEFAULT_AMONIA_LIMIAR_PCT));
+      projecoes[tipo].limiar = limiar;
       if (Math.abs(deltaAtual) < limiar && Math.abs(deltaProjetado) >= limiar) {
         triggered = true; direcao = deltaProjetado > 0 ? 'aumento' : 'queda';
         horasAteCruzar = (limiar - Math.abs(deltaAtual)) / Math.abs(slope) / 3_600_000;
@@ -134,10 +168,45 @@ export function projectTrend(readings, bounds = {}, now = new Date()) {
     const mensagem = tipo === 'temperatura'
       ? `Tendência indica que a temperatura deve atingir ${limite} °C em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`
       : `Tendência indica ${direcao} persistente de ${label.toLowerCase()} que deve ultrapassar o limite configurado em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`;
-    motivos.push({ tipo, mensagem, experimental: true, periodoInicio: ordered[0].datahora, periodoFim: now,
+    motivos.push({ tipo, mensagem, experimental: tipo === 'amonia', periodoInicio: ordered[0].datahora, periodoFim: now,
       valorInicial: current, valorAtual: projetado, limite, direcao, preditivo: true });
   }
-  return { suficiente: true, razao: null, motivos };
+  return { suficiente: true, razao: null, motivos, projecoes };
+}
+
+// Folga para encerrar um aviso preditivo de temperatura (°C abaixo/acima do limite projetado)
+const MARGEM_ENCERRAR_TEMPERATURA = 0.5;
+
+// Um aviso preditivo é sobre o futuro: só se encerra quando a projeção da tendência se afasta
+// do limite (com folga, para não abrir e fechar na fronteira). Avaliar a leitura atual, como no
+// aviso reativo, encerrava o preditivo logo na leitura seguinte e o reabria em ciclo.
+// Sem leituras suficientes para recalcular a tendência, o aviso permanece aberto.
+export function tendenciaSeAfastou(aviso, trendResult) {
+  const p = trendResult?.suficiente ? trendResult.projecoes?.[aviso.tipo] : null;
+  if (!p) return false;
+  if (aviso.tipo === 'temperatura') {
+    if (!Number.isFinite(aviso.limite)) return true;
+    return aviso.direcao === 'queda'
+      ? p.projetado > aviso.limite + MARGEM_ENCERRAR_TEMPERATURA
+      : p.projetado < aviso.limite - MARGEM_ENCERRAR_TEMPERATURA;
+  }
+  if (!Number.isFinite(p.limiar)) return false;
+  return Math.abs(p.projetado - p.baseline) < p.limiar * RECOVERY_RATIO;
+}
+
+// pH sem calibração não é confiável: só gera aviso quando o cativeiro tem calibração registrada
+// (tensões do pH 7 e pH 4) e a análise usa apenas leituras posteriores a ela. Misturar leituras de
+// antes e depois da calibração faria o salto de valor parecer uma mudança persistente.
+export function phCalibrado(cativeiro = {}) {
+  const { tensao_ph7: ph7, tensao_ph4: ph4 } = cativeiro;
+  return Number.isFinite(ph7) && Number.isFinite(ph4) && ph7 > 0 && ph4 > 0 && Math.abs(ph7 - ph4) > 0.001;
+}
+
+function motivoConfiavel(motivo, cativeiro) {
+  if (motivo.tipo !== 'ph') return true;
+  if (!phCalibrado(cativeiro)) return false;
+  // Calibrações aplicadas antes do registro da data não têm corte: valem todas as leituras
+  return !cativeiro.calibracao_ph_em || new Date(motivo.periodoInicio) >= new Date(cativeiro.calibracao_ph_em);
 }
 
 export function temperatureBounds(condition = {}) {
@@ -151,21 +220,34 @@ export function temperatureBounds(condition = {}) {
 
 export async function processReading(cativeiroId, now = new Date()) {
   const since = new Date(now.getTime() - WINDOW_MS);
-  const readings = await ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER, datahora: { $gte: since, $lte: now } })
-    .sort({ datahora: -1 }).limit(30).lean();
+  const readings = await leiturasAgregadas(cativeiroId, since, now);
   const cativeiro = await Cativeiros.findById(cativeiroId).select(SEM_FOTO).populate('condicoes_ideais').lean();
   if (!cativeiro) return;
   const bounds = temperatureBounds(cativeiro.condicoes_ideais || {});
   const result = evaluate(readings, bounds, now);
+  result.motivos = result.motivos.filter(m => motivoConfiavel(m, cativeiro));
   const trendSince = new Date(now.getTime() - TREND_WINDOW_MS);
-  const trendReadings = await ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER, datahora: { $gte: trendSince, $lte: now } })
-    .sort({ datahora: -1 }).limit(200).lean();
+  const trendReadings = await leiturasAgregadas(cativeiroId, trendSince, now);
   const trendResult = projectTrend(trendReadings, bounds, now);
+  trendResult.motivos = trendResult.motivos.filter(m => motivoConfiavel(m, cativeiro));
   if (!result.suficiente && !trendResult.suficiente) return;
-  const active = await Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' });
+  const [active, encerradosHaPouco] = await Promise.all([
+    Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' }),
+    Aviso.find({ cativeiro: cativeiroId, estado: 'recuperado', recuperadoEm: { $gte: new Date(now.getTime() - INTERVALO_REABRIR_MS) } })
+      .select('tipo preditivo').lean(),
+  ]);
   const recovered = new Set();
-  const key = (tipo, preditivo) => `${tipo}|${preditivo}`;
+  const key = (tipo, preditivo) => `${tipo}|${!!preditivo}`;
+  // Encerrados há pouco contam como "recuperados neste ciclo": não reabrem ainda
+  for (const aviso of encerradosHaPouco) recovered.add(key(aviso.tipo, aviso.preditivo));
   for (const existing of active) {
+      if (existing.preditivo) {
+        if (tendenciaSeAfastou(existing, trendResult)) {
+          await Aviso.updateOne({ _id: existing._id, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
+          recovered.add(key(existing.tipo, true));
+        }
+        continue;
+      }
       const field = fields[existing.tipo];
       const last = [...readings].sort((a, b) => new Date(b.datahora) - new Date(a.datahora)).slice(0, 3);
       const normal = last.length === 3 && last.every(r => {

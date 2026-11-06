@@ -176,11 +176,20 @@ test('dispositivo autenticado gera aviso explicável, isolado por fazenda e idem
   assert.equal((await request('/parametros/cadastrar', { method: 'POST', deviceKey, body: {
     id_cativeiro: pond, temperatura: -127, ph: 7, amonia: 0.2,
   } })).status, 400);
-  for (let i = 0; i < 6; i++) {
-    const body = { id_cativeiro: pond, temperatura: i < 3 ? 28 : 29.8,
-      ph: i < 3 ? 7 : 8, amonia: i < 3 ? 0.2 : 0.3, amostraId: `integration-${i}` };
+  // Os avisos analisam médias de 5 min: a meia hora anterior fica gravada com horários passados
+  // (uma leitura por janela) e as leituras de agora chegam pela API, como as do ESP32.
+  const agora = Date.now();
+  // Avisos de pH exigem calibração registrada antes das leituras
+  await Cativeiros.updateOne({ _id: pond }, { $set: { tensao_ph7: 2.5, tensao_ph4: 3.03, calibracao_ph_em: new Date(agora - 6 * 60 * 60_000) } });
+  await ParametrosAtuais.insertMany([25, 20, 15, 10, 5].map((minutosAtras, i) => ({
+    id_cativeiro: pond, autenticada: true, origem: 'dispositivo', amostraId: `integration-antes-${i}`,
+    datahora: new Date(agora - minutosAtras * 60_000),
+    temp_atual: i < 3 ? 28 : 29.8, ph_atual: i < 3 ? 7 : 8, amonia_atual: i < 3 ? 0.2 : 0.3,
+  })));
+  for (let i = 0; i < 2; i++) {
+    const body = { id_cativeiro: pond, temperatura: 29.8, ph: 8, amonia: 0.3, amostraId: `integration-${i}` };
     assert.equal((await request('/parametros/cadastrar', { method: 'POST', deviceKey, body })).status, 201);
-    if (i === 5) assert.equal((await request('/parametros/cadastrar', { method: 'POST', deviceKey, body })).body.repetida, true);
+    if (i === 1) assert.equal((await request('/parametros/cadastrar', { method: 'POST', deviceKey, body })).body.repetida, true);
   }
   const dashboard = await request(`/parametros/dashboard/${pond}`, { auth: ownToken });
   assert.equal(dashboard.status, 200);

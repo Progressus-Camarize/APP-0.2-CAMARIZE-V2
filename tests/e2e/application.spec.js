@@ -71,11 +71,18 @@ test('leitura autenticada → aviso no dashboard e em Notificações', async ({ 
   await login(page);
   await page.goto(`/dashboard?id=${cativeiroId}`);
   await expect(page.getByText('Temperatura', { exact: true }).first()).toBeVisible();
-  for (let i = 0; i < 6; i++) {
+  // Os avisos analisam médias de 5 min: a meia hora anterior é gravada com horários passados
+  // e as leituras de agora chegam pela API, como as do ESP32.
+  const anteriores = await request.post(`${apiURL}/__leituras-anteriores`, {
+    headers: { Authorization: `Bearer ${masterToken}` },
+    data: { leituras: [25, 20, 15, 10, 5].map((minutosAtras, i) => ({ minutosAtras,
+      temperatura: i < 3 ? 28 : 29.8, ph: i < 3 ? 7 : 8, amonia: i < 3 ? 0.2 : 0.3 })) },
+  });
+  expect(anteriores.status()).toBe(201);
+  for (let i = 0; i < 2; i++) {
     const response = await request.post(`${apiURL}/parametros/cadastrar`, {
       headers: { 'X-Device-Key': chave },
-      data: { id_cativeiro: cativeiroId, temperatura: i < 3 ? 28 : 29.8,
-        ph: i < 3 ? 7 : 8, amonia: i < 3 ? 0.2 : 0.3, amostraId: `browser-${i}` },
+      data: { id_cativeiro: cativeiroId, temperatura: 29.8, ph: 8, amonia: 0.3, amostraId: `browser-${i}` },
     });
     expect(response.status()).toBe(201);
   }

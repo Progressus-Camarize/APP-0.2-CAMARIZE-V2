@@ -9,7 +9,7 @@ import { credentialHash, verificarChaveDispositivo } from '../services/deviceAut
 import DeviceCredentialHistory from '../models/DeviceCredentialHistory.js';
 import Aviso from '../models/Aviso.js';
 import CondicoesIdeais from '../models/Condicoes_ideais.js';
-import { processReading, freshness, evaluate, temperatureBounds, VALID_READING_FILTER } from '../services/avisoService.js';
+import { processReading, freshness, evaluate, temperatureBounds, leiturasAgregadas, VALID_READING_FILTER } from '../services/avisoService.js';
 import { suggestThresholdAdjustments } from '../services/calibrationService.js';
 
 const validReading = ({ temperatura, ph, amonia }) =>
@@ -309,8 +309,8 @@ async function fetchDashboardData(cativeiroId) {
       { $sort: { _id: 1 } }
     ]),
     Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' }).sort({ criadoEm: -1 }).lean(),
-    ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER,
-      datahora: { $gte: new Date(Date.now() - 90 * 60_000) } }).sort({ datahora: -1 }).limit(6).lean()
+    // Mesma base da geração de avisos: médias de 5 min dos últimos 90 min
+    leiturasAgregadas(cativeiroId, new Date(Date.now() - 90 * 60_000))
   ]);
 
   if (!cativeiro) return null;
