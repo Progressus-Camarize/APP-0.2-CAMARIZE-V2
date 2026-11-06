@@ -141,3 +141,44 @@ test('as rotas próprias das fotos continuam devolvendo as imagens', async () =>
   assert.equal(fotoFazenda.status, 200);
   assert.equal(fotoFazenda.body.foto, FOTO_FAZENDA);
 });
+
+// Foto do cativeiro em cache no navegador: só é baixada de novo quando muda
+test('foto do cativeiro: versão na URL, cache longo, 304 pela ETag e versão nova ao trocar', async () => {
+  const pond = fixtures.cativeiros[0]._id;
+  const foto = (query = '', headers = {}) => fetch(`${baseURL}/cativeiros/${pond}/foto${query}`, {
+    headers: { Authorization: `Bearer ${membroToken}`, ...headers },
+    signal: AbortSignal.timeout(5000),
+  });
+
+  // Foto antiga, gravada antes da versão: ganha uma no primeiro acesso
+  await Cativeiros.updateOne({ _id: pond }, { $set: { foto_versao: null } });
+  const primeira = await foto();
+  assert.equal(primeira.status, 200);
+  assert.deepEqual(Buffer.from(await primeira.arrayBuffer()), FOTO_CATIVEIRO);
+  assert.equal(primeira.headers.get('cache-control'), 'private, no-cache');
+  const etag = primeira.headers.get('etag');
+  const lista = await get('/cativeiros', membroToken);
+  const versao = new Date(lista.body.find(c => String(c._id) === String(pond)).foto_versao).getTime();
+  assert.equal(etag, `"foto-${versao}"`);
+
+  // Com a versão na URL: cache de 1 ano
+  const comVersao = await foto(`?v=${versao}`);
+  assert.equal(comVersao.headers.get('cache-control'), 'private, max-age=31536000, immutable');
+
+  // O navegador confere a ETag: 304 sem o corpo
+  const conferida = await foto(`?v=${versao}`, { 'If-None-Match': etag });
+  assert.equal(conferida.status, 304);
+  assert.equal((await conferida.arrayBuffer()).byteLength, 0);
+
+  // Foto nova (admin/master): a versão muda e a ETag antiga deixa de valer
+  const form = new FormData();
+  form.append('foto', new Blob([Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3])]), 'nova.png');
+  const envio = await fetch(`${baseURL}/cativeiros/${pond}/foto`, {
+    method: 'POST', headers: { Authorization: `Bearer ${masterToken}` }, body: form,
+  });
+  assert.equal(envio.status, 200);
+  const depois = await foto('', { 'If-None-Match': etag });
+  assert.equal(depois.status, 200);
+  assert.equal(depois.headers.get('content-type'), 'image/png');
+  assert.notEqual(depois.headers.get('etag'), etag);
+});

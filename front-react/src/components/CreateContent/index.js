@@ -8,6 +8,7 @@ import AuthError from "@/components/AuthError";
 import Loading from "@/components/Loading";
 import RequestButton from "@/components/RequestButton";
 import { rotaListaDeCativeiros } from "@/components/Sidebar/menus";
+import { comprimirFoto } from "@/lib/fotoCativeiro";
 
 export default function CreateContent() {
   const router = useRouter();
@@ -131,7 +132,7 @@ export default function CreateContent() {
     formData.append("nome", nomeCativeiro);
     formData.append("id_tipo_camarao", tipoCamarao?.value || "");
     formData.append("data_instalacao", dataInstalacao);
-    if (arquivo) formData.append("foto_cativeiro", arquivo);
+    if (arquivo) formData.append("foto_cativeiro", await comprimirFoto(arquivo));
     formData.append("temp_media_diaria", tempMedia);
     formData.append("ph_medio_diario", phMedio);
     formData.append("amonia_media_diaria", amoniaMedia);

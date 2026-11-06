@@ -25,6 +25,11 @@ const CativeirosSchema = new mongoose.Schema({
     required: false,
     default: null
   },
+  // Muda a cada foto nova: entra na URL da foto para o navegador guardá-la em cache
+  foto_versao: {
+    type: Date,
+    default: null
+  },
   temp_media_diaria: {
     type: String,
     default: null

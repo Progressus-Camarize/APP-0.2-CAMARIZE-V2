@@ -10,7 +10,7 @@ import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
 import { rotuloAcao, DetalhesGenericos, DetalhesCalibracao, DetalhesSensor } from '../../lib/solicitacoes';
 import ConfirmarCalibracao, { mensagemCalibracaoAplicada } from '../../components/ConfirmarCalibracao';
-import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
+import { useAuthToken, fotoCativeiroUrl, comprimirFoto } from "@/lib/fotoCativeiro";
 import Sidebar from '../../components/Sidebar';
 import { MASTER_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
 import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
@@ -861,7 +861,7 @@ export default function MasterPanel() {
     try {
       const token = getToken();
       const form = new FormData();
-      form.append('foto', file);
+      form.append('foto', await comprimirFoto(file));
       await axios.post(`${apiUrl}/cativeiros/${cativeiroId}/foto`, form, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
@@ -1005,7 +1005,7 @@ export default function MasterPanel() {
       if (createForm.temp_media_diaria) form.append('temp_media_diaria', createForm.temp_media_diaria);
       if (createForm.ph_medio_diario) form.append('ph_medio_diario', createForm.ph_medio_diario);
       if (createForm.amonia_media_diaria) form.append('amonia_media_diaria', createForm.amonia_media_diaria);
-      if (createForm.fotoFile) form.append('foto_cativeiro', createForm.fotoFile);
+      if (createForm.fotoFile) form.append('foto_cativeiro', await comprimirFoto(createForm.fotoFile));
       if (createForm.dietaAtivar && (createForm.dietaDescricao || createForm.dietaQuantidade)) {
         // master pode mandar dieta_texto para criar e atribuir imediatamente
         form.append('dieta_texto', `${createForm.dietaDescricao} (${createForm.dietaQuantidade} g)`);
@@ -1388,7 +1388,7 @@ export default function MasterPanel() {
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                         {(previewImage[c._id] || !photoErrors[c._id]) ? (
                                           <img
-                                            src={previewImage[c._id] || fotoCativeiroUrl(apiUrl, c._id, authToken)}
+                                            src={previewImage[c._id] || fotoCativeiroUrl(apiUrl, c._id, authToken, c.foto_versao)}
                                             alt="Foto do cativeiro"
                                             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0 }}
                                             onError={() => {

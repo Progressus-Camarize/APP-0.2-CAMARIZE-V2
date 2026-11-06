@@ -108,7 +108,7 @@ export default function EditCativeiroPage() {
     );
   }
 
-  const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken);
+  const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken, cativeiro?.foto_versao);
 
   return (
     <MemberLayout title="Editar Cativeiro" subtitle="Solicite alterações ao administrador">

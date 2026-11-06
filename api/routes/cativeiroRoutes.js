@@ -336,7 +336,7 @@ cativeiroRoutes.post("/cativeiros/:id/foto", Auth.Authorization, upload.single('
     }
 
     // Só a foto: os demais campos do cativeiro mudam pelo PATCH, que valida o acesso e os campos
-    await cativeiroController.updateCativeiroData(id, { foto_cativeiro: req.file.buffer });
+    await cativeiroController.updateCativeiroData(id, { foto_cativeiro: req.file.buffer, foto_versao: new Date() });
 
     res.status(200).json({ message: "Foto do cativeiro atualizada com sucesso!" });
   } catch (error) {
@@ -345,20 +345,50 @@ cativeiroRoutes.post("/cativeiros/:id/foto", Auth.Authorization, upload.single('
   }
 });
 
-// Aceita o token por header ou ?token= (a foto é carregada por <img>, que não envia header)
+// Tipo da imagem pelos primeiros bytes (as fotos antigas foram gravadas sem o tipo)
+const tipoDaImagem = (buf) => {
+  if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+  if (buf[0] === 0x47 && buf[1] === 0x49) return 'image/gif';
+  if (buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP') return 'image/webp';
+  return 'image/jpeg';
+};
+
+// Aceita o token por header ou ?token= (a foto é carregada por <img>, que não envia header).
+// Cache: com ?v=<versão atual> a resposta vale por 1 ano (a URL muda quando a foto muda);
+// sem ela, o navegador confere pela ETag e recebe 304 sem baixar a foto de novo.
 cativeiroRoutes.get("/cativeiros/:id/foto", Auth.AuthorizationSSE, async (req, res) => {
   try {
     const { id } = req.params;
     const acesso = await cativeiroController.assertCativeiroAccess(id, req.loggedUser.id, req.loggedUser.role);
     if (!acesso) return res.status(404).send("Sem foto");
-    const cativeiro = await Cativeiros.findById(id).select('foto_cativeiro');
 
-    if (!cativeiro || !cativeiro.foto_cativeiro) {
-      return res.status(404).send("Sem foto");
+    // Primeiro só a versão: se o navegador já tem a foto, não carrega o binário do banco
+    const info = await Cativeiros.findById(id).select('foto_versao').lean();
+    if (!info) return res.status(404).send("Sem foto");
+    let versao = info.foto_versao ? new Date(info.foto_versao).getTime() : null;
+    const etagAtual = versao ? `"foto-${versao}"` : null;
+    if (etagAtual && req.get('If-None-Match') === etagAtual) {
+      res.setHeader('ETag', etagAtual);
+      res.setHeader('Cache-Control', String(req.query.v) === String(versao) ? 'private, max-age=31536000, immutable' : 'private, no-cache');
+      return res.status(304).end();
     }
 
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.send(cativeiro.foto_cativeiro);
+    const cativeiro = await Cativeiros.findById(id).select('foto_cativeiro').lean();
+    const foto = cativeiro?.foto_cativeiro?.buffer ?? cativeiro?.foto_cativeiro;
+    if (!foto || !foto.length) return res.status(404).send("Sem foto");
+    const bytes = Buffer.from(foto);
+
+    // Foto gravada antes da versão existir: ganha uma agora, para as próximas visitas usarem cache
+    if (!versao) {
+      const agora = new Date();
+      await Cativeiros.updateOne({ _id: id, foto_versao: null }, { $set: { foto_versao: agora } });
+      versao = agora.getTime();
+    }
+
+    res.setHeader('Content-Type', tipoDaImagem(bytes));
+    res.setHeader('ETag', `"foto-${versao}"`);
+    res.setHeader('Cache-Control', String(req.query.v) === String(versao) ? 'private, max-age=31536000, immutable' : 'private, no-cache');
+    res.send(bytes);
   } catch (error) {
     console.error('Erro ao buscar foto do cativeiro:', error);
     res.status(500).send("Erro ao buscar foto do cativeiro");

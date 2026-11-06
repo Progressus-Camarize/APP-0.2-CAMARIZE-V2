@@ -118,7 +118,7 @@ export default function RelatorioIndividual() {
   };
 
   const periodoInfo = PERIODO_MAP[periodo] || {};
-  const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken);
+  const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken, cativeiro?.foto_versao);
 
   return (
     <MemberLayout

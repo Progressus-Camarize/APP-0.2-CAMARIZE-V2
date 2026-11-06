@@ -235,7 +235,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
           </div>
         ) : (
           cativeiros.map((cativeiro, idx) => {
-            const fotoUrl = fotoCativeiroUrl(process.env.NEXT_PUBLIC_API_URL || '/api', cativeiro._id, authToken);
+            const fotoUrl = fotoCativeiroUrl(process.env.NEXT_PUBLIC_API_URL || '/api', cativeiro._id, authToken, cativeiro.foto_versao);
             return (
               <div
                 key={cativeiro._id}

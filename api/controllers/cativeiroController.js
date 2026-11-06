@@ -13,7 +13,8 @@ import mongoose from "mongoose";
 import accessService from "../services/accessService.js";
 
 // Campos que só o servidor define: dono, calibração e condições ideais (criadas a partir do tipo de camarão)
-const CAMPOS_PROTEGIDOS = ['_id', 'user', 'gramas_por_rotacao', 'tensao_ph7', 'tensao_ph4', 'condicoes_ideais', 'createdAt', 'updatedAt'];
+// A foto só muda pelo arquivo enviado (e com ela a versão, que invalida o cache do navegador)
+const CAMPOS_PROTEGIDOS = ['_id', 'user', 'gramas_por_rotacao', 'tensao_ph7', 'tensao_ph4', 'condicoes_ideais', 'createdAt', 'updatedAt', 'foto_cativeiro', 'foto_versao'];
 const semCamposProtegidos = (body) => {
   const data = { ...body };
   for (const campo of CAMPOS_PROTEGIDOS) delete data[campo];
@@ -72,6 +73,7 @@ const createCativeiro = async (req, res) => {
     const data = semCamposProtegidos(req.body);
     if (req.file) {
       data.foto_cativeiro = req.file.buffer;
+      data.foto_versao = new Date();
     }
 
     // Valida e converte os valores das condições ideais
@@ -281,6 +283,7 @@ const updateCativeiro = async (req, res) => {
 
     if (req.file) {
       data.foto_cativeiro = req.file.buffer;
+      data.foto_versao = new Date();
     }
 
     // Se houver mudança no tipo de camarão, atualizar as condições ideais

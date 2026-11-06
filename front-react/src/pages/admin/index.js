@@ -12,7 +12,7 @@ import Notification from '../../components/Notification';
 import { rotuloAcao, DetalhesGenericos, DetalhesCalibracao, DetalhesSensor } from '../../lib/solicitacoes';
 import ConfirmarCalibracao, { mensagemCalibracaoAplicada } from '../../components/ConfirmarCalibracao';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
-import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
+import { useAuthToken, fotoCativeiroUrl, comprimirFoto } from "@/lib/fotoCativeiro";
 import Sidebar from '../../components/Sidebar';
 import { ADMIN_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
 import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
@@ -813,7 +813,7 @@ export default function AdminPanel() {
       const token = getToken();
       const headers = { Authorization: `Bearer ${token}` };
       const form = new FormData();
-      form.append('foto', file);
+      form.append('foto', await comprimirFoto(file));
       await axios.post(`${apiUrl}/cativeiros/${cativeiroId}/foto`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
       setAdminNotification({ show: true, message: 'Foto atualizada com sucesso!', type: 'success' });
       await load();
@@ -1235,7 +1235,7 @@ export default function AdminPanel() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               {(previewImage[cativeiro._id] || !photoErrors[cativeiro._id]) ? (
                                 <img
-                                  src={previewImage[cativeiro._id] || fotoCativeiroUrl(apiUrl, cativeiro._id, authToken)}
+                                  src={previewImage[cativeiro._id] || fotoCativeiroUrl(apiUrl, cativeiro._id, authToken, cativeiro.foto_versao)}
                                   alt="Foto do cativeiro"
                                   style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0 }}
                                   onError={() => { if (!previewImage[cativeiro._id]) setPhotoErrors(prev => ({ ...prev, [cativeiro._id]: true })); }}

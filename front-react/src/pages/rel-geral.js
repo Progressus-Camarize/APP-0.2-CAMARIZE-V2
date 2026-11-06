@@ -189,7 +189,7 @@ export default function RelatorioGeral() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {cativeiros.map((cativeiro) => {
                 const dados = dadosPorCativeiro[cativeiro._id] || [];
-                const fotoUrl = fotoCativeiroUrl(apiUrl, cativeiro._id, authToken);
+                const fotoUrl = fotoCativeiroUrl(apiUrl, cativeiro._id, authToken, cativeiro.foto_versao);
                 return (
                   <div
                     key={cativeiro._id}
