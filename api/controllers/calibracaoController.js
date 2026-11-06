@@ -21,13 +21,14 @@ const iniciarCalibracao = async (req, res) => {
       return res.status(400).json({ error: "rotacoes é obrigatório e deve ser um inteiro maior que zero" });
     }
 
-    if (req.loggedUser?.role === "membro") return res.status(403).json({ error: "Acesso negado" });
     const access = await cativeiroController.assertCativeiroAccess(id_cativeiro, req.loggedUser.id, req.loggedUser.role);
     if (access === null) return res.status(404).json({ error: "Cativeiro não encontrado" });
     if (access === false) return res.status(403).json({ error: "Acesso negado" });
     if (!await Cativeiros.exists({ _id: id_cativeiro })) return res.status(404).json({ error: "Cativeiro não encontrado" });
 
-    const calibracao = await calibracaoService.iniciar(id_cativeiro, tipo, tipo === "motor" ? rotacoes : undefined);
+    // Membro também calibra; o resultado dele só vale depois que o admin aprova
+    const calibracao = await calibracaoService.iniciar(id_cativeiro, tipo, tipo === "motor" ? rotacoes : undefined,
+      { id: req.loggedUser.id, role: req.loggedUser.role });
 
     return res.status(201).json({ sucesso: true, mensagem: "Calibração iniciada.", calibracao });
   } catch (err) {
@@ -89,7 +90,6 @@ const registrarResultado = async (req, res) => {
     // as demais etapas vêm do ESP32 e exigem a chave do dispositivo
     if (tipo === "motor" && etapa === "peso") {
       if (!req.loggedUser) return res.status(401).json({ error: "Login obrigatório para informar a pesagem" });
-      if (req.loggedUser.role === "membro") return res.status(403).json({ error: "Acesso negado" });
       const acesso = await cativeiroController.assertCativeiroAccess(id_cativeiro, req.loggedUser.id, req.loggedUser.role);
       if (!acesso) return res.status(403).json({ error: "Acesso negado a este cativeiro" });
     } else if (await verificarChaveDispositivo(id_cativeiro, req.get("X-Device-Key")) !== "valida") {
@@ -114,7 +114,6 @@ const cancelarCalibracao = async (req, res) => {
       return res.status(400).json({ error: "ID do cativeiro é obrigatório" });
     }
 
-    if (req.loggedUser?.role === "membro") return res.status(403).json({ error: "Acesso negado" });
     const access = await cativeiroController.assertCativeiroAccess(id_cativeiro, req.loggedUser.id, req.loggedUser.role);
     if (access === null) return res.status(404).json({ error: "Cativeiro não encontrado" });
     if (access === false) return res.status(403).json({ error: "Acesso negado" });
@@ -129,7 +128,29 @@ const cancelarCalibracao = async (req, res) => {
   }
 };
 
+// POST /calibracao/confirmar — Usuário confirma que o eletrodo está na solução (pH 7 ou pH 4);
+// a partir daí o ESP32 faz a leitura da tensão.
+const confirmarEtapa = async (req, res) => {
+  try {
+    const { id_cativeiro } = req.body;
+    if (!id_cativeiro || !mongoose.isValidObjectId(id_cativeiro)) {
+      return res.status(400).json({ error: "ID do cativeiro é obrigatório" });
+    }
+    const access = await cativeiroController.assertCativeiroAccess(id_cativeiro, req.loggedUser.id, req.loggedUser.role);
+    if (access === null) return res.status(404).json({ error: "Cativeiro não encontrado" });
+    if (access === false) return res.status(403).json({ error: "Acesso negado" });
+
+    const calibracao = await calibracaoService.confirmar(id_cativeiro);
+    return res.json({ sucesso: true, calibracao });
+  } catch (err) {
+    if (err?.status) return res.status(err.status).json({ error: err.mensagem });
+    console.error("Erro ao confirmar etapa da calibração:", err);
+    return res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
 export default {
+  confirmarEtapa,
   iniciarCalibracao,
   getCalibracaoAtual,
   registrarResultado,

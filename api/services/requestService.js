@@ -305,6 +305,17 @@ class RequestService {
       }
     }
 
+    // Calibração feita por um membro: só grava no cativeiro depois da aprovação do admin
+    if (request.action === 'aplicar_calibracao' && request.payload?.cativeiroId) {
+      const { cativeiroId, tipo, gramas_por_rotacao, tensao_ph7, tensao_ph4 } = request.payload;
+      const valido = (n) => typeof n === 'number' && Number.isFinite(n);
+      let campos = null;
+      if (tipo === 'motor' && valido(gramas_por_rotacao) && gramas_por_rotacao > 0) campos = { gramas_por_rotacao };
+      if (tipo === 'ph' && valido(tensao_ph7) && valido(tensao_ph4)) campos = { tensao_ph7, tensao_ph4 };
+      if (!campos) throw new Error('Resultado de calibração inválido');
+      await Cativeiros.updateOne({ _id: cativeiroId }, { $set: campos });
+    }
+
     // Aplicar dieta quando aprovada
     if (request.action === 'editar_dieta' && request.payload?.cativeiroId) {
       try {

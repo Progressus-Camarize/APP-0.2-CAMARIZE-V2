@@ -81,4 +81,31 @@ router.post("/resultado", loginNaPesagem, calibracaoController.registrarResultad
  */
 router.post("/cancelar", Auth.Authorization, calibracaoController.cancelarCalibracao);
 
+/**
+ * @swagger
+ * /calibracao/confirmar:
+ *   post:
+ *     summary: Confirma que o eletrodo está na solução de pH 7 ou pH 4
+ *     description: Avança a calibração de pH de preparar_ph7 para ph7 (ou de preparar_ph4 para ph4). Só depois disso o ESP32 lê a tensão.
+ *     tags: [Calibração]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_cativeiro]
+ *             properties:
+ *               id_cativeiro:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Etapa confirmada
+ *       409:
+ *         description: Não há etapa aguardando confirmação
+ */
+router.post("/confirmar", Auth.Authorization, calibracaoController.confirmarEtapa);
+
 export default router;

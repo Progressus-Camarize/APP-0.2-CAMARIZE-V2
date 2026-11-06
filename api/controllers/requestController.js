@@ -8,6 +8,11 @@ const create = async (req, res) => {
     const requester = await userService.getById(req.loggedUser.id);
     if (!requester) return res.status(404).json({ error: 'Usuário não encontrado' });
 
+    // Solicitações que o servidor cria sozinho (ex.: resultado de calibração feita por membro)
+    if (action === 'aplicar_calibracao') {
+      return res.status(400).json({ error: 'Esta solicitação é criada automaticamente ao concluir uma calibração.' });
+    }
+
     const requesterRole = requester.role || 'membro';
     console.log('Criando request:', {
       requesterEmail: requester.email,

@@ -5,6 +5,10 @@ import mongoose from 'mongoose';
 import Cativeiros from '../models/Cativeiros.js';
 import Dietas from '../models/Dietas.js';
 import DietasxCativeiros from '../models/DietasxCativeiros.js';
+import bcrypt from 'bcryptjs';
+import User from '../models/Users.js';
+import UsuariosxFazendas from '../models/UsuariosxFazendas.js';
+import FazendasxCativeiros from '../models/FazendasxCativeiros.js';
 import { connectTestDatabase, dropTestDatabase, password, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -60,6 +64,10 @@ afterAll(async () => {
   if (mongoose.connection.readyState) await dropTestDatabase();
 });
 
+// Usuário confirma que o eletrodo está na solução (preparar_ph7 -> ph7, preparar_ph4 -> ph4)
+const confirmar = (pond, auth = masterToken) =>
+  request('/calibracao/confirmar', { method: 'POST', auth, body: { id_cativeiro: pond } });
+
 test('fluxo completo de calibração do motor: iniciar -> executar -> peso', async () => {
   const pond = fixtures.cativeiros[0].id;
 
@@ -84,8 +92,12 @@ test('fluxo completo de calibração do motor: iniciar -> executar -> peso', asy
   assert.equal(peso.status, 200);
   assert.equal(peso.body.sucesso, true);
   assert.equal(peso.body.resultado.gramas_por_rotacao, 2.37);
+  assert.equal(peso.body.pendenteAprovacao, false);
 
-  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: false });
+  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, {
+    ativa: false, concluida: true, tipo: 'motor', pendenteAprovacao: false,
+    resultado: { rotacoes: 10, gramas: 23.7, gramas_por_rotacao: 2.37 },
+  });
 
   const cativeiro = await Cativeiros.findById(pond).lean();
   assert.equal(cativeiro.gramas_por_rotacao, 2.37);
@@ -119,11 +131,20 @@ test('fluxo completo de calibração de pH: iniciar -> ph7 -> ph4, sem par incon
   const iniciar = await request('/calibracao/iniciar', { method: 'POST', auth: masterToken,
     body: { id_cativeiro: pond, tipo: 'ph' } });
   assert.equal(iniciar.status, 201);
-  assert.deepEqual(iniciar.body.calibracao, { ativa: true, tipo: 'ph', etapa: 'ph7' });
+  assert.deepEqual(iniciar.body.calibracao, { ativa: true, tipo: 'ph', etapa: 'preparar_ph7' });
+
+  // ESP32 só lê depois que o usuário confirma que o eletrodo está na solução
+  const antesDeConfirmar = await request('/calibracao/resultado', { method: 'POST',
+    body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph7', tensao: 2.51 } });
+  assert.equal(antesDeConfirmar.status, 409);
+  assert.equal((await confirmar(pond)).status, 200);
+  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: true, tipo: 'ph', etapa: 'ph7' });
 
   const ph7 = await request('/calibracao/resultado', { method: 'POST',
     body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph7', tensao: 2.51 } });
   assert.equal(ph7.status, 200);
+  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: true, tipo: 'ph', etapa: 'preparar_ph4' });
+  assert.equal((await confirmar(pond)).status, 200);
   assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: true, tipo: 'ph', etapa: 'ph4' });
 
   // A3: cancelar com ph7 já reportado não deixa tensao_ph7 gravada no cativeiro (alternativa rígida)
@@ -133,7 +154,10 @@ test('fluxo completo de calibração de pH: iniciar -> ph7 -> ph4, sem par incon
   const ph4 = await request('/calibracao/resultado', { method: 'POST',
     body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph4', tensao: 2.96 } });
   assert.equal(ph4.status, 200);
-  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: false });
+  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, {
+    ativa: false, concluida: true, tipo: 'ph', pendenteAprovacao: false,
+    resultado: { tensao_ph7: 2.51, tensao_ph4: 2.96 },
+  });
 
   cativeiro = await Cativeiros.findById(pond).lean();
   assert.equal(cativeiro.tensao_ph7, 2.51);
@@ -145,8 +169,10 @@ test('cancelar antes do ph4 não grava tensao_ph7 no cativeiro', async () => {
     nome: 'Viveiro isolado calibração pH', id_tipo_camarao: fixtures.condicao.id_tipo_camarao, data_instalacao: new Date(),
   }))._id;
 
+  deviceKeys[pond] = (await request(`/parametros/dispositivos/${pond}/chave`, { method: 'POST', auth: masterToken })).body.chave;
   await request('/calibracao/iniciar', { method: 'POST', auth: masterToken, body: { id_cativeiro: pond, tipo: 'ph' } });
-  await request('/calibracao/resultado', { method: 'POST', body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph7', tensao: 2.5 } });
+  await confirmar(pond);
+  assert.equal((await request('/calibracao/resultado', { method: 'POST', body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph7', tensao: 2.5 } })).status, 200);
   const cancelar = await request('/calibracao/cancelar', { method: 'POST', auth: masterToken, body: { id_cativeiro: pond } });
   assert.equal(cancelar.status, 200);
 
@@ -176,7 +202,7 @@ test('resultado com etapa diferente da atual responde 409 e não salva dados', a
     body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph4', tensao: 2.96 } });
   assert.equal(etapaErrada.status, 409);
 
-  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: true, tipo: 'ph', etapa: 'ph7' });
+  assert.deepEqual((await request(`/calibracao/atual/${pond}`)).body, { ativa: true, tipo: 'ph', etapa: 'preparar_ph7' });
   const cativeiro = await Cativeiros.findById(pond).lean();
   assert.equal(cativeiro.tensao_ph4, null);
 });
@@ -217,9 +243,11 @@ test('validações de entrada (seção 5)', async () => {
   assert.equal(semCalibracao, 400);
 
   await request('/calibracao/iniciar', { method: 'POST', auth: masterToken, body: { id_cativeiro: pond, tipo: 'ph' } });
+  await confirmar(pond);
   assert.equal((await request('/calibracao/resultado', { method: 'POST',
     body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph7', tensao: 'abc' } })).status, 400, 'tensao não numérica');
   await request('/calibracao/resultado', { method: 'POST', body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph7', tensao: 2.5 } });
+  await confirmar(pond);
   assert.equal((await request('/calibracao/resultado', { method: 'POST',
     body: { id_cativeiro: pond, tipo: 'ph', etapa: 'ph4', tensao: 3.0 } })).status, 200);
 });
@@ -254,4 +282,56 @@ test('resultado sem credencial é recusado: ESP32 sem chave e pesagem sem login'
   assert.equal(pesoSemLogin.status, 401);
 
   assert.equal((await request('/calibracao/cancelar', { method: 'POST', auth: masterToken, body: { id_cativeiro: pond } })).status, 200);
+});
+
+test('membro calibra, mas o resultado só vale depois que o admin da fazenda aprova', async () => {
+  const fazenda = fixtures.fazendas[0]._id;
+  const pond = (await Cativeiros.create({
+    nome: 'Viveiro calibração do membro', id_tipo_camarao: fixtures.condicao.id_tipo_camarao, data_instalacao: new Date(),
+  }))._id;
+  await FazendasxCativeiros.create({ fazenda, cativeiro: pond });
+  deviceKeys[pond] = (await request(`/parametros/dispositivos/${pond}/chave`, { method: 'POST', auth: masterToken })).body.chave;
+
+  const admin = await User.create({ nome: 'Admin Calibração', email: 'admin-calib@example.invalid',
+    senha: await bcrypt.hash(password, 4), role: 'admin' });
+  await UsuariosxFazendas.create({ usuario: admin._id, fazenda, ativo: true });
+  const adminToken = (await request('/users/auth', { method: 'POST', body: { email: admin.email, senha: password } })).body.token;
+  const membroToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[0].email, senha: password } })).body.token;
+
+  // Membro conduz a calibração do motor inteira
+  assert.equal((await request('/calibracao/iniciar', { method: 'POST', auth: membroToken,
+    body: { id_cativeiro: pond, tipo: 'motor', rotacoes: 5 } })).status, 201);
+  assert.equal((await request('/calibracao/resultado', { method: 'POST',
+    body: { id_cativeiro: pond, tipo: 'motor', etapa: 'executar', rotacoes: 5 } })).status, 200);
+  const peso = await request('/calibracao/resultado', { method: 'POST', auth: membroToken,
+    body: { id_cativeiro: pond, tipo: 'motor', etapa: 'peso', rotacoes: 5, gramas: 12 } });
+  assert.equal(peso.status, 200);
+  assert.equal(peso.body.pendenteAprovacao, true);
+  assert.equal((await request(`/calibracao/atual/${pond}`)).body.pendenteAprovacao, true);
+
+  // Nada gravado no cativeiro até a aprovação
+  assert.equal((await Cativeiros.findById(pond).lean()).gramas_por_rotacao, null);
+
+  const pendente = (await request('/requests', { auth: adminToken })).body.find(r => r.action === 'aplicar_calibracao');
+  assert.ok(pendente, 'admin da fazenda vê a solicitação');
+  assert.equal(String(pendente.fazenda?._id || pendente.fazenda), String(fazenda));
+  assert.deepEqual(pendente.payload, { cativeiroId: String(pond), tipo: 'motor', rotacoes: 5, gramas: 12, gramas_por_rotacao: 2.4 });
+
+  assert.equal((await request(`/requests/${pendente._id}/approve`, { method: 'POST', auth: adminToken, body: {} })).status, 200);
+  assert.equal((await Cativeiros.findById(pond).lean()).gramas_por_rotacao, 2.4);
+
+  // A solicitação de calibração só nasce do servidor: o cliente não consegue forjar valores
+  assert.equal((await request('/requests', { method: 'POST', auth: membroToken,
+    body: { action: 'aplicar_calibracao', payload: { cativeiroId: String(pond), tipo: 'motor', gramas_por_rotacao: 99 } } })).status, 400);
+});
+
+test('confirmar sem etapa aguardando responde 409; membro pode cancelar a própria calibração', async () => {
+  const pond = fixtures.cativeiros[0].id; // fazenda 0, do membro A
+  const membroToken = (await request('/users/auth', { method: 'POST', body: { email: fixtures.users[0].email, senha: password } })).body.token;
+  assert.equal((await request('/calibracao/iniciar', { method: 'POST', auth: membroToken,
+    body: { id_cativeiro: pond, tipo: 'motor', rotacoes: 2 } })).status, 201);
+  assert.equal((await confirmar(pond, membroToken)).status, 409, 'motor não tem etapa de confirmação');
+  assert.equal((await request('/calibracao/cancelar', { method: 'POST', auth: membroToken, body: { id_cativeiro: pond } })).status, 200);
+  // Membro de outra fazenda não confirma nem cancela
+  assert.equal((await confirmar(pond, otherToken)).status, 403);
 });

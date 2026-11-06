@@ -36,7 +36,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #fff;
+  /* mesmo azul escuro do cartão do usuário: divide sem o contraste forte do branco */
+  border-bottom: 1px solid var(--azul-escuro, #0d4a8d);
 }
 
 .sidebarLogo {
@@ -138,7 +139,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 15px 12px 16px;
-  border-top: 1px solid #fff;
+  border-top: 1px solid var(--azul-escuro, #0d4a8d);
 }
 
 .userCard {
@@ -228,7 +229,7 @@
 .pageTitle {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--azul-camarize, #146ac7); /* azul do Figma */
   margin: 0 0 2px 0;
   line-height: 1.3;
 }
@@ -1343,4 +1344,357 @@
   .content {
     padding: 16px;
   }
+}
+
+/* ===================== CALIBRAÇÕES (Figma "Admin / Group 113–119") ===================== */
+.calibLabel {
+  font-size: 11.2px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.calibFazenda {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.calibFazendaHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.calibFazendaHeader:hover {
+  background: #f1f5f9;
+}
+
+.calibFazendaHeader:focus-visible {
+  outline: 2px solid var(--azul-camarize, #146ac7);
+  outline-offset: -2px;
+}
+
+.calibFazendaIcone,
+.calibCardIcone {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #eff6ff;
+  color: var(--azul-camarize, #146ac7);
+}
+
+.calibFazendaInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.calibFazendaNome {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calibFazendaCodigo {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.calibFazendaSub {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.calibFazendaSeta {
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.calibFazendaSetaAberta {
+  transform: rotate(180deg);
+}
+
+.calibVazio {
+  margin: 0;
+  padding: 20px;
+  font-size: 13.5px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.calibGrade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 14px;
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.calibCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.calibCard:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.calibCardTopo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.calibCardNome {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calibCardEspecie {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: #64748b;
+}
+
+.calibCardStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.calibStatus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.calibStatusRotulo {
+  color: #475569;
+}
+
+.calibStatusValor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.calibStatusOk {
+  color: #15803d;
+}
+
+.calibStatusPendente {
+  color: #b45309;
+}
+
+.calibCardAcoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.calibBotao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: var(--azul-camarize, #146ac7);
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(20, 106, 199, 0.08);
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.calibBotao svg {
+  flex-shrink: 0;
+}
+
+@media (min-width: 480px) {
+  .calibBotao {
+    white-space: nowrap;
+  }
+}
+
+.calibBotao:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  box-shadow: 0 3px 8px rgba(20, 106, 199, 0.15);
+}
+
+.calibBotao:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.calibBotao:focus-visible {
+  outline: 2px solid var(--azul-camarize, #146ac7);
+  outline-offset: 2px;
+}
+
+@media (max-width: 380px) {
+  .calibCardAcoes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calibModal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: min(360px, 80vw);
+  max-width: 420px;
+}
+
+.calibCampo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calibCampoTitulo {
+  font-family: 'Poppins', sans-serif;
+  font-size: 13.1px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.calibCampoTexto {
+  font-size: 13.6px;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.calibResultado {
+  font-size: 13.6px;
+  color: #374151;
+}
+
+.calibResultado strong {
+  font-weight: 700;
+}
+
+.calibAviso {
+  font-size: 12.5px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.calibErro {
+  font-size: 12.5px;
+  color: #b91c1c;
+}
+
+.calibAcoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+/* ===================== CHAVE DO DISPOSITIVO ===================== */
+.chaveModal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(560px, 82vw);
+}
+
+.chaveComando {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chaveValorLinha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chaveValor {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #0f172a;
+  word-break: break-all;
+}
+
+.chavePassos {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.55;
+}
+
+.chaveTrilha {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 14px;
 }

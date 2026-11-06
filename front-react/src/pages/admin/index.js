@@ -5,7 +5,6 @@ import Modal from '../../components/Modal';
 
 import { useAuth } from '@/hooks/useAuth';
 
-import { TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbTrendingUp } from 'react-icons/tb';
 import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 import styles from '../../styles/panel.module.css';
@@ -15,12 +14,10 @@ import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 import Sidebar from '../../components/Sidebar';
 import { ADMIN_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
 import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
-
-const AVISO_ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
-const AvisoIcone = ({ tipo }) => {
-  const Icone = AVISO_ICONES[tipo] || TbBell;
-  return <Icone aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />;
-};
+import AvisoLista from '../../components/AvisoCard';
+import { SolicitacaoCard, SolicitacoesFiltros, SolicitacoesVazio, cardStyles } from '../../components/SolicitacaoCard';
+import Calibracoes from '../../components/Calibracoes';
+import ChaveDispositivo from '../../components/ChaveDispositivo';
 
 export default function AdminPanel() {
   const authToken = useAuthToken();
@@ -173,26 +170,9 @@ export default function AdminPanel() {
     }
   };
 
-  const [showHistoricoChaveModal, setShowHistoricoChaveModal] = useState(false);
-  const [historicoChaveCativeiro, setHistoricoChaveCativeiro] = useState({ id: '', nome: '' });
-  const [historicoChave, setHistoricoChave] = useState([]);
-  const [historicoChaveLoading, setHistoricoChaveLoading] = useState(false);
-
-  const abrirHistoricoChave = async (c) => {
-    setHistoricoChaveCativeiro({ id: c._id, nome: c.nome || '' });
-    setShowHistoricoChaveModal(true);
-    setHistoricoChaveLoading(true);
-    try {
-      const token = getToken();
-      const res = await axios.get(`${apiUrl}/parametros/dispositivos/${c._id}/historico`, { headers: { Authorization: `Bearer ${token}` } });
-      setHistoricoChave(res.data?.historico || []);
-    } catch (e) {
-      console.error('Erro ao carregar histórico da chave do dispositivo:', e);
-      setHistoricoChave([]);
-    } finally {
-      setHistoricoChaveLoading(false);
-    }
-  };
+  // Cativeiro com o modal da chave do dispositivo aberto (gerar chave + histórico)
+  const [chaveCativeiro, setChaveCativeiro] = useState(null);
+  const abrirHistoricoChave = (c) => setChaveCativeiro(c);
 
   // Dietas por cativeiro (cache simples)
   const [cativeiroDieta, setCativeiroDieta] = useState({}); // id -> { descricao }
@@ -595,6 +575,7 @@ export default function AdminPanel() {
       editar_cativeiro: 'Editar cativeiro',
       editar_sensor: 'Editar sensor',
       editar_dieta: 'Gerenciar dieta de cativeiro',
+      aplicar_calibracao: 'Aplicar calibração',
     };
     return map[action] || action;
   };
@@ -607,7 +588,7 @@ export default function AdminPanel() {
     if (action === 'editar_cativeiro_add_sensor') {
       const nome = getCativeiroNomeById(payload?.cativeiroId);
       return (
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, marginTop: 8, border: '1px solid #e2e8f0' }}>
+        <div className={cardStyles.detalhes}>
           <div><strong>Cativeiro:</strong> {nome}</div>
           <div style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>Solicitação de vínculo de sensores (Master decidirá quais associar).</div>
         </div>
@@ -617,12 +598,12 @@ export default function AdminPanel() {
       const nome = getCativeiroNomeById(payload?.cativeiroId);
       const tipos = Array.isArray(payload?.tipos) ? payload.tipos : [];
       return (
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, marginTop: 8, border: '1px solid #e2e8f0' }}>
+        <div className={cardStyles.detalhes}>
           <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nome}</div>
-          <div><strong>Trocar sensores:</strong></div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+          <div className={cardStyles.detalhesTitulo}>Trocar sensores</div>
+          <div className={cardStyles.tags}>
             {tipos.length > 0 ? tipos.map(t => (
-              <span key={t} style={{ padding: '4px 8px', background: '#e5e7eb', borderRadius: 999, fontSize: 12, color: '#374151' }}>{t}</span>
+              <span key={t} className={cardStyles.tag}>{t}</span>
             )) : <span style={{ color: '#6b7280' }}>Nenhum tipo informado</span>}
           </div>
         </div>
@@ -632,10 +613,10 @@ export default function AdminPanel() {
       const nome = payload?.cativeiroNome || getCativeiroNomeById(payload?.cativeiroId);
       const tipoCam = typeof payload?.id_tipo_camarao !== 'undefined' ? (tiposCamarao.find(t => String(t._id) === String(payload.id_tipo_camarao)) || null) : null;
       return (
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, marginTop: 8, border: '1px solid #e2e8f0' }}>
+        <div className={cardStyles.detalhes}>
           <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nome}</div>
-          <div><strong>Alterações solicitadas:</strong></div>
-          <ul style={{ marginTop: 6, marginLeft: 18 }}>
+          <div className={cardStyles.detalhesTitulo}>Alterações solicitadas</div>
+          <ul>
             {typeof payload?.nome !== 'undefined' && (<li><strong>Nome:</strong> {payload.nome || 'N/A'}</li>)}
             {typeof payload?.id_tipo_camarao !== 'undefined' && (
               <li><strong>Tipo de Camarão:</strong> {tipoCam ? tipoCam.nome : payload.id_tipo_camarao}</li>
@@ -656,18 +637,42 @@ export default function AdminPanel() {
       const tipo = sensorMatch ? (typeof sensorMatch.id_tipo_sensor === 'object' ? sensorMatch.id_tipo_sensor.descricao || sensorMatch.id_tipo_sensor.nome : sensorMatch.id_tipo_sensor) : null;
       const apelido = sensorMatch ? (sensorMatch.apelido || '') : (payload?.apelido || 'N/A');
       return (
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, marginTop: 8, border: '1px solid #e2e8f0' }}>
+        <div className={cardStyles.detalhes}>
           <div><strong>Sensor:</strong> {tipo ? `${tipo} | ${apelido}` : (payload?.apelido || payload?.id || 'N/A')}</div>
           {payload?.apelido && <div><strong>Novo Apelido:</strong> {payload.apelido}</div>}
+        </div>
+      );
+    }
+    if (action === 'aplicar_calibracao') {
+      const nomeCativeiro = (cativeiros || []).find(c => String(c._id) === String(payload?.cativeiroId))?.nome;
+      const br = (n, casas) => (typeof n === 'number' ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: 4 }) : '—');
+      return (
+        <div className={cardStyles.detalhes}>
+          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nomeCativeiro || payload?.cativeiroId || 'N/A'}</div>
+          {payload?.tipo === 'motor' ? (
+            <ul>
+              <li><strong>Calibração:</strong> alimentador</li>
+              <li><strong>Rotações:</strong> {payload.rotacoes}</li>
+              <li><strong>Peso medido:</strong> {br(payload.gramas, 1)} g</li>
+              <li><strong>Resultado:</strong> {br(payload.gramas_por_rotacao, 1)} g/rotação</li>
+            </ul>
+          ) : (
+            <ul>
+              <li><strong>Calibração:</strong> sensor de pH</li>
+              <li><strong>Tensão no pH 7:</strong> {br(payload?.tensao_ph7, 2)} V</li>
+              <li><strong>Tensão no pH 4:</strong> {br(payload?.tensao_ph4, 2)} V</li>
+            </ul>
+          )}
+          <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>Ao aprovar, este resultado passa a valer para o cativeiro.</div>
         </div>
       );
     }
     if (action === 'editar_dieta') {
       const horarios = Array.isArray(payload?.horarios) ? payload.horarios.filter(h => h) : [];
       return (
-        <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, marginTop: 8, border: '1px solid #e2e8f0' }}>
+        <div className={cardStyles.detalhes}>
           <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {payload?.cativeiroNome || payload?.cativeiroId || 'N/A'}</div>
-          <ul style={{ margin: '6px 0 0 18px' }}>
+          <ul>
             {payload?.descricao && <li><strong>Descrição:</strong> {payload.descricao}</li>}
             {typeof payload?.quantidade !== 'undefined' && <li><strong>Quantidade:</strong> {payload.quantidade}g por refeição</li>}
             {typeof payload?.quantidadeRefeicoes !== 'undefined' && <li><strong>Refeições/dia:</strong> {payload.quantidadeRefeicoes}</li>}
@@ -677,19 +682,9 @@ export default function AdminPanel() {
       );
     }
     return (
-      <pre style={{ background: '#f9fafb', padding: 8, borderRadius: 4, fontSize: '12px', marginTop: 4, overflow: 'auto', maxHeight: '200px' }}>{JSON.stringify(payload, null, 2)}</pre>
+      <div className={cardStyles.detalhes}><pre>{JSON.stringify(payload, null, 2)}</pre></div>
     );
   };
-
-  const statusChipStyle = (status) => ({
-    padding: '4px 10px',
-    borderRadius: 999,
-    fontSize: '12px',
-    fontWeight: 500,
-    whiteSpace: 'nowrap',
-    background: status === 'aprovado' ? '#dcfce7' : status === 'recusado' ? '#fee2e2' : '#fef3c7',
-    color: status === 'aprovado' ? '#166534' : status === 'recusado' ? '#991b1b' : '#92400e',
-  });
 
   const getFazendaName = (id) => {
     const idStr = String(id);
@@ -849,6 +844,8 @@ export default function AdminPanel() {
         await axios.patch(`${apiUrl}/cativeiros/${payload.cativeiroId}`, body, { headers });
       } else if (action === 'editar_sensor' && payload?.id && payload?.apelido) {
         await axios.patch(`${apiUrl}/sensores/${payload.id}`, { apelido: payload.apelido }, { headers });
+      } else if (action === 'aplicar_calibracao') {
+        // O servidor grava o resultado da calibração no cativeiro ao aprovar
       } else {
         alert('Este tipo de solicitação não é leve ou falta informação.');
         return;
@@ -944,6 +941,7 @@ export default function AdminPanel() {
     monitoramento: ['Monitoramento', 'Dashboard e relatórios dos cativeiros em tempo real'],
     funcionarios: ['Funcionários', 'Equipe associada à sua fazenda'],
     chat: ['Chat com Masters', 'Comunicação com os masters do sistema'],
+    calibracoes: ['Calibrações', 'Calibração do sensor de pH e alimentador'],
   };
 
   return (
@@ -987,182 +985,68 @@ export default function AdminPanel() {
 
       {tab === 'avisos' && (
         <section className={styles.section}>
-          {avisosLoading ? (
-            <div style={{ color: '#64748b', padding: 20 }}>Carregando avisos...</div>
-          ) : avisos.length === 0 ? (
-            <div style={{ color: '#64748b', padding: 20 }}>Nenhum aviso até o momento.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {avisos.map(aviso => (
-                <div key={aviso.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                    <div>
-                      <strong><AvisoIcone tipo={aviso.tipo} /> {aviso.cativeiroNome}</strong>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: aviso.estado === 'ativo' ? '#b45309' : '#16a34a', fontWeight: 600 }}>
-                        {aviso.estado === 'ativo' ? 'ATIVO' : 'RECUPERADO'}
-                      </span>
-                      {aviso.preditivo && (
-                        <span style={{ marginLeft: 8, fontSize: 11, color: '#1d4ed8', background: '#dbeafe', borderRadius: 999, padding: '2px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <TbTrendingUp aria-hidden="true" /> TENDÊNCIA
-                        </span>
-                      )}
-                      <div style={{ marginTop: 4, color: '#334155', fontSize: '0.88rem' }}>{aviso.mensagem}</div>
-                      <div style={{ marginTop: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
-                        {new Date(aviso.datahora).toLocaleString('pt-BR')}
-                        {aviso.experimental ? ' · sensor sem calibração · medição experimental' : ''}
-                      </div>
-                    </div>
-                    {aviso.avaliacao ? (
-                      <span style={{ fontSize: 12, fontWeight: 600, color: aviso.avaliacao === 'confirmado' ? '#166534' : '#991b1b' }}>
-                        {aviso.avaliacao === 'confirmado' ? '✓ Confirmado' : '✗ Falso alarme'}
-                      </span>
-                    ) : (
-                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                        <button onClick={() => avaliarAviso(aviso.id, 'confirmado')} style={{ border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#166534', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Confirmar</button>
-                        <button onClick={() => avaliarAviso(aviso.id, 'falso_alarme')} style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Falso alarme</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <AvisoLista
+            avisos={avisos}
+            loading={avisosLoading}
+            onAvaliar={(aviso, avaliacao) => avaliarAviso(aviso.id, avaliacao)}
+          />
         </section>
       )}
 
       {tab === 'requests' && (
         <section className={styles.section}>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, padding: 12, background: '#f9fafb', borderRadius: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: '14px', fontWeight: '500' }}>Solicitante:</label>
-              <input
-                type="text"
-                placeholder="Nome ou email..."
-                value={requesterFilter}
-                onChange={(e) => setRequesterFilter(e.target.value)}
-                style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '14px', minWidth: '180px' }}
+          <SolicitacoesFiltros
+            solicitante={requesterFilter} onSolicitante={setRequesterFilter}
+            acao={actionFilter} onAcao={setActionFilter}
+            data={dateFilter} onData={setDateFilter}
+            onLimpar={() => { setRequesterFilter(''); setDateFilter(''); setActionFilter(''); }}
+            filtrados={filteredRequests.length} total={allRequests.length}
+          />
+
+          {filteredRequests.length === 0 && (
+            allRequests.length > 0
+              ? <SolicitacoesVazio titulo="Nada encontrado" texto="Nenhum registro corresponde aos filtros aplicados." />
+              : <SolicitacoesVazio titulo="Nenhum registro" texto="As solicitações da fazenda aparecem aqui." />
+          )}
+
+          <div className={cardStyles.list}>
+            {filteredRequests.map(item => (
+              <SolicitacaoCard
+                key={item._id}
+                item={item}
+                titulo={getActionLabel(item.action)}
+                mostrarSolicitante
+                detalhes={item.payload && Object.keys(item.payload).length > 0 ? formatRequestDetails(item.action, item.payload) : null}
               />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: '14px', fontWeight: '500' }}>Data:</label>
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '14px' }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: '14px', fontWeight: '500' }}>Ação:</label>
-              <input
-                type="text"
-                placeholder="Ex: editar_cativeiro..."
-                value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
-                style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '14px', minWidth: '180px' }}
-              />
-            </div>
-            <button
-              onClick={() => setDateFilter(new Date().toISOString().split('T')[0])}
-              style={{ padding: '6px 12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '14px' }}
-            >
-              Hoje
-            </button>
-            <button
-              onClick={() => { setRequesterFilter(''); setDateFilter(''); setActionFilter(''); }}
-              style={{ padding: '6px 12px', background: '#6b7280', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '14px' }}
-            >
-              Limpar Filtros
-            </button>
-            <div style={{ fontSize: '14px', color: '#6b7280' }}>
-              {filteredRequests.length} de {allRequests.length} registros
-            </div>
+            ))}
           </div>
-
-          {filteredRequests.length === 0 && allRequests.length > 0 && (
-            <div style={{ textAlign: 'center', padding: 20, color: '#6b7280' }}>Nenhum registro encontrado com os filtros aplicados.</div>
-          )}
-          {filteredRequests.length === 0 && allRequests.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 20, color: '#6b7280' }}>Nenhum registro encontrado.</div>
-          )}
-
-          {filteredRequests.map(item => (
-            <div key={item._id} style={{ border: '1px solid #e5e7eb', padding: 14, borderRadius: 10, background: '#fff', marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {getActionLabel(item.action)}
-                </div>
-                <span style={statusChipStyle(item.status)}>
-                  {item.status === 'aprovado' ? 'Aprovado' : item.status === 'recusado' ? 'Recusado' : 'Pendente'}
-                </span>
-              </div>
-              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                <strong>{item.requesterUser?.nome || item.requester?.nome || 'N/A'}</strong>
-                {(item.requesterUser?.email || item.requester?.email) && (
-                  <span style={{ color: '#6b7280', marginLeft: 6 }}>({item.requesterUser?.email || item.requester?.email})</span>
-                )}
-              </div>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: item.payload ? 4 : 0 }}>
-                {new Date(item.createdAt).toLocaleString('pt-BR')}
-              </div>
-              {item.payload && (
-                <div>{formatRequestDetails(item.action, item.payload)}</div>
-              )}
-            </div>
-          ))}
         </section>
       )}
 
       {tab === 'solicitacoes' && (
         <section className={styles.section}>
-          <div style={{ marginBottom: 16, padding: 12, background: '#f9fafb', borderRadius: 8 }}>
-            <div style={{ fontSize: '14px', color: '#6b7280' }}>
-              {items.length} {items.length === 1 ? 'solicitação pendente' : 'solicitações pendentes'}
-            </div>
-          </div>
-
-          {items.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 20, color: '#6b7280' }}>Nenhuma solicitação pendente.</div>
+          {items.length === 0 ? (
+            <SolicitacoesVazio titulo="Tudo em dia" texto="Nenhuma solicitação aguardando aprovação." />
+          ) : (
+            <>
+              <SolicitacoesFiltros filtrados={items.length} rotulo={items.length === 1 ? 'solicitação pendente' : 'solicitações pendentes'} />
+              <div className={cardStyles.list}>
+                {items.map(item => (
+                  <SolicitacaoCard
+                    key={item._id}
+                    item={item}
+                    titulo={getActionLabel(item.action)}
+                    mostrarSolicitante
+                    detalhes={item.payload && Object.keys(item.payload).length > 0 ? formatRequestDetails(item.action, item.payload) : null}
+                    acoes={[
+                      { rotulo: 'Aplicar e aprovar', tipo: 'aprovar', onClick: () => applyAndApprove(item) },
+                      { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject') },
+                    ]}
+                  />
+                ))}
+              </div>
+            </>
           )}
-
-          {items.map(item => (
-            <div key={item._id} style={{ border: '1px solid #e5e7eb', padding: 14, borderRadius: 10, background: '#fff', marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {getActionLabel(item.action)}
-                </div>
-                <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: '12px', fontWeight: 500, background: '#fef3c7', color: '#92400e', whiteSpace: 'nowrap' }}>
-                  Pendente
-                </span>
-              </div>
-              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                <strong>{item.requesterUser?.nome || item.requester?.nome || 'N/A'}</strong>
-                {(item.requesterUser?.email || item.requester?.email) && (
-                  <span style={{ color: '#6b7280', marginLeft: 6 }}>({item.requesterUser?.email || item.requester?.email})</span>
-                )}
-              </div>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: item.payload ? 4 : 0 }}>
-                {new Date(item.createdAt).toLocaleString('pt-BR')}
-              </div>
-              {item.payload && (
-                <div>{formatRequestDetails(item.action, item.payload)}</div>
-              )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button
-                  onClick={() => applyAndApprove(item)}
-                  className={`${styles.btn} ${styles.btnSuccess} ${styles.btnSm}`}
-                >
-                  Aplicar e Aprovar
-                </button>
-                <button
-                  onClick={() => act(item._id, 'reject')}
-                  className={`${styles.btn} ${styles.btnDanger} ${styles.btnSm}`}
-                >
-                  Recusar
-                </button>
-              </div>
-            </div>
-          ))}
         </section>
       )}
 
@@ -1278,7 +1162,7 @@ export default function AdminPanel() {
                             <button
                               className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
                               onClick={() => abrirHistoricoChave(cativeiro)}
-                              title="Ver trilha de quem gerou a chave do dispositivo deste viveiro"
+                              title="Gerar a chave do dispositivo (ESP32) deste viveiro e ver o histórico"
                             >
                               <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                               Chave
@@ -1423,6 +1307,10 @@ export default function AdminPanel() {
             </div>
           ))}
         </section>
+      )}
+
+      {tab === 'calibracoes' && (
+        <Calibracoes />
       )}
 
       {tab === 'monitoramento' && (
@@ -2091,43 +1979,7 @@ export default function AdminPanel() {
       </Modal>
 
       {/* Modal de trilha de auditoria da chave do dispositivo */}
-      <Modal isOpen={showHistoricoChaveModal} onClose={() => setShowHistoricoChaveModal(false)} title={`Trilha da chave do dispositivo — ${historicoChaveCativeiro.nome}`}>
-        <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 14 }}>
-          Registra quem gerou cada chave do ESP32 deste viveiro e quando — a chave em si nunca fica
-          guardada. Útil para investigar se um aviso de sensor inativo coincide com uma troca de chave.
-        </div>
-        {historicoChaveLoading ? (
-          <div style={{ color: '#64748b', padding: '12px 0' }}>Carregando...</div>
-        ) : historicoChave.length === 0 ? (
-          <div style={{ color: '#64748b', padding: '12px 0' }}>Nenhuma chave foi gerada para este viveiro ainda.</div>
-        ) : (
-          <div style={{ position: 'relative', paddingLeft: 20 }}>
-            <div style={{ position: 'absolute', left: 5, top: 6, bottom: 6, width: 2, background: '#e2e8f0' }} />
-            {historicoChave.map((item, index) => (
-              <div key={index} style={{ position: 'relative', paddingBottom: index === historicoChave.length - 1 ? 0 : 18 }}>
-                <div style={{
-                  position: 'absolute', left: -20, top: 2, width: 12, height: 12, borderRadius: '50%',
-                  background: index === 0 ? '#3b82f6' : '#cbd5e1', border: '2px solid #fff', boxShadow: '0 0 0 1px #e2e8f0',
-                }} />
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1e293b' }}>
-                  {new Date(item.geradoEm).toLocaleString('pt-BR')}
-                  {index === 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#3b82f6' }}>CHAVE ATUAL</span>}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: 2 }}>
-                  {item.geradoPor ? (
-                    <>Gerada por <strong>{item.geradoPor.nome}</strong> ({item.geradoPor.email}) — {item.geradoPor.role}</>
-                  ) : (
-                    <em>Usuário não encontrado (pode ter sido removido depois)</em>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={() => setShowHistoricoChaveModal(false)} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Fechar</button>
-        </div>
-      </Modal>
+      {chaveCativeiro && <ChaveDispositivo cativeiro={chaveCativeiro} onClose={() => setChaveCativeiro(null)} />}
 
       <Modal isOpen={showNewTipoModal} onClose={() => setShowNewTipoModal(false)} title="Novo tipo de camarão">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

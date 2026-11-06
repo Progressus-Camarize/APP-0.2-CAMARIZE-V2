@@ -1,6 +1,6 @@
 import {
   HiOutlineClipboardList, HiOutlineBell, HiOutlineExclamationCircle, HiOutlineOfficeBuilding,
-  HiOutlineChartBar, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChip, HiOutlineBeaker, HiOutlineCog,
+  HiOutlineChartBar, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChip, HiOutlineBeaker, HiOutlineAdjustments,
 } from 'react-icons/hi';
 
 // Abas dos painéis /admin e /master. As páginas compartilhadas (dashboard, edição de
@@ -13,6 +13,7 @@ export const ADMIN_MENU = [
   { id: 'monitoramento', icon: HiOutlineChartBar, label: 'Monitoramento' },
   { id: 'funcionarios', icon: HiOutlineUsers, label: 'Funcionários' },
   { id: 'chat', icon: HiOutlineChatAlt2, label: 'Chat' },
+  { id: 'calibracoes', icon: HiOutlineAdjustments, label: 'Calibrações' },
 ];
 
 export const MASTER_MENU = [
@@ -24,8 +25,7 @@ export const MASTER_MENU = [
   { id: 'sensores', icon: HiOutlineChip, label: 'Sensores' },
   { id: 'dietas', icon: HiOutlineBeaker, label: 'Dietas' },
   { id: 'chat', icon: HiOutlineChatAlt2, label: 'Chat' },
-  // Tela de calibração ainda não existe (só a API /calibracao)
-  { id: 'calibracoes', icon: HiOutlineCog, label: 'Calibrações', disabled: true, hint: 'em breve' },
+  { id: 'calibracoes', icon: HiOutlineAdjustments, label: 'Calibrações' },
 ];
 
 // Aba que corresponde às páginas compartilhadas de cativeiro (de onde o painel chega nelas)
