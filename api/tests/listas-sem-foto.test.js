@@ -9,6 +9,8 @@ import Cativeiros from '../models/Cativeiros.js';
 import Fazendas from '../models/Fazendas.js';
 import Aviso from '../models/Aviso.js';
 import UsuariosxFazendas from '../models/UsuariosxFazendas.js';
+import Sensores from '../models/Sensores.js';
+import SensoresxCativeiros from '../models/SensoresxCativeiros.js';
 import { connectTestDatabase, dropTestDatabase, password, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -181,4 +183,20 @@ test('foto do cativeiro: versão na URL, cache longo, 304 pela ETag e versão no
   assert.equal(depois.status, 200);
   assert.equal(depois.headers.get('content-type'), 'image/png');
   assert.notEqual(depois.headers.get('etag'), etag);
+});
+
+test('sensores do cativeiro vêm sem a foto do cativeiro; sem sensores, lista vazia', async () => {
+  const [pondA, pondB] = fixtures.cativeiros.map(c => c._id);
+  // Cativeiro sem sensores: a tela do admin mostra "Nenhum sensor vinculado"
+  const vazio = await get(`/cativeiros/${pondB}/sensores`, masterToken);
+  assert.equal(vazio.status, 200);
+  assert.deepEqual(vazio.body, []);
+
+  const sensor = await Sensores.create({ id_tipo_sensor: new mongoose.Types.ObjectId(), apelido: 'Termômetro', user: fixtures.users[0]._id });
+  await SensoresxCativeiros.create({ id_sensor: sensor._id, id_cativeiro: pondA });
+  const comSensor = await get(`/cativeiros/${pondA}/sensores`, membroToken);
+  assert.equal(comSensor.status, 200);
+  assert.equal(comSensor.body.length, 1);
+  assert.equal(comSensor.body[0].id_sensor.apelido, 'Termômetro');
+  semFotoDeCativeiro(comSensor.body[0].id_cativeiro);
 });

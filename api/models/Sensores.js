@@ -1,5 +1,8 @@
 // models/Sensores.js
 import mongoose from "mongoose";
+// Registra TiposSensor junto: o populate de id_tipo_sensor falhava (500) logo depois de a API
+// reiniciar, até alguma outra rota carregar esse modelo
+import "./Tipos_sensores.js";
 
 const SensoresSchema = new mongoose.Schema({
   id_tipo_sensor: {

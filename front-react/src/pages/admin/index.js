@@ -557,14 +557,26 @@ export default function AdminPanel() {
     return map;
   };
 
+  // Erro ao buscar os sensores de cada cativeiro (id -> mensagem); sem isso a tela ficava em "Carregando..."
+  const [erroSensores, setErroSensores] = useState({});
   const loadSensorsForCativeiro = async (cativeiroId) => {
+    setErroSensores(prev => { const next = { ...prev }; delete next[cativeiroId]; return next; });
     try {
       const token = getToken();
-      const res = await axios.get(`${apiUrl}/cativeiros/${cativeiroId}/sensores`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await axios.get(`${apiUrl}/cativeiros/${cativeiroId}/sensores`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        timeout: 20000,
+      });
       const raw = Array.isArray(res.data) ? res.data : [];
-      const sensores = raw.map(item => item?.id_sensor || item).filter(Boolean);
-      setCativeiros(prev => prev.map(c => c._id === cativeiroId ? { ...c, sensores } : c));
-    } catch (e) {}
+      // Vínculo cujo sensor foi excluído vem sem id_sensor: não é um sensor
+      const sensores = raw.map(item => item?.id_sensor).filter(Boolean);
+      setCativeiros(prev => prev.map(c => String(c._id) === String(cativeiroId) ? { ...c, sensores } : c));
+    } catch (e) {
+      const status = e?.response?.status;
+      const detalhe = e?.response?.data?.error || (e?.code === 'ECONNABORTED' ? 'a API demorou demais para responder' : e?.message);
+      console.error('Erro ao carregar sensores do cativeiro:', status, detalhe);
+      setErroSensores(prev => ({ ...prev, [cativeiroId]: `${detalhe || 'erro desconhecido'}${status ? ` (HTTP ${status})` : ''}` }));
+    }
   };
 
   // Busca sempre a versão atual (a dieta muda quando o master aprova uma solicitação) e
@@ -1257,7 +1269,12 @@ export default function AdminPanel() {
                           {/* Sensores */}
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Sensores vinculados</div>
-                            {!Array.isArray(cativeiro.sensores) ? (
+                            {erroSensores[cativeiro._id] ? (
+                              <div style={{ color: '#b91c1c', fontSize: '0.8rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                                <span>Não foi possível carregar os sensores: {erroSensores[cativeiro._id]}</span>
+                                <button type="button" className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`} onClick={() => loadSensorsForCativeiro(cativeiro._id)}>Tentar de novo</button>
+                              </div>
+                            ) : !Array.isArray(cativeiro.sensores) ? (
                               <div style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: 10 }}>Carregando...</div>
                             ) : cativeiro.sensores.length === 0 ? (
                               <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic', marginBottom: 10 }}>Nenhum sensor vinculado.</div>

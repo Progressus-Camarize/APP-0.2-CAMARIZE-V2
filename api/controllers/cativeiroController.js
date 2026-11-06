@@ -3,7 +3,7 @@ import TiposCamarao from "../models/Camaroes.js";
 import CondicoesIdeais from "../models/Condicoes_ideais.js";
 import FazendasxCativeiros from "../models/FazendasxCativeiros.js";
 import SensoresxCativeiros from "../models/SensoresxCativeiros.js";
-import Cativeiros from "../models/Cativeiros.js";
+import Cativeiros, { SEM_FOTO } from "../models/Cativeiros.js";
 import ParametrosAtuais from "../models/Parametros_atuais.js";
 import Dietas from "../models/Dietas.js";
 import DietasxCativeiros from "../models/DietasxCativeiros.js";
@@ -445,7 +445,8 @@ const getSensoresCativeiro = async (req, res) => {
           select: 'descricao'
         }
       })
-      .populate('id_cativeiro');
+      // Sem a foto: ela tem até alguns MB e a tela só precisa dos sensores
+      .populate({ path: 'id_cativeiro', select: SEM_FOTO });
 
     // Converter para objetos simples manualmente para manter performance
     const sensoresSimplificados = sensores.map(s => {
