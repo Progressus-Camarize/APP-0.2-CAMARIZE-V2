@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import ParametrosAtuais from "../models/Parametros_atuais.js";
-import Cativeiros from "../models/Cativeiros.js";
+import Cativeiros, { SEM_FOTO } from "../models/Cativeiros.js";
 import cativeiroController from "../controllers/cativeiroController.js";
 import parametrosEmitter from "../services/parametrosEmitter.js";
 import crypto from 'node:crypto';
@@ -60,7 +60,7 @@ const updateTemperatureLimits = async (req, res) => {
   if (!Number.isFinite(minimo) || !Number.isFinite(maximo) || minimo < -5 || maximo > 50 || minimo >= maximo) {
     return res.status(400).json({ error: 'Limites de temperatura inválidos' });
   }
-  const cativeiro = await Cativeiros.findById(cativeiroId).lean();
+  const cativeiro = await Cativeiros.findById(cativeiroId).select(SEM_FOTO).lean();
   if (!cativeiro) return res.status(404).json({ error: 'Cativeiro não encontrado' });
   if (!cativeiro.condicoes_ideais) return res.status(409).json({ error: 'Configure primeiro as condições do viveiro' });
   await CondicoesIdeais.updateOne({ _id: cativeiro.condicoes_ideais }, { $set: { temp_min: minimo, temp_max: maximo } });
@@ -81,7 +81,7 @@ const updateSensitivityLimits = async (req, res) => {
       phLimiar < 0.05 || phLimiar > 3 || amoniaLimiarPct < 0.05 || amoniaLimiarPct > 1) {
     return res.status(400).json({ error: 'Limiares de sensibilidade inválidos' });
   }
-  const cativeiro = await Cativeiros.findById(cativeiroId).lean();
+  const cativeiro = await Cativeiros.findById(cativeiroId).select(SEM_FOTO).lean();
   if (!cativeiro) return res.status(404).json({ error: 'Cativeiro não encontrado' });
   if (!cativeiro.condicoes_ideais) return res.status(409).json({ error: 'Configure primeiro as condições do viveiro' });
   await CondicoesIdeais.updateOne({ _id: cativeiro.condicoes_ideais },
@@ -120,7 +120,7 @@ const cadastrarParametros = async (req, res) => {
       return res.status(400).json({ error: "Leitura fora da faixa física aceita ou não numérica" });
     }
 
-    const cativeiro = await Cativeiros.findById(id_cativeiro);
+    const cativeiro = await Cativeiros.findById(id_cativeiro).select(SEM_FOTO);
     if (!cativeiro) {
       return res.status(404).json({ error: "Cativeiro não encontrado" });
     }
@@ -197,7 +197,7 @@ const getParametrosAtuais = async (req, res) => {
     if (access === false) return res.status(403).json({ error: 'Acesso negado.' });
 
     const [cativeiro, parametroAtual] = await Promise.all([
-      Cativeiros.findById(cativeiroId).lean(),
+      Cativeiros.findById(cativeiroId).select(SEM_FOTO).lean(),
       ParametrosAtuais.findOne({ id_cativeiro: cativeiroId, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean()
     ]);
 
@@ -244,7 +244,7 @@ const getParametrosHistoricos = async (req, res) => {
     dataLimite.setDate(dataLimite.getDate() - days);
 
     const [cativeiro, parametros] = await Promise.all([
-      Cativeiros.findById(cativeiroId).lean(),
+      Cativeiros.findById(cativeiroId).select(SEM_FOTO).lean(),
       ParametrosAtuais.find({
         id_cativeiro: cativeiroId,
         ...VALID_READING_FILTER,
@@ -288,7 +288,7 @@ async function fetchDashboardData(cativeiroId) {
   dataLimite.setDate(dataLimite.getDate() - 7);
 
   const [cativeiro, parametroAtual, dadosAgregados, avisosAtivos, leiturasAnalise] = await Promise.all([
-    Cativeiros.findById(cativeiroId).populate('condicoes_ideais').lean(),
+    Cativeiros.findById(cativeiroId).select(SEM_FOTO).populate('condicoes_ideais').lean(),
     ParametrosAtuais.findOne({ id_cativeiro: cativeiroId, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean(),
     ParametrosAtuais.aggregate([
       {

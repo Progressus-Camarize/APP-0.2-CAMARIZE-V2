@@ -23,7 +23,7 @@ vi.mock('../models/Fazendas.js', () => {
   MockFazenda.findById = vi.fn();
   MockFazenda.findByIdAndUpdate = vi.fn();
   MockFazenda.findByIdAndDelete = vi.fn();
-  return { default: MockFazenda };
+  return { default: MockFazenda, SEM_FOTO_FAZENDA: '-foto_sitio' };
 });
 
 import Fazenda from '../models/Fazendas.js';
@@ -33,12 +33,14 @@ describe('fazendaService', () => {
   beforeEach(() => vi.clearAllMocks());
 
   describe('getAll', () => {
-    it('deve retornar todas as fazendas', async () => {
-      Fazenda.find.mockResolvedValue([mockFazendaInstance]);
+    it('deve retornar todas as fazendas, sem a foto', async () => {
+      const select = vi.fn().mockResolvedValue([mockFazendaInstance]);
+      Fazenda.find.mockReturnValue({ select });
 
       const result = await fazendaService.getAll();
 
       expect(Fazenda.find).toHaveBeenCalled();
+      expect(select).toHaveBeenCalledWith('-foto_sitio');
       expect(result).toHaveLength(1);
       expect(result[0].nome).toBe('Fazenda Camarão Feliz');
     });

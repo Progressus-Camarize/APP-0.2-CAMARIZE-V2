@@ -1,10 +1,11 @@
-import Fazenda from "../models/Fazendas.js";
+import Fazenda, { SEM_FOTO_FAZENDA } from "../models/Fazendas.js";
 
 class fazendaService {
   // Listar todas as fazendas
   async getAll() {
     try {
-      const Fazendas = await Fazenda.find();
+      // Sem a foto: a lista não exibe; a foto vem de GET /fazendas/:id/foto
+      const Fazendas = await Fazenda.find().select(SEM_FOTO_FAZENDA);
       return Fazendas;
     } catch (error) {
       console.log(error);

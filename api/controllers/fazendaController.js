@@ -1,5 +1,6 @@
 import fazendaService from "../services/fazendaService.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
+import { SEM_FOTO_FAZENDA } from "../models/Fazendas.js";
 import mongoose from "mongoose";
 import userService from "../services/userService.js";
 import accessService from "../services/accessService.js";
@@ -129,7 +130,7 @@ const getAllFazendas = async (req, res) => {
           rels = await UsuariosxFazendas.find({ 
             usuario: userIdObj,
             ...filtroAtivo
-          }).populate('fazenda').lean();
+          }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
           console.log('🔍 [GET ALL FAZENDAS] Busca com ObjectId - encontradas', rels?.length || 0, 'relações');
           
           // Se não encontrou com ObjectId, tentar também como string (caso o banco tenha salvo como string)
@@ -137,7 +138,7 @@ const getAllFazendas = async (req, res) => {
             rels = await UsuariosxFazendas.find({ 
               usuario: usuarioId,
               ...filtroAtivo
-            }).populate('fazenda').lean();
+            }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
             console.log('🔍 [GET ALL FAZENDAS] Busca com string (fallback) - encontradas', rels?.length || 0, 'relações');
           }
         } else {
@@ -145,7 +146,7 @@ const getAllFazendas = async (req, res) => {
           rels = await UsuariosxFazendas.find({ 
             usuario: usuarioId,
             ...filtroAtivo
-          }).populate('fazenda').lean();
+          }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
           console.log('🔍 [GET ALL FAZENDAS] Busca com string - encontradas', rels?.length || 0, 'relações');
         }
       } catch (searchError) {
@@ -180,35 +181,16 @@ const getAllFazendas = async (req, res) => {
                 
                 // Buscar novamente após criar
                 const userIdObj = mongoose.Types.ObjectId.isValid(usuarioId) ? new mongoose.Types.ObjectId(usuarioId) : usuarioId;
-                rels = await UsuariosxFazendas.find({ usuario: userIdObj }).populate('fazenda').lean();
+                rels = await UsuariosxFazendas.find({ usuario: userIdObj }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
               } else {
                 // Se já existe, buscar novamente
                 const userIdObj = mongoose.Types.ObjectId.isValid(usuarioId) ? new mongoose.Types.ObjectId(usuarioId) : usuarioId;
-                rels = await UsuariosxFazendas.find({ usuario: userIdObj }).populate('fazenda').lean();
+                rels = await UsuariosxFazendas.find({ usuario: userIdObj }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
               }
             }
           }
         } catch (legacyError) {
           console.error('❌ [GET ALL FAZENDAS] Erro ao verificar fazenda legado:', legacyError);
-        }
-      }
-      
-      // Se ainda não encontrou nada, tentar buscar todas as relações para debug
-      if (!rels || rels.length === 0) {
-        try {
-          const allRels = await UsuariosxFazendas.find({}).populate('usuario').populate('fazenda').lean();
-          console.log('⚠️ [GET ALL FAZENDAS] Nenhuma relação encontrada. Total de relações no banco:', allRels?.length || 0);
-          if (allRels && allRels.length > 0) {
-            console.log('⚠️ [GET ALL FAZENDAS] Relações existentes:', allRels.map(r => ({
-              usuarioId: String(r.usuario?._id || r.usuario),
-              usuarioEmail: r.usuario?.email,
-              fazendaId: String(r.fazenda?._id || r.fazenda),
-              fazendaNome: r.fazenda?.nome
-            })));
-            console.log('⚠️ [GET ALL FAZENDAS] UsuarioId buscado:', usuarioId, 'Tipo:', typeof usuarioId);
-          }
-        } catch (debugError) {
-          console.error('❌ [GET ALL FAZENDAS] Erro no debug:', debugError);
         }
       }
       

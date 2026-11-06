@@ -40,15 +40,19 @@ const serializeAviso = (aviso, reading) => ({
   frescor: freshness(reading),
 });
 
+// Ids dos cativeiros visíveis para o usuário (master: todos)
+const idsDosCativeiros = async (loggedUser) => loggedUser.role === 'master'
+  ? (await Cativeiros.find().select('_id').lean()).map(c => c._id)
+  : cativeiroService.getIdsByUsuario(loggedUser.id);
+
 const getNotifications = async (req, res) => {
   try {
-    const cativeiros = req.loggedUser.role === 'master'
-      ? await Cativeiros.find().select('_id').lean()
-      : await cativeiroService.getAllByUsuarioViaRelacionamentos(req.loggedUser.id);
-    const ids = cativeiros.map(c => c._id);
+    const ids = await idsDosCativeiros(req.loggedUser);
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
-    const avisos = await Aviso.find({ cativeiro: { $in: ids } }).sort({ criadoEm: -1 }).limit(limit).populate('cativeiro', 'nome').lean();
-    const readings = await Promise.all(ids.map(id => ParametrosAtuais.findOne({ id_cativeiro: id, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean()));
+    const [avisos, readings] = await Promise.all([
+      Aviso.find({ cativeiro: { $in: ids } }).sort({ criadoEm: -1 }).limit(limit).populate('cativeiro', 'nome').lean(),
+      Promise.all(ids.map(id => ParametrosAtuais.findOne({ id_cativeiro: id, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean())),
+    ]);
     const byId = new Map(ids.map((id, index) => [String(id), readings[index]]));
     const notifications = avisos.map(a => serializeAviso(a, byId.get(String(a.cativeiro?._id))));
     res.json({ success: true, notifications, total: notifications.length });
@@ -128,11 +132,10 @@ const getNotificationSummary = async (req, res) => {
 // mesmo que o push esteja desabilitado, tenha falhado ou o dispositivo esteja offline.
 const getUnreadCount = async (req, res) => {
   try {
-    const cativeiros = req.loggedUser.role === 'master'
-      ? await Cativeiros.find().select('_id').lean()
-      : await cativeiroService.getAllByUsuarioViaRelacionamentos(req.loggedUser.id);
-    const ids = cativeiros.map(c => c._id);
-    const user = await User.findById(req.loggedUser.id).select('avisosVistoEm').lean();
+    const [ids, user] = await Promise.all([
+      idsDosCativeiros(req.loggedUser),
+      User.findById(req.loggedUser.id).select('avisosVistoEm').lean(),
+    ]);
     const desde = user?.avisosVistoEm || new Date(0);
     const naoVistos = await Aviso.countDocuments({ cativeiro: { $in: ids }, criadoEm: { $gt: desde } });
     res.json({ success: true, naoVistos });

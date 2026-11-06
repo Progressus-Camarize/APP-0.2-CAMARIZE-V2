@@ -1,5 +1,5 @@
 import ParametrosAtuais from '../models/Parametros_atuais.js';
-import Cativeiros from '../models/Cativeiros.js';
+import Cativeiros, { SEM_FOTO } from '../models/Cativeiros.js';
 import Aviso from '../models/Aviso.js';
 import DeviceCredential from '../models/DeviceCredential.js';
 import alertService from './alertService.js';
@@ -153,7 +153,7 @@ export async function processReading(cativeiroId, now = new Date()) {
   const since = new Date(now.getTime() - WINDOW_MS);
   const readings = await ParametrosAtuais.find({ id_cativeiro: cativeiroId, autenticada: true, ...VALID_READING_FILTER, datahora: { $gte: since, $lte: now } })
     .sort({ datahora: -1 }).limit(30).lean();
-  const cativeiro = await Cativeiros.findById(cativeiroId).populate('condicoes_ideais').lean();
+  const cativeiro = await Cativeiros.findById(cativeiroId).select(SEM_FOTO).populate('condicoes_ideais').lean();
   if (!cativeiro) return;
   const bounds = temperatureBounds(cativeiro.condicoes_ideais || {});
   const result = evaluate(readings, bounds, now);

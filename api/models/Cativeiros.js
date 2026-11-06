@@ -64,5 +64,9 @@ const CativeirosSchema = new mongoose.Schema({
   }
 });
 
+// A foto fica dentro do documento: buscas que não exibem a foto devem excluí-la,
+// senão cada consulta transfere a imagem inteira do banco.
+export const SEM_FOTO = "-foto_cativeiro";
+
 const Cativeiros = mongoose.model("Cativeiros", CativeirosSchema);
 export default Cativeiros;

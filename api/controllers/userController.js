@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import userService from "../services/userService.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import Fazendas from "../models/Fazendas.js";
+import Fazendas, { SEM_FOTO_FAZENDA } from "../models/Fazendas.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
 import accessService from "../services/accessService.js";
 
@@ -433,7 +433,7 @@ const associarFuncionario = async (req, res) => {
     }
 
     // Buscar a fazenda do admin
-    const relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate('fazenda');
+    const relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA });
     if (!relAdminFazenda || !relAdminFazenda.fazenda) {
       return res.status(400).json({ error: 'Admin não possui fazenda associada. Entre em contato com o Master.' });
     }
@@ -538,15 +538,15 @@ const getFuncionariosDaFazenda = async (req, res) => {
     let relAdminFazenda = null;
     if (mongoose.Types.ObjectId.isValid(adminId)) {
       const adminIdObj = new mongoose.Types.ObjectId(adminId);
-      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminIdObj }).populate('fazenda').lean();
+      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminIdObj }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
       console.log('🔍 [GET FUNCIONARIOS] Busca com ObjectId - relação encontrada:', !!relAdminFazenda);
       
       if (!relAdminFazenda) {
-        relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate('fazenda').lean();
+        relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
         console.log('🔍 [GET FUNCIONARIOS] Busca com string (fallback) - relação encontrada:', !!relAdminFazenda);
       }
     } else {
-      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate('fazenda').lean();
+      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
       console.log('🔍 [GET FUNCIONARIOS] Busca com string - relação encontrada:', !!relAdminFazenda);
     }
     
@@ -638,13 +638,13 @@ const atualizarStatusFuncionario = async (req, res) => {
     let relAdminFazenda = null;
     if (mongoose.Types.ObjectId.isValid(adminId)) {
       const adminIdObj = new mongoose.Types.ObjectId(adminId);
-      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminIdObj }).populate('fazenda').lean();
+      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminIdObj }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
       
       if (!relAdminFazenda) {
-        relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate('fazenda').lean();
+        relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
       }
     } else {
-      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate('fazenda').lean();
+      relAdminFazenda = await UsuariosxFazendas.findOne({ usuario: adminId }).populate({ path: 'fazenda', select: SEM_FOTO_FAZENDA }).lean();
     }
     
     if (!relAdminFazenda || !relAdminFazenda.fazenda) {

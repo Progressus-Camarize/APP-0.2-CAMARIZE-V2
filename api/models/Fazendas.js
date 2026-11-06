@@ -48,5 +48,9 @@ FazendasSchema.pre('save', async function() {
   }
 });
 
+// A foto fica dentro do documento: buscas que não exibem a foto devem excluí-la,
+// senão cada consulta transfere a imagem inteira do banco.
+export const SEM_FOTO_FAZENDA = "-foto_sitio";
+
 const Fazendas = mongoose.model("Fazendas", FazendasSchema);
 export default Fazendas;

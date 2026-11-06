@@ -208,23 +208,15 @@ const getAllCativeiros = async (req, res) => {
     const usuarioId = req.loggedUser?.id;
     const role = req.loggedUser?.role;
 
-    console.log('🔍 DEBUG getAllCativeiros - usuarioId:', usuarioId, 'role:', role);
-    console.log('🔍 DEBUG req.loggedUser completo:', req.loggedUser);
-
     let cativeiros = [];
     if (role === 'master') {
       // Master enxerga todos os cativeiros
-      console.log('🔍 DEBUG - Buscando todos os cativeiros para master');
       cativeiros = await cativeiroService.getAll();
-      console.log('🔍 DEBUG - Cativeiros encontrados:', cativeiros.length);
     } else {
       // Admin e Membro veem apenas seus próprios cativeiros pelos relacionamentos das suas fazendas
-      console.log('🔍 DEBUG - Buscando cativeiros por relacionamentos para role:', role);
       cativeiros = await cativeiroService.getAllByUsuarioViaRelacionamentos(usuarioId);
-      console.log('🔍 DEBUG - Cativeiros encontrados por relacionamento:', cativeiros.length);
     }
 
-    console.log('🔍 DEBUG - Retornando cativeiros:', cativeiros.length);
     res.status(200).json(cativeiros);
   } catch (error) {
     console.error('❌ Erro em getAllCativeiros:', error);
