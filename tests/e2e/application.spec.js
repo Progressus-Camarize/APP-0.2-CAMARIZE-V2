@@ -80,8 +80,8 @@ test('leitura autenticada → aviso no dashboard e em Notificações', async ({ 
     expect(response.status()).toBe(201);
   }
   await expect(page.getByText('Aviso ativo').first()).toBeVisible();
-  await expect(page.getByText(/sensor sem calibração/).first()).toBeVisible();
+  await expect(page.getByText(/sem calibração/i).first()).toBeVisible();
   await page.goto('/notifications');
   await expect(page.getByText(/mudança|aumento persistente/).first()).toBeVisible();
-  await expect(page.getByText(/sensor sem calibração/).first()).toBeVisible();
+  await expect(page.getByText(/sem calibração/i).first()).toBeVisible();
 });

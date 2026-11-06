@@ -55,7 +55,7 @@ export function AvisoCard({ aviso, onAvaliar }) {
             )}
             {aviso.experimental && (
               <span className={`${styles.badge} ${styles.badgeExperimental}`} title="Sensor sem calibração — medição experimental">
-                Experimental
+                Sem calibração
               </span>
             )}
             <span className={`${styles.badge} ${recuperado ? styles.badgeRecuperado : styles.badgeAtivo}`}>
