@@ -77,7 +77,7 @@ afterAll(async () => {
   if (mongoose.connection.readyState) await dropTestDatabase();
 });
 
-const criar = (auth, action = 'editar_dieta', { payload = { teste: true }, fazenda = null } = {}) =>
+const criar = (auth, action = 'editar_cativeiro', { payload = { teste: true }, fazenda = null } = {}) =>
   request('/requests', { method: 'POST', auth, body: { action, payload, fazenda } });
 
 test('admin só vê, aprova e recusa solicitações da própria fazenda', async () => {
@@ -131,7 +131,7 @@ test('funcionário em duas fazendas: a solicitação vai só para o admin da faz
   assert.equal(peloCativeiro.body.fazenda, fazendaA);
 
   // Sem cativeiro/sensor, vale a fazenda informada no corpo
-  const peloCorpo = await criar(tokens.membroDuplo, 'editar_dieta', { fazenda: fazendaB });
+  const peloCorpo = await criar(tokens.membroDuplo, 'editar_cativeiro', { fazenda: fazendaB });
   assert.equal(peloCorpo.status, 201);
   assert.equal(peloCorpo.body.fazenda, fazendaB);
 
@@ -141,7 +141,7 @@ test('funcionário em duas fazendas: a solicitação vai só para o admin da faz
   assert.ok(vistosB.includes(peloCorpo.body._id) && !vistosB.includes(peloCativeiro.body._id));
 
   // Sem nada que identifique a fazenda, a API pede que ela seja informada
-  assert.equal((await criar(tokens.membroDuplo, 'editar_dieta')).status, 400);
+  assert.equal((await criar(tokens.membroDuplo, 'editar_cativeiro')).status, 400);
 });
 
 test('editar sensor: a solicitação guarda o cativeiro do sensor (e ignora o enviado pelo cliente)', async () => {
@@ -169,9 +169,9 @@ test('editar sensor: a solicitação guarda o cativeiro do sensor (e ignora o en
 test('funcionário não cria solicitação para fazenda da qual não faz parte', async () => {
   const fazendaB = String(fixtures.fazendas[1]._id);
   const cativeiroB = String(fixtures.cativeiros[1]._id);
-  assert.equal((await criar(tokens.membroA, 'editar_dieta', { fazenda: fazendaB })).status, 403);
+  assert.equal((await criar(tokens.membroA, 'editar_cativeiro', { fazenda: fazendaB })).status, 403);
   assert.equal((await criar(tokens.membroA, 'editar_cativeiro', { payload: { cativeiroId: cativeiroB } })).status, 403);
-  assert.equal((await criar(tokens.membroNovo, 'editar_dieta')).status, 403);
+  assert.equal((await criar(tokens.membroNovo, 'editar_cativeiro')).status, 403);
 });
 
 test('funcionário sem fazenda pede vínculo ao master, que escolhe a fazenda', async () => {
@@ -208,4 +208,27 @@ test('vínculos usuário-fazenda exigem login e só mostram os do próprio usuá
 
   const doB = await request(`/usuariosxfazendas?usuario=${membroB}`, { auth: tokens.master });
   assert.ok(doB.body.length > 0 && doB.body.every(r => String(r.usuario) === membroB));
+});
+
+test('admin não pede dieta para cativeiro de outra fazenda; pedido de dieta precisa ser válido', async () => {
+  const [cativeiroA, cativeiroB] = fixtures.cativeiros.map(c => String(c._id));
+  const dieta = { quantidade: 20, quantidadeRefeicoes: 2, horarios: ['08:00', '17:00'] };
+
+  const outraFazenda = await criar(tokens.adminA, 'editar_dieta', { payload: { cativeiroId: cativeiroB, ...dieta } });
+  assert.equal(outraFazenda.status, 403);
+  const daFazenda = await criar(tokens.adminA, 'editar_dieta', { payload: { cativeiroId: cativeiroA, ...dieta } });
+  assert.equal(daFazenda.status, 201);
+
+  // Qualquer pedido do admin com cativeiro passa pela mesma regra
+  assert.equal((await criar(tokens.adminA, 'editar_cativeiro', { payload: { cativeiroId: cativeiroB } })).status, 403);
+
+  for (const invalido of [
+    { ...dieta },
+    { cativeiroId: cativeiroA, ...dieta, quantidade: 0 },
+    { cativeiroId: cativeiroA, ...dieta, horarios: [] },
+    { cativeiroId: cativeiroA, ...dieta, horarios: ['8h'] },
+    { cativeiroId: cativeiroA, ...dieta, horarios: ['08:00', '08:00'] },
+  ]) {
+    assert.equal((await criar(tokens.adminA, 'editar_dieta', { payload: invalido })).status, 400, JSON.stringify(invalido));
+  }
 });

@@ -1,7 +1,23 @@
+import mongoose from "mongoose";
+import cativeiroController from "./cativeiroController.js";
 import requestService from "../services/requestService.js";
 import userService from "../services/userService.js";
 
 // Criar solicitação
+const HORARIO_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Pedido de dieta: cativeiro, gramas por refeição e horários válidos (a placa só entende HH:MM)
+const erroNoPedidoDeDieta = (payload) => {
+  if (!payload || !mongoose.isValidObjectId(payload.cativeiroId)) return 'Informe o cativeiro da dieta';
+  const gramas = Number(payload.quantidade);
+  if (!Number.isFinite(gramas) || gramas <= 0) return 'A quantidade de ração (g) deve ser maior que zero';
+  const horarios = Array.isArray(payload.horarios) ? payload.horarios.filter(Boolean) : [];
+  if (!horarios.length) return 'Informe ao menos um horário de alimentação';
+  if (horarios.some(h => !HORARIO_RE.test(String(h)))) return 'Horários devem estar no formato HH:MM';
+  if (new Set(horarios).size !== horarios.length) return 'Há horários repetidos';
+  return null;
+};
+
 const create = async (req, res) => {
   try {
     const { type, action, payload, fazenda } = req.body;
@@ -14,6 +30,17 @@ const create = async (req, res) => {
     }
 
     const requesterRole = requester.role || 'membro';
+
+    if (action === 'editar_dieta') {
+      const erro = erroNoPedidoDeDieta(payload);
+      if (erro) return res.status(400).json({ error: erro });
+    }
+    // Admin só pede algo para cativeiro das fazendas dele (o membro já é conferido pela fazenda)
+    if (requesterRole === 'admin' && payload?.cativeiroId) {
+      const acesso = await cativeiroController.assertCativeiroAccess(payload.cativeiroId, requester._id, 'admin');
+      if (acesso === null) return res.status(404).json({ error: 'Cativeiro não encontrado' });
+      if (!acesso) return res.status(403).json({ error: 'Você não tem acesso a este cativeiro' });
+    }
     console.log('Criando request:', {
       requesterEmail: requester.email,
       requesterRole,
