@@ -281,7 +281,11 @@ test('leituras a cada 5 s: a análise usa médias de 5 min, o ruído se cancela 
     nome: 'Viveiro com placa a cada 5 s', id_tipo_camarao: fixtures.condicao.id_tipo_camarao,
     data_instalacao: new Date(), condicoes_ideais: fixtures.condicao._id,
   }))._id;
-  const now = new Date();
+  // As médias são de janelas de 5 min alinhadas ao relógio. Com "agora" 2,5 s antes do fim de
+  // uma janela, cada janela de ruído recebe exatamente 60 leituras (5 e 9 alternados, média 7);
+  // com Date.now() as janelas das pontas ficavam incompletas e o teste dependia do horário.
+  const JANELA_MS = 5 * 60_000;
+  const now = new Date(Math.floor(Date.now() / JANELA_MS) * JANELA_MS - 2_500);
   const leitura = (msAtras, ph, tag) => ({
     id_cativeiro: pond, autenticada: true, origem: 'dispositivo', amostraId: `5s_${tag}_${Math.random()}`,
     datahora: new Date(now.getTime() - msAtras), temp_atual: 28, ph_atual: ph, amonia_atual: 0.2,
