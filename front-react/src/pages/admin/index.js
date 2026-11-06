@@ -20,6 +20,7 @@ import AvisoLista from '../../components/AvisoCard';
 import { SolicitacaoCard, SolicitacoesFiltros, SolicitacoesVazio, cardStyles } from '../../components/SolicitacaoCard';
 import Calibracoes from '../../components/Calibracoes';
 import ChaveDispositivo from '../../components/ChaveDispositivo';
+import StatusCativeiros from '../../components/StatusCativeiros';
 
 export default function AdminPanel() {
   const authToken = useAuthToken();
@@ -928,6 +929,7 @@ export default function AdminPanel() {
   const adminPageTitles = {
     requests: ['Histórico', 'Histórico de ações dos funcionários'],
     avisos: ['Avisos', 'Alertas gerados pelo monitoramento dos viveiros'],
+    status: ['Status dos Cativeiros', 'Visão geral de saúde de cada cativeiro'],
     solicitacoes: ['Solicitações', 'Aprovações pendentes de funcionários'],
     cativeiros: ['Fazendas & Cativeiros', 'Gerencie suas fazendas e cativeiros'],
     monitoramento: ['Monitoramento', 'Dashboard e relatórios dos cativeiros em tempo real'],
@@ -1300,6 +1302,10 @@ export default function AdminPanel() {
             </div>
           ))}
         </section>
+      )}
+
+      {tab === 'status' && (
+        <StatusCativeiros />
       )}
 
       {tab === 'calibracoes' && (

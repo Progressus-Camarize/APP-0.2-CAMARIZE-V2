@@ -1,6 +1,7 @@
 import {
   HiOutlineClipboardList, HiOutlineBell, HiOutlineExclamationCircle, HiOutlineOfficeBuilding,
   HiOutlineChartBar, HiOutlineUsers, HiOutlineChatAlt2, HiOutlineChip, HiOutlineBeaker, HiOutlineAdjustments,
+  HiOutlineCheckCircle,
 } from 'react-icons/hi';
 
 // Abas dos painéis /admin e /master. As páginas compartilhadas (dashboard, edição de
@@ -8,6 +9,7 @@ import {
 export const ADMIN_MENU = [
   { id: 'requests', icon: HiOutlineClipboardList, label: 'Histórico' },
   { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Avisos' },
+  { id: 'status', icon: HiOutlineCheckCircle, label: 'Status' },
   { id: 'solicitacoes', icon: HiOutlineBell, label: 'Solicitações' },
   { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Cativeiros' },
   { id: 'monitoramento', icon: HiOutlineChartBar, label: 'Monitoramento' },

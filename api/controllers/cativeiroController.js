@@ -469,7 +469,7 @@ const getCativeirosStatus = async (req, res) => {
       const frescor = freshness(reading);
       const status = frescor.estado !== 'recente' ? 'sem_dados' : avisos.length ? 'alerta' : 'ok';
       const alertasDetalhados = avisos.map(a => ({
-        tipo: a.tipo, severidade: 'media', mensagem: a.mensagem,
+        id: a._id, tipo: a.tipo, severidade: 'media', mensagem: a.mensagem, preditivo: !!a.preditivo,
         valorAtual: a.valorAtual, valorIdeal: a.tipo === 'temperatura' ? a.limite : a.valorInicial,
         datahora: a.criadoEm, experimental: a.experimental,
       }));
