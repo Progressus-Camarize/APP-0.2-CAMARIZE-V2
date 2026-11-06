@@ -36,7 +36,8 @@ const router = express.Router();
  *       404:
  *         description: Nenhuma dieta ativa para este viveiro
  */
-router.get("/atual/:cativeiroId", Cache.cacheControl(60, 120), dietaController.getDietaAtual);
+// Sem cache: depois de aprovada uma dieta, as telas e o ESP32 precisam ver a versão nova na hora
+router.get("/atual/:cativeiroId", Cache.noStore, dietaController.getDietaAtual);
 
 /**
  * @swagger

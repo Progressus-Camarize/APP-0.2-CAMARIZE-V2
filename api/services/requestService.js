@@ -333,7 +333,7 @@ class RequestService {
     // Aplicar dieta quando aprovada
     if (request.action === 'editar_dieta' && request.payload?.cativeiroId) {
       try {
-        const { cativeiroId, dietaId, descricao, quantidade, quantidadeRefeicoes, horarios } = request.payload;
+        const { cativeiroId, descricao, quantidade, quantidadeRefeicoes, horarios } = request.payload;
         const horariosValidos = Array.isArray(horarios) ? horarios.filter(h => h) : [];
         const dietaData = {
           descricao: descricao || '',
@@ -342,9 +342,17 @@ class RequestService {
           quantidadeRefeicoes: Number(quantidadeRefeicoes) || horariosValidos.length || 1,
           horaAlimentacao: horariosValidos[0] || '',
         };
-        if (dietaId) {
-          await Dietas.findByIdAndUpdate(dietaId, dietaData);
-        } else {
+        // A dieta a alterar é a ativa do cativeiro no banco (o dietaId do payload não é confiável).
+        // Uma dieta pode estar ativa em vários cativeiros: só é editada no lugar quando é exclusiva
+        // deste; senão o cativeiro ganha uma dieta própria e os outros continuam com a deles.
+        const atual = await DietasxCativeiros.findOne({ cativeiro: cativeiroId, ativo: true }).sort({ atualizadoEm: -1 }).lean();
+        const compartilhada = atual && await DietasxCativeiros.exists({
+          dieta: atual.dieta, ativo: true, cativeiro: { $ne: atual.cativeiro },
+        });
+        const editada = atual && !compartilhada
+          ? await Dietas.findByIdAndUpdate(atual.dieta, dietaData)
+          : null;
+        if (!editada) {
           const novaDieta = await Dietas.create(dietaData);
           await DietasxCativeiros.updateMany({ cativeiro: cativeiroId, ativo: true }, { $set: { ativo: false } });
           await DietasxCativeiros.create({ cativeiro: cativeiroId, dieta: novaDieta._id, ativo: true });
