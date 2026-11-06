@@ -29,6 +29,8 @@ const classeSeveridade = (aviso) => {
   return styles.sevBaixa;
 };
 
+// O selo "Sem calibração" só vale para o pH: temperatura não precisa e amônia não usa esse selo
+// (avisos antigos podem ter vindo marcados como experimentais)
 export function AvisoCard({ aviso, onAvaliar }) {
   const Icone = ICONES[aviso.tipo] || TbBell;
   const recuperado = aviso.estado === "recuperado";
@@ -53,7 +55,7 @@ export function AvisoCard({ aviso, onAvaliar }) {
                 <TbTrendingUp aria-hidden="true" /> Tendência
               </span>
             )}
-            {aviso.experimental && (
+            {aviso.experimental && aviso.tipo === "ph" && (
               <span className={`${styles.badge} ${styles.badgeExperimental}`} title="Sensor sem calibração — medição experimental">
                 Sem calibração
               </span>

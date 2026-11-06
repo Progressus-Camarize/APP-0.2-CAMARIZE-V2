@@ -90,5 +90,6 @@ test('leitura autenticada → aviso no dashboard e em Notificações', async ({ 
   await expect(page.getByText(/sem calibração/i).first()).toBeVisible();
   await page.goto('/notifications');
   await expect(page.getByText(/mudança|aumento persistente/).first()).toBeVisible();
-  await expect(page.getByText(/sem calibração/i).first()).toBeVisible();
+  // O selo "Sem calibração" é só do pH: os avisos de temperatura e amônia não o mostram
+  await expect(page.getByText(/sem calibração/i)).toHaveCount(0);
 });
