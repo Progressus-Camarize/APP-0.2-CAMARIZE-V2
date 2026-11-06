@@ -61,8 +61,42 @@ float racaoDesejada = 25.0;
 // Valor calibrado: gramas liberadas por uma rotação do eixo.
 float gramasPorRotacao = 0.0;
 
+// Horários já servidos hoje. Ficam também na memória (NVS) para
+// que a placa, ao reiniciar, não sirva de novo o mesmo horário.
 String alimentacoesRealizadas[20];
 int totalAlimentacoesRealizadas = 0;
+
+// Se a placa perder o minuto exato (sem rede, reiniciando,
+// calibrando, motor ocupado), ainda serve a refeição até
+// este tanto de minutos depois do horário.
+const int JANELA_ATRASO_MIN = 15;
+
+// Depois de uma alimentação que não pôde começar (ex.: motor
+// sem calibração), espera este tempo antes de tentar de novo.
+unsigned long ultimaFalhaAlimentacao = 0;
+const unsigned long intervaloRetentativaAlimentacao = 60000UL;
+
+// Por que a última alimentação não pôde começar (vai para a API).
+String motivoFalhaAlimentacao = "";
+
+// Aviso de alimentação para a API (POST /alimentacoes). Fica
+// guardado e é enviado quando o motor para, tentando de novo a
+// cada 30 s se a rede falhar.
+bool relatorioPendente = false;
+String relatorioData = "";
+String relatorioHorario = "";
+String relatorioStatus = "";
+String relatorioMotivo = "";
+float relatorioGramas = 0;
+float relatorioRotacoes = 0;
+int relatorioAtraso = 0;
+int relatorioTentativas = 0;
+unsigned long ultimoEnvioRelatorio = 0;
+const unsigned long intervaloEnvioRelatorio = 30000UL;
+const int MAX_TENTATIVAS_RELATORIO = 20;
+
+// Falha já avisada (data + horário), para avisar uma vez só.
+String falhaAvisada = "";
 
 String dataControle = "";
 String dataHoje = "";
@@ -190,7 +224,11 @@ void fetchDeDados(
 bool jaAlimentouHorario(String horarioAtual);
 void registrarAlimentacao(String horarioAtual);
 
-void iniciarAlimentacao(float gramas);
+bool iniciarAlimentacao(float gramas);
+void salvarAlimentacoesDoDia();
+void agendarRelatorioAlimentacao(const String &horario, const String &status, int atraso);
+bool enviarRelatorioAlimentacao();
+void carregarAlimentacoesDoDia();
 
 void reconectarWiFi();
 
@@ -525,8 +563,21 @@ void buscarDietaDaAPI()
                 String(err.c_str()));
         }
     }
+    else if (code == 404)
+    {
+        // Cativeiro sem dieta ativa: para de alimentar em vez de
+        // continuar com os últimos horários recebidos.
+        if (quantidadeHorarios > 0)
+        {
+            Serial.println(
+                "Sem dieta ativa: alimentação programada suspensa.");
+        }
+
+        quantidadeHorarios = 0;
+    }
     else
     {
+        // Falha de rede ou da API: mantém a última dieta recebida.
         Serial.printf(
             "Erro HTTP dieta: %d\n",
             code);
@@ -938,27 +989,31 @@ bool enviarResultadoCalibracao(
 // ALIMENTAÇÃO
 // ============================================================
 
-void iniciarAlimentacao(float gramas)
+// Retorna true só se o motor começou a girar.
+bool iniciarAlimentacao(float gramas)
 {
     if (motorAtivo)
     {
         Serial.println(
             "AVISO: motor ocupado.");
-        return;
+        motivoFalhaAlimentacao = "Motor ocupado";
+        return false;
     }
 
     if (gramas <= 0)
     {
         Serial.println(
             "ERRO: quantidade de racao invalida.");
-        return;
+        motivoFalhaAlimentacao = "Quantidade de ração inválida na dieta";
+        return false;
     }
 
     if (gramasPorRotacao <= 0)
     {
         Serial.println(
             "ERRO: GPR invalido. Calibre o motor.");
-        return;
+        motivoFalhaAlimentacao = "Alimentador sem calibração";
+        return false;
     }
 
     float rotacoes =
@@ -974,7 +1029,8 @@ void iniciarAlimentacao(float gramas)
     {
         Serial.println(
             "ERRO: quantidade de passos invalida.");
-        return;
+        motivoFalhaAlimentacao = "Quantidade de ração pequena demais para o alimentador";
+        return false;
     }
 
     Serial.println();
@@ -1000,6 +1056,8 @@ void iniciarAlimentacao(float gramas)
     iniciarMotorPassos(
         passos,
         1);
+
+    return motorAtivo;
 }
 
 // ============================================================
@@ -1037,6 +1095,135 @@ void registrarAlimentacao(
             horarioAtual;
 
         totalAlimentacoesRealizadas++;
+    }
+
+    salvarAlimentacoesDoDia();
+}
+
+// Prepara o aviso para a API; é enviado no loop quando o motor parar.
+void agendarRelatorioAlimentacao(
+    const String &horario,
+    const String &status,
+    int atraso)
+{
+    relatorioPendente = true;
+    relatorioData = dataHoje;
+    relatorioHorario = horario;
+    relatorioStatus = status;
+    relatorioMotivo = status == "falhou" ? motivoFalhaAlimentacao : "";
+    relatorioGramas = racaoDesejada;
+    relatorioRotacoes = gramasPorRotacao > 0 ? racaoDesejada / gramasPorRotacao : 0;
+    relatorioAtraso = atraso;
+    relatorioTentativas = 0;
+    ultimoEnvioRelatorio = 0;
+}
+
+bool enviarRelatorioAlimentacao()
+{
+    reconectarWiFi();
+
+    if (WiFi.status() != WL_CONNECTED)
+        return false;
+
+    if (cativeiroId.length() < 24)
+        return false;
+
+    HTTPClient http;
+
+    http.begin(String(apiBaseUrl) + "/alimentacoes");
+    http.addHeader("Content-Type", "application/json");
+    adicionarChave(http);
+    http.setTimeout(8000);
+
+    StaticJsonDocument<384> doc;
+
+    doc["id_cativeiro"] = cativeiroId;
+    doc["data"] = relatorioData;
+    doc["horario"] = relatorioHorario;
+    doc["status"] = relatorioStatus;
+    doc["gramas"] = relatorioGramas;
+    doc["rotacoes"] = relatorioRotacoes;
+    doc["atraso_min"] = relatorioAtraso;
+
+    if (relatorioMotivo.length() > 0)
+        doc["motivo"] = relatorioMotivo;
+
+    String json;
+    serializeJson(doc, json);
+
+    int code = http.POST(json);
+    http.end();
+
+    Serial.printf(
+        "HTTP alimentacao (%s %s): %d\n",
+        relatorioHorario.c_str(),
+        relatorioStatus.c_str(),
+        code);
+
+    // 4xx não melhora repetindo (ex.: chave errada): desiste
+    return code >= 200 && code < 500;
+}
+
+// Guarda na memória a data e os horários servidos nela
+// (ex.: "2026-11-06" e "08:00,17:00").
+void salvarAlimentacoesDoDia()
+{
+    String lista = "";
+
+    for (
+        int i = 0;
+        i < totalAlimentacoesRealizadas;
+        i++)
+    {
+        if (i > 0)
+            lista += ",";
+
+        lista += alimentacoesRealizadas[i];
+    }
+
+    prefs.putString("alimData", dataControle);
+    prefs.putString("alimFeitas", lista);
+}
+
+void carregarAlimentacoesDoDia()
+{
+    dataControle =
+        prefs.getString("alimData", "");
+
+    String lista =
+        prefs.getString("alimFeitas", "");
+
+    totalAlimentacoesRealizadas = 0;
+
+    int inicio = 0;
+
+    while (
+        inicio < (int)lista.length() &&
+        totalAlimentacoesRealizadas < 20)
+    {
+        int virgula = lista.indexOf(',', inicio);
+
+        if (virgula < 0)
+            virgula = lista.length();
+
+        String item = lista.substring(inicio, virgula);
+
+        if (item.length() > 0)
+        {
+            alimentacoesRealizadas[
+                totalAlimentacoesRealizadas] = item;
+            totalAlimentacoesRealizadas++;
+        }
+
+        inicio = virgula + 1;
+    }
+
+    if (totalAlimentacoesRealizadas > 0)
+    {
+        Serial.printf(
+            "Alimentações já feitas em %s: %s\n",
+            dataControle.c_str(),
+            lista.c_str());
     }
 }
 
@@ -1378,6 +1565,8 @@ void setup()
         prefs.getString(
             "deviceKey",
             "");
+
+    carregarAlimentacoesDoDia();
 
     mostrarConfiguracoes();
 
@@ -1828,6 +2017,25 @@ void loop()
             currentMinute);
     }
 
+    // Aviso da última alimentação para a API (o loop só chega
+    // aqui com o motor parado, então não atrasa a refeição).
+    if (
+        relatorioPendente &&
+        (ultimoEnvioRelatorio == 0 ||
+         agora - ultimoEnvioRelatorio >=
+             intervaloEnvioRelatorio))
+    {
+        ultimoEnvioRelatorio = agora > 0 ? agora : 1;
+        relatorioTentativas++;
+
+        if (
+            enviarRelatorioAlimentacao() ||
+            relatorioTentativas >= MAX_TENTATIVAS_RELATORIO)
+        {
+            relatorioPendente = false;
+        }
+    }
+
     // Atualiza a dieta uma vez por minuto.
     if (
         agora - ultimoFetchDieta >=
@@ -1858,7 +2066,10 @@ void loop()
     // DETECTA NOVO DIA
     // --------------------------------------------------------
 
+    // Só com o relógio sincronizado (antes disso a data ainda
+    // está vazia e apagaria as alimentações salvas de hoje).
     if (
+        dataHoje.length() > 0 &&
         dataControle !=
         dataHoje)
     {
@@ -1867,6 +2078,8 @@ void loop()
 
         totalAlimentacoesRealizadas =
             0;
+
+        salvarAlimentacoesDoDia();
     }
 
     // --------------------------------------------------------
@@ -1880,9 +2093,16 @@ void loop()
 
     if (
         ntpSincronizado &&
+        dataHoje.length() > 0 &&
         !calibracaoAtiva &&
-        !motorAtivo)
+        !motorAtivo &&
+        (ultimaFalhaAlimentacao == 0 ||
+         agora - ultimaFalhaAlimentacao >=
+             intervaloRetentativaAlimentacao))
     {
+        int minutoDoDia =
+            currentHour * 60 + currentMinute;
+
         for (
             int i = 0;
             i < quantidadeHorarios;
@@ -1899,31 +2119,51 @@ void loop()
                     horario.c_str(),
                     "%d:%d",
                     &h,
-                    &m) == 2)
+                    &m) != 2)
+                continue;
+
+            // Minutos desde o horário programado (não atravessa
+            // a meia-noite: um horário 23:55 só vale até 23:59).
+            int atraso =
+                minutoDoDia - (h * 60 + m);
+
+            if (
+                atraso < 0 ||
+                atraso > JANELA_ATRASO_MIN ||
+                jaAlimentouHorario(horario))
+                continue;
+
+            if (atraso > 0)
             {
-                bool horaCerta =
-                    (
-                        currentHour == h &&
-                        currentMinute == m
-                    );
+                Serial.printf(
+                    "Alimentação das %s com %d min de atraso.\n",
+                    horario.c_str(),
+                    atraso);
+            }
 
-                bool alimentacaoJaFeita =
-                    jaAlimentouHorario(
-                        horario);
+            // Só conta como feita se o motor começou a girar;
+            // senão tenta de novo daqui a 1 min, dentro da janela.
+            if (iniciarAlimentacao(racaoDesejada))
+            {
+                registrarAlimentacao(horario);
+                ultimaFalhaAlimentacao = 0;
+                agendarRelatorioAlimentacao(horario, "servida", atraso);
+            }
+            else
+            {
+                ultimaFalhaAlimentacao = agora > 0 ? agora : 1;
 
-                if (
-                    horaCerta &&
-                    !alimentacaoJaFeita)
+                // Avisa a falha uma vez; se der certo depois, dentro
+                // da janela, o aviso de "servida" substitui este.
+                String chaveFalha = dataHoje + " " + horario;
+                if (falhaAvisada != chaveFalha)
                 {
-                    iniciarAlimentacao(
-                        racaoDesejada);
-
-                    registrarAlimentacao(
-                        horario);
-
-                    break;
+                    falhaAvisada = chaveFalha;
+                    agendarRelatorioAlimentacao(horario, "falhou", atraso);
                 }
             }
+
+            break;
         }
     }
 

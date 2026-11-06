@@ -22,6 +22,37 @@ import Calibracoes from '../../components/Calibracoes';
 import ChaveDispositivo from '../../components/ChaveDispositivo';
 import StatusCativeiros from '../../components/StatusCativeiros';
 
+// Mesma janela do firmware: a placa ainda serve a refeição até 15 min depois do horário
+const JANELA_ATRASO_ALIMENTACAO_MIN = 15;
+const COR_ALIMENTACAO = { servida: '#15803d', falhou: '#b91c1c', sem_registro: '#b45309', prevista: '#64748b' };
+const minutosDoHorario = (h) => { const [hh, mm] = String(h).split(':').map(Number); return hh * 60 + mm; };
+
+// Junta os horários da dieta com o que a placa informou hoje (horário de Brasília, como a placa)
+function linhasAlimentacaoDoDia(horariosDieta, registros) {
+  const agora = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+  const minutoAgora = minutosDoHorario(agora);
+  const porHorario = new Map((registros || []).map(r => [r.horario, r]));
+  const horarios = [...new Set([...(horariosDieta || []).filter(Boolean), ...porHorario.keys()])]
+    .sort((a, b) => minutosDoHorario(a) - minutosDoHorario(b));
+  return horarios.map(horario => {
+    const r = porHorario.get(horario);
+    if (r?.status === 'servida') {
+      const hora = new Date(r.registradoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+      const gramas = r.gramas != null ? ` · ${Number(r.gramas).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} g` : '';
+      const atraso = r.atrasoMin > 0 ? ` (${r.atrasoMin} min de atraso)` : '';
+      return { horario, situacao: 'servida', texto: `Servida às ${hora}${gramas}${atraso}` };
+    }
+    if (r?.status === 'falhou') {
+      const aindaTenta = minutoAgora <= minutosDoHorario(horario) + JANELA_ATRASO_ALIMENTACAO_MIN;
+      return { horario, situacao: 'falhou', texto: `Não servida${r.motivo ? `: ${r.motivo}` : ''}${aindaTenta ? ' · a placa ainda vai tentar' : ''}` };
+    }
+    if (minutoAgora > minutosDoHorario(horario) + JANELA_ATRASO_ALIMENTACAO_MIN) {
+      return { horario, situacao: 'sem_registro', texto: 'Sem registro da placa (desligada, sem internet ou firmware antigo)' };
+    }
+    return { horario, situacao: 'prevista', texto: minutoAgora >= minutosDoHorario(horario) ? 'Aguardando a placa' : 'Prevista' };
+  });
+}
+
 export default function AdminPanel() {
   const authToken = useAuthToken();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -180,7 +211,9 @@ export default function AdminPanel() {
   const abrirHistoricoChave = (c) => setChaveCativeiro(c);
 
   // Dietas por cativeiro (cache simples)
-  const [cativeiroDieta, setCativeiroDieta] = useState({}); // id -> { descricao }
+  const [cativeiroDieta, setCativeiroDieta] = useState({}); // id -> dieta | null (sem dieta) | { erro: true }
+  const [dietaPendente, setDietaPendente] = useState({}); // id -> solicitação de dieta aguardando o master | null
+  const [alimentacoesHoje, setAlimentacoesHoje] = useState({}); // id -> registros de hoje enviados pela placa | { erro: true }
   const [showDietaModal, setShowDietaModal] = useState(false);
   const [dietaModalCativeiroId, setDietaModalCativeiroId] = useState(null);
   const [dietaModalCativeiroNome, setDietaModalCativeiroNome] = useState('');
@@ -534,14 +567,29 @@ export default function AdminPanel() {
     } catch (e) {}
   };
 
+  // Busca sempre a versão atual (a dieta muda quando o master aprova uma solicitação) e
+  // a solicitação de dieta deste cativeiro que ainda aguarda aprovação, se houver
   const loadDietaAtual = async (cativeiroId) => {
-    try {
-      const res = await axios.get(`${apiUrl}/dietas/atual/${cativeiroId}`, { headers: { Authorization: `Bearer ${getToken()}` } });
-      if (res?.data) {
-        setCativeiroDieta(prev => ({ ...prev, [cativeiroId]: res.data }));
-      }
-    } catch (e) {
-      setCativeiroDieta(prev => ({ ...prev, [cativeiroId]: null }));
+    const headers = { Authorization: `Bearer ${getToken()}` };
+    const [dieta, minhas, alimentacoes] = await Promise.allSettled([
+      axios.get(`${apiUrl}/dietas/atual/${cativeiroId}`, { headers, params: { _: Date.now() } }),
+      axios.get(`${apiUrl}/requests/mine`, { headers, params: { _: Date.now() } }),
+      axios.get(`${apiUrl}/alimentacoes/${cativeiroId}`, { headers }),
+    ]);
+    setAlimentacoesHoje(prev => ({
+      ...prev,
+      [cativeiroId]: alimentacoes.status === 'fulfilled' ? (alimentacoes.value.data?.alimentacoes || []) : { erro: true },
+    }));
+    if (dieta.status === 'fulfilled') {
+      setCativeiroDieta(prev => ({ ...prev, [cativeiroId]: dieta.value.data }));
+    } else {
+      const semDieta = dieta.reason?.response?.status === 404;
+      setCativeiroDieta(prev => ({ ...prev, [cativeiroId]: semDieta ? null : { erro: true } }));
+    }
+    if (minhas.status === 'fulfilled' && Array.isArray(minhas.value.data)) {
+      const pendente = minhas.value.data.find(r => r.action === 'editar_dieta' && r.status === 'pendente'
+        && String(r.payload?.cativeiroId) === String(cativeiroId));
+      setDietaPendente(prev => ({ ...prev, [cativeiroId]: pendente || null }));
     }
   };
 
@@ -553,7 +601,7 @@ export default function AdminPanel() {
     try {
       const token = getToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const atual = cativeiroDieta[dietaModalCativeiroId];
+      const atual = cativeiroDieta[dietaModalCativeiroId]?.erro ? null : cativeiroDieta[dietaModalCativeiroId];
       const horariosValidos = (dietaForm.horarios || []).slice(0, dietaForm.quantidadeRefeicoes).filter(h => h);
       const payload = {
         cativeiroId: dietaModalCativeiroId,
@@ -566,6 +614,7 @@ export default function AdminPanel() {
       };
       await axios.post(`${apiUrl}/requests`, { action: 'editar_dieta', payload }, { headers });
       setShowDietaModal(false);
+      loadDietaAtual(dietaModalCativeiroId);
       setAdminNotification({ show: true, message: 'Solicitação de dieta enviada ao Master.', type: 'success' });
     } catch (e) {
       setAdminNotification({ show: true, message: 'Erro ao enviar solicitação: ' + (e?.response?.data?.error || e.message), type: 'error' });
@@ -1096,7 +1145,7 @@ export default function AdminPanel() {
                           setExpandedCativeiro(prev => ({ ...prev, [cativeiro._id]: willExpand }));
                           if (willExpand) {
                             loadSensorsForCativeiro(cativeiro._id);
-                            if (!cativeiroDieta[cativeiro._id]) loadDietaAtual(cativeiro._id);
+                            loadDietaAtual(cativeiro._id);
                           }
                         }}
                         className={`${styles.subAccordionHeader} ${expandedCativeiro[cativeiro._id] ? styles.subAccordionHeaderOpen : ''}`}
@@ -1252,7 +1301,12 @@ export default function AdminPanel() {
                                 Nenhuma dieta ativa para este cativeiro.
                               </div>
                             )}
-                            {cativeiroDieta[cativeiro._id] && (() => {
+                            {cativeiroDieta[cativeiro._id]?.erro && (
+                              <div style={{ color: '#b91c1c', fontSize: '0.82rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+                                Não foi possível carregar a dieta. Feche e abra o cativeiro para tentar de novo.
+                              </div>
+                            )}
+                            {cativeiroDieta[cativeiro._id] && !cativeiroDieta[cativeiro._id].erro && (() => {
                               const d = cativeiroDieta[cativeiro._id];
                               const horarios = Array.isArray(d.horarios) && d.horarios.length > 0 ? d.horarios : null;
                               return (
@@ -1273,9 +1327,44 @@ export default function AdminPanel() {
                                 </div>
                               );
                             })()}
+                            {(() => {
+                              const d = cativeiroDieta[cativeiro._id];
+                              const registros = alimentacoesHoje[cativeiro._id];
+                              if (registros === undefined) return null;
+                              if (registros?.erro) {
+                                return <div style={{ color: '#b91c1c', fontSize: '0.78rem', marginBottom: 8 }}>Não foi possível carregar as alimentações de hoje.</div>;
+                              }
+                              const linhas = linhasAlimentacaoDoDia(d && !d.erro ? d.horarios : [], registros);
+                              if (!linhas.length) return null;
+                              return (
+                                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 14px', marginBottom: 8, background: '#fff' }}>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Alimentações de hoje</div>
+                                  {linhas.map(l => (
+                                    <div key={l.horario} style={{ display: 'flex', gap: 10, alignItems: 'baseline', fontSize: '0.8rem', padding: '3px 0' }}>
+                                      <b style={{ color: '#1e293b', minWidth: 42 }}>{l.horario}</b>
+                                      <span style={{ color: COR_ALIMENTACAO[l.situacao] }}>{l.texto}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                            {dietaPendente[cativeiro._id] && (() => {
+                              const p = dietaPendente[cativeiro._id].payload || {};
+                              const hs = Array.isArray(p.horarios) ? p.horarios.filter(Boolean) : [];
+                              const enviada = dietaPendente[cativeiro._id].createdAt
+                                ? new Date(dietaPendente[cativeiro._id].createdAt).toLocaleDateString('pt-BR') : null;
+                              return (
+                                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.45 }}>
+                                  <b>Aguardando aprovação do master</b>{enviada ? ` · enviada em ${enviada}` : ''}
+                                  <div style={{ color: '#1d4ed8' }}>
+                                    {p.quantidade}g por refeição · {p.quantidadeRefeicoes || hs.length || 1}× ao dia{hs.length ? ` (${hs.join(', ')})` : ''}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             <button
                               onClick={() => {
-                                const dietaAtual = cativeiroDieta[cativeiro._id];
+                                const dietaAtual = cativeiroDieta[cativeiro._id]?.erro ? null : cativeiroDieta[cativeiro._id];
                                 if (dietaAtual) {
                                   const horarios = Array.isArray(dietaAtual.horarios) ? dietaAtual.horarios : [];
                                   const qtd = dietaAtual.quantidadeRefeicoes || (horarios.length > 0 ? horarios.length : 1);

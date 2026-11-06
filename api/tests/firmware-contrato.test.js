@@ -195,3 +195,54 @@ test('calibração cancelada no painel: a placa vê ativa=false (e para o motor)
   assert.equal(atual.status, 200);
   assert.equal(atual.body.ativa, false);
 });
+
+test('alimentação: a placa informa a refeição e o painel vê as do dia', async () => {
+  const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const refeicao = { id_cativeiro: pond, data: hoje, horario: '08:00', status: 'servida', gramas: 25, rotacoes: 10, atraso_min: 0 };
+
+  const semChave = await placa('/alimentacoes', { method: 'POST', body: refeicao, deviceKey: null });
+  assert.equal(semChave.status, 401);
+  const horarioInvalido = await placa('/alimentacoes', { method: 'POST', body: { ...refeicao, horario: '8h' } });
+  assert.equal(horarioInvalido.status, 400);
+
+  // Primeiro a placa não conseguiu servir; depois, dentro da janela, serviu com atraso
+  const falha = await placa('/alimentacoes', { method: 'POST',
+    body: { ...refeicao, status: 'falhou', motivo: 'Alimentador sem calibração', gramas: 25, rotacoes: 0 } });
+  assert.equal(falha.status, 201);
+  const servida = await placa('/alimentacoes', { method: 'POST', body: { ...refeicao, atraso_min: 4 } });
+  assert.equal(servida.status, 200);
+  assert.equal(servida.body.alimentacao.status, 'servida');
+  assert.equal(servida.body.alimentacao.motivo, null);
+
+  // Um aviso de falha atrasado não desfaz a refeição servida
+  const falhaAtrasada = await placa('/alimentacoes', { method: 'POST', body: { ...refeicao, status: 'falhou', motivo: 'x' } });
+  assert.equal(falhaAtrasada.body.alimentacao.status, 'servida');
+
+  await placa('/alimentacoes', { method: 'POST', body: { ...refeicao, horario: '17:00', status: 'falhou', motivo: 'Motor ocupado' } });
+
+  const dia = await painel(`/alimentacoes/${pond}`);
+  assert.equal(dia.status, 200);
+  assert.equal(dia.body.data, hoje);
+  assert.deepEqual(dia.body.alimentacoes.map(a => [a.horario, a.status, a.atrasoMin]),
+    [['08:00', 'servida', 4], ['17:00', 'falhou', 0]]);
+
+  const outroDia = await painel(`/alimentacoes/${pond}?data=2020-01-01`);
+  assert.deepEqual(outroDia.body.alimentacoes, []);
+});
+
+test('alimentações de um cativeiro não aparecem para quem não tem acesso', async () => {
+  const login = await fetch(`${baseURL}/users/auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: fixtures.users[1].email, senha: password }),
+  });
+  const tokenMembroB = (await login.json()).token;
+  const resposta = await fetch(`${baseURL}/alimentacoes/${pond}`, { headers: { Authorization: `Bearer ${tokenMembroB}` } });
+  assert.equal(resposta.status, 403);
+});
+
+test('cativeiro sem dieta ativa: a placa recebe 404 (e suspende a alimentação)', async () => {
+  await DietasxCativeiros.updateMany({ cativeiro: pond }, { $set: { ativo: false } });
+  const resposta = await placa(`/dietas/atual/${pond}`);
+  assert.equal(resposta.status, 404);
+});

@@ -20,6 +20,7 @@ import parametrosRoutes from './routes/parametrosRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import dietaRoutes from './routes/dietaRoutes.js';
 import calibracaoRoutes from './routes/calibracaoRoutes.js';
+import alimentacaoRoutes from './routes/alimentacaoRoutes.js';
 
 
 // Carrega todos os modelos para garantir que as coleções sejam criadas
@@ -97,6 +98,7 @@ export function createApp({ isDatabaseReady = () => mongoose.connection.readySta
   app.use('/chat', chatRoutes);
   app.use('/dietas', dietaRoutes);
   app.use('/calibracao', calibracaoRoutes);
+  app.use('/alimentacoes', alimentacaoRoutes);
   // Bloqueio global de escrita para membros (exceto /requests)
   app.use(BlockMembersWrite);
   app.use('/requests', requestRoutes);
