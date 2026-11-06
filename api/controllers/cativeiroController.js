@@ -5,8 +5,6 @@ import FazendasxCativeiros from "../models/FazendasxCativeiros.js";
 import SensoresxCativeiros from "../models/SensoresxCativeiros.js";
 import Cativeiros, { SEM_FOTO } from "../models/Cativeiros.js";
 import ParametrosAtuais from "../models/Parametros_atuais.js";
-import Dietas from "../models/Dietas.js";
-import DietasxCativeiros from "../models/DietasxCativeiros.js";
 import UsuariosxFazendas from "../models/UsuariosxFazendas.js";
 import Sensores from "../models/Sensores.js";
 import mongoose from "mongoose";
@@ -107,9 +105,6 @@ const createCativeiro = async (req, res) => {
       data.user = req.loggedUser.id;
     }
 
-    // dieta (string) pode vir do body
-    // dieta como texto pode vir no request (dieta_texto) apenas para conveniência de criação
-
     const result = await cativeiroService.Create(data);
     if (!result) {
       return res.status(500).json({ error: "Falha ao salvar no banco." });
@@ -182,17 +177,7 @@ const createCativeiro = async (req, res) => {
       console.log('⚠️  Nenhum sensor fornecido no cadastro');
     }
 
-    // Se vier dieta (descrição), registra também em Dietas e relaciona
-    // dieta inicial: somente masters podem criar/atribuir na criação
-    try {
-      const role = req.loggedUser?.role;
-      if (role === 'master' && req.body.dieta_texto && String(req.body.dieta_texto).trim()) {
-        const dietaDoc = await Dietas.create({ descricao: String(req.body.dieta_texto).trim() });
-        await DietasxCativeiros.create({ cativeiro: result._id, dieta: dietaDoc._id, ativo: true });
-      }
-    } catch (e) {
-      console.error('Erro ao criar/atribuir dieta_texto na criação:', e.message);
-    }
+    // A dieta do cativeiro é definida depois, na aba Dietas do master (PUT /dietas/cativeiro/:id)
 
     res.status(201).json({
       message: "Cativeiro criado com sucesso!",

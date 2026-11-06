@@ -155,7 +155,10 @@ test('cativeiros: ninguém edita, apaga ou toma o cativeiro de outra fazenda', a
   assert.equal((await request('/sensoresxcativeiros', { method: 'POST', auth: tokens.adminA,
     body: { id_sensor: String(new mongoose.Types.ObjectId()), id_cativeiro: cativeiroB } })).status, 403);
 
-  assert.equal((await request(`/dietas/assign/${cativeiroB}`, { method: 'POST', auth: tokens.adminA, body: { dietaId: cativeiroB } })).status, 403);
+  // Dieta: só o master define ou remove direto; o admin pede por solicitação
+  assert.equal((await request(`/dietas/cativeiro/${cativeiroA}`, { method: 'PUT', auth: tokens.adminA, body: { quantidade: 10, horarios: ['08:00'] } })).status, 403);
+  assert.equal((await request(`/dietas/cativeiro/${cativeiroA}`, { method: 'DELETE', auth: tokens.adminA })).status, 403);
+  assert.equal((await request('/dietas/fazendas', { auth: tokens.adminA })).status, 403);
 });
 
 test('leituras do ESP32: depois de gerada a chave, leitura sem chave é recusada', async () => {

@@ -1,22 +1,13 @@
 import mongoose from "mongoose";
 import cativeiroController from "./cativeiroController.js";
+import { erroNaDieta } from "../services/dietaService.js";
 import requestService from "../services/requestService.js";
 import userService from "../services/userService.js";
 
 // Criar solicitação
-const HORARIO_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-// Pedido de dieta: cativeiro, gramas por refeição e horários válidos (a placa só entende HH:MM)
-const erroNoPedidoDeDieta = (payload) => {
-  if (!payload || !mongoose.isValidObjectId(payload.cativeiroId)) return 'Informe o cativeiro da dieta';
-  const gramas = Number(payload.quantidade);
-  if (!Number.isFinite(gramas) || gramas <= 0) return 'A quantidade de ração (g) deve ser maior que zero';
-  const horarios = Array.isArray(payload.horarios) ? payload.horarios.filter(Boolean) : [];
-  if (!horarios.length) return 'Informe ao menos um horário de alimentação';
-  if (horarios.some(h => !HORARIO_RE.test(String(h)))) return 'Horários devem estar no formato HH:MM';
-  if (new Set(horarios).size !== horarios.length) return 'Há horários repetidos';
-  return null;
-};
+// Pedido de dieta: cativeiro e os mesmos dados que o master pode definir direto
+const erroNoPedidoDeDieta = (payload) =>
+  (!payload || !mongoose.isValidObjectId(payload.cativeiroId) ? 'Informe o cativeiro da dieta' : erroNaDieta(payload));
 
 const create = async (req, res) => {
   try {

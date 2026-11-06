@@ -17,6 +17,7 @@ import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
 import AvisoLista from '../../components/AvisoCard';
 import { SolicitacaoCard, SolicitacoesFiltros, SolicitacoesVazio, cardStyles } from '../../components/SolicitacaoCard';
 import Calibracoes from '../../components/Calibracoes';
+import DietasMaster from '../../components/DietasMaster';
 import ChaveDispositivo from '../../components/ChaveDispositivo';
 
 export default function MasterPanel() {
@@ -33,19 +34,10 @@ export default function MasterPanel() {
   const [cativeiros, setCativeiros] = useState(() => cacheInicial?.cativeiros ?? []);
   const [tiposCamarao, setTiposCamarao] = useState(() => cacheInicial?.tiposCamarao ?? []);
   const [loading, setLoading] = useState(!cacheInicial);
-  const [dietas, setDietas] = useState(() => cacheInicial?.dietas ?? []);
-  const [dietaForm, setDietaForm] = useState({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
-  const [editingDietaId, setEditingDietaId] = useState('');
-  const [editingDieta, setEditingDieta] = useState({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
   const [, setDietaEditsByCat] = useState({});
   const [cativeiroDieta, setCativeiroDieta] = useState({}); // cId -> { dietaId, descricao, quantidade, horarios, quantidadeRefeicoes }
-  const [assignForm, setAssignForm] = useState({ cativeiroId: '', dietaId: '' });
-  const [showAssignConfirm, setShowAssignConfirm] = useState(false);
-  const [assignConfirmData, setAssignConfirmData] = useState(null); // { cativeiroNome, dietaAtualNome, dietaNovaNome, cativeiroId, dietaId }
   const [showDeleteSensorModal, setShowDeleteSensorModal] = useState(false);
   const [deleteSensorData, setDeleteSensorData] = useState(null); // { id, apelido, tipo }
-  const [showDeleteDietaModal, setShowDeleteDietaModal] = useState(false);
-  const [deleteDietaData, setDeleteDietaData] = useState(null); // { id, descricao }
   const [masterNotification, setMasterNotification] = useState({ show: false, message: '', type: 'success' });
   const [confirmarCalib, setConfirmarCalib] = useState(null); // solicitação de calibração aguardando confirmação
   const [decidindo, setDecidindo] = useState(null); // id da solicitação sendo aprovada/recusada
@@ -95,12 +87,10 @@ export default function MasterPanel() {
   const [showCreateSensor, setShowCreateSensor] = useState(false);
   // Mantém a memória do painel igual ao que está na tela (inclusive após aprovar/editar)
   useEffect(() => {
-    if (!loading) salvarCachePainel('master', { items, users, fazendas, cativeiros, tiposCamarao, dietas, sensores });
-  }, [loading, items, users, fazendas, cativeiros, tiposCamarao, dietas, sensores]);
+    if (!loading) salvarCachePainel('master', { items, users, fazendas, cativeiros, tiposCamarao, sensores });
+  }, [loading, items, users, fazendas, cativeiros, tiposCamarao, sensores]);
   const [sensorForm, setSensorForm] = useState({ id_tipo_sensor: 'temperatura', apelido: '', fotoFile: null });
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [showCreateDieta, setShowCreateDieta] = useState(false);
-  const [showEditDietaModal, setShowEditDietaModal] = useState(false);
   const [linkForm, setLinkForm] = useState({ sensorId: '', cativeiroId: '', currentSensorIds: [] });
   const [expandedFazenda, setExpandedFazenda] = useState({}); // id -> bool
   const [expandedCativeiro, setExpandedCativeiro] = useState({}); // id -> bool
@@ -132,9 +122,6 @@ export default function MasterPanel() {
     ph_medio_diario: '',
     amonia_media_diaria: '',
     fotoFile: null,
-    dietaAtivar: false,
-    dietaDescricao: '',
-    dietaQuantidade: ''
   });
 
   // Modal de edição de cativeiro
@@ -299,14 +286,13 @@ export default function MasterPanel() {
     try {
       const token = getToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const [reqs, us, fzs, cats, tipos, sens, dts] = await Promise.all([
+      const [reqs, us, fzs, cats, tipos, sens] = await Promise.all([
         axios.get(`${apiUrl}/requests`, { headers }), // Requests pendentes para aprovar/recusar
         axios.get(`${apiUrl}/users`, { headers }),
         axios.get(`${apiUrl}/fazendas`, { headers }),
         axios.get(`${apiUrl}/cativeiros`, { headers }),
         axios.get(`${apiUrl}/camaroes`, { headers }),
         axios.get(`${apiUrl}/sensores`, { headers }),
-        axios.get(`${apiUrl}/dietas`, { headers }).catch(() => ({ data: [] })),
       ]);
       setItems(reqs.data);
       setUsers(us.data);
@@ -318,7 +304,6 @@ export default function MasterPanel() {
       });
       setTiposCamarao(tipos.data);
       setSensores(sens.data);
-      setDietas(dts.data || []);
     } catch (e) {
       setError('Erro ao carregar dados');
     } finally {
@@ -1006,10 +991,6 @@ export default function MasterPanel() {
       if (createForm.ph_medio_diario) form.append('ph_medio_diario', createForm.ph_medio_diario);
       if (createForm.amonia_media_diaria) form.append('amonia_media_diaria', createForm.amonia_media_diaria);
       if (createForm.fotoFile) form.append('foto_cativeiro', await comprimirFoto(createForm.fotoFile));
-      if (createForm.dietaAtivar && (createForm.dietaDescricao || createForm.dietaQuantidade)) {
-        // master pode mandar dieta_texto para criar e atribuir imediatamente
-        form.append('dieta_texto', `${createForm.dietaDescricao} (${createForm.dietaQuantidade} g)`);
-      }
 
       await axios.post(`${apiUrl}/cativeiros`, form, { headers: { Authorization: `Bearer ${token}` } });
       setShowCreateModal(false);
@@ -1037,7 +1018,7 @@ export default function MasterPanel() {
     usuarios: ['Usuários', 'Gestão de usuários e permissões'],
     cativeiros: ['Fazendas & Cativeiros', 'Visão geral de todas as fazendas'],
     sensores: ['Sensores', 'Gestão e vinculação de sensores IoT'],
-    dietas: ['Dietas', 'Configuração de dietas para cativeiros'],
+    dietas: ['Dietas', 'A dieta de cada cativeiro, por fazenda'],
     chat: ['Chat com Admins', 'Comunicação com administradores'],
     calibracoes: ['Calibrações', 'Calibração do sensor de pH e alimentador'],
   };
@@ -1615,160 +1596,7 @@ export default function MasterPanel() {
       )}
 
       {tab === 'dietas' && (
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <h2 className={styles.sectionTitle}>Dietas</h2>
-              <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                {dietas.length} dieta{dietas.length !== 1 ? 's' : ''} cadastrada{dietas.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <button
-              className={`${styles.btn} ${styles.btnSuccess}`}
-              onClick={() => { setDietaForm({ descricao: '', quantidade: '' }); setShowCreateDieta(true); }}
-            >
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-              Nova Dieta
-            </button>
-          </div>
-
-          <div className={styles.dietaLayout}>
-            {/* Coluna esquerda: lista de dietas */}
-            <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Lista de dietas
-              </div>
-              {dietas.length === 0 ? (
-                <div className={styles.emptyState} style={{ padding: '32px 24px' }}>
-                  <div className={styles.emptyStateIcon} style={{ fontSize: 32 }}>🥗</div>
-                  <p className={styles.emptyStateText}>Nenhuma dieta cadastrada.</p>
-                </div>
-              ) : (
-                dietas.map(d => (
-                  <div key={d._id} className={styles.dietaCard}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🥗</div>
-                      <div className={styles.dietaInfo}>
-                        <div className={styles.dietaDescricao}>{d.descricao || '—'}</div>
-                        <div className={styles.dietaQtd}>
-                          {typeof d.quantidade !== 'undefined' ? (
-                            <span style={{ background: '#dcfce7', color: '#15803d', padding: '1px 8px', borderRadius: 20, fontSize: '11px', fontWeight: 600 }}>
-                              {d.quantidade} g
-                            </span>
-                          ) : '—'}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <button
-                        className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
-                        onClick={() => {
-  const n = d.quantidadeRefeicoes || 1;
-  const existingHorarios = Array.isArray(d.horarios) ? d.horarios : [];
-  setEditingDietaId(d._id);
-  setEditingDieta({
-    descricao: d.descricao || '',
-    quantidade: d.quantidade || '',
-    quantidadeRefeicoes: n,
-    horarios: Array.from({ length: n }, (_, i) => existingHorarios[i] ?? ''),
-  });
-  setShowEditDietaModal(true);
-}}
-                      >
-                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        Editar
-                      </button>
-                      <button
-                        className={`${styles.btn} ${styles.btnSm}`}
-                        style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}
-                        onClick={() => { setDeleteDietaData({ id: d._id, descricao: d.descricao || '—' }); setShowDeleteDietaModal(true); }}
-                      >
-                        <svg width="11" height="11" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        Excluir
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Coluna direita: atribuição */}
-            <div>
-              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Atribuir dieta a cativeiro
-              </div>
-              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '10px 14px', fontSize: '0.8rem', color: '#0369a1', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ️</span>
-                  Associe uma dieta a um cativeiro. Só pode haver uma dieta ativa por cativeiro.
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Cativeiro</label>
-                    <select
-                      value={assignForm.cativeiroId}
-                      onChange={(e) => setAssignForm(f => ({ ...f, cativeiroId: e.target.value }))}
-                      className={styles.userRowSelect}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="">Selecione um cativeiro...</option>
-                      {cativeiros.map(c => (
-                        <option key={c._id} value={c._id}>{c.nome || c._id}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Dieta</label>
-                    <select
-                      value={assignForm.dietaId}
-                      onChange={(e) => setAssignForm(f => ({ ...f, dietaId: e.target.value }))}
-                      className={styles.userRowSelect}
-                      style={{ width: '100%' }}
-                    >
-                      <option value="">Selecione uma dieta...</option>
-                      {dietas.map(d => (
-                        <option key={d._id} value={d._id}>{d.descricao || d._id}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <button
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                  style={{ width: '100%', justifyContent: 'center' }}
-                  onClick={async () => {
-                    if (!assignForm.cativeiroId || !assignForm.dietaId) {
-                      setMasterNotification({ show: true, message: 'Selecione um cativeiro e uma dieta.', type: 'error' });
-                      return;
-                    }
-                    const dietaAtual = cativeiroDieta[assignForm.cativeiroId];
-                    if (dietaAtual && dietaAtual.dietaId) {
-                      const cativeiro = cativeiros.find(c => c._id === assignForm.cativeiroId);
-                      const dietaNova = dietas.find(d => d._id === assignForm.dietaId);
-                      setAssignConfirmData({
-                        cativeiroId: assignForm.cativeiroId,
-                        dietaId: assignForm.dietaId,
-                        cativeiroNome: cativeiro?.nome || assignForm.cativeiroId,
-                        dietaAtualNome: dietaAtual.descricao || 'Dieta atual',
-                        dietaNovaNome: dietaNova?.descricao || 'Nova dieta',
-                      });
-                      setShowAssignConfirm(true);
-                    } else {
-                      try {
-                        const token = getToken();
-                        await axios.post(`${apiUrl}/dietas/assign/${assignForm.cativeiroId}`, { dietaId: assignForm.dietaId, ativo: true }, { headers: { Authorization: `Bearer ${token}` } });
-                        await loadDietaAtual(assignForm.cativeiroId);
-                        setAssignForm({ cativeiroId: '', dietaId: '' });
-                        setMasterNotification({ show: true, message: 'Dieta atribuída com sucesso!', type: 'success' });
-                      } catch (e) { setMasterNotification({ show: true, message: 'Erro ao atribuir: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
-                    }
-                  }}
-                >
-                  Atribuir Dieta
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <DietasMaster onNotify={setMasterNotification} />
       )}
 
       {tab === 'chat' && (
@@ -1969,194 +1797,6 @@ export default function MasterPanel() {
               }}
             >
               {sensorForm?.id ? 'Salvar alterações' : 'Criar sensor'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Criar Dieta */}
-      <Modal isOpen={showCreateDieta} onClose={() => setShowCreateDieta(false)} title="Nova Dieta" showCloseButton>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Descrição</label>
-            <input
-              value={dietaForm.descricao}
-              onChange={(e) => setDietaForm(f => ({ ...f, descricao: e.target.value }))}
-              placeholder="ex: Ração Premium — Fase crescimento"
-              className={styles.filterInput}
-              style={{ width: '100%', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Quantidade por refeição (g)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={dietaForm.quantidade}
-                onChange={(e) => setDietaForm(f => ({ ...f, quantidade: e.target.value }))}
-                placeholder="ex: 2.5"
-                className={styles.filterInput}
-                style={{ width: '100%', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Refeições por dia</label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={dietaForm.quantidadeRefeicoes}
-                onChange={(e) => {
-                  const n = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
-                  setDietaForm(f => ({
-                    ...f,
-                    quantidadeRefeicoes: n,
-                    horarios: Array.from({ length: n }, (_, i) => (f.horarios || [])[i] ?? ''),
-                  }));
-                }}
-                className={styles.filterInput}
-                style={{ width: '100%', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-              Horários de alimentação
-              <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 6 }}>({dietaForm.quantidadeRefeicoes} campo{dietaForm.quantidadeRefeicoes !== 1 ? 's' : ''})</span>
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {Array.from({ length: dietaForm.quantidadeRefeicoes }, (_, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', minWidth: 70 }}>Refeição {i + 1}</span>
-                  <input
-                    type="time"
-                    value={dietaForm.horarios[i] || ''}
-                    onChange={(e) => setDietaForm(f => { const hs = [...f.horarios]; hs[i] = e.target.value; return { ...f, horarios: hs }; })}
-                    className={styles.filterInput}
-                    style={{ flex: 1, boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
-            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateDieta(false)}>Cancelar</button>
-            <button
-              className={`${styles.btn} ${styles.btnSuccess}`}
-              onClick={async () => {
-                try {
-                  const token = getToken();
-                  const horariosValidos = dietaForm.horarios.slice(0, dietaForm.quantidadeRefeicoes);
-                  await axios.post(`${apiUrl}/dietas`, {
-                    descricao: dietaForm.descricao,
-                    quantidade: dietaForm.quantidade,
-                    horarios: horariosValidos,
-                    quantidadeRefeicoes: dietaForm.quantidadeRefeicoes,
-                    horaAlimentacao: horariosValidos[0] || '',
-                  }, { headers: { Authorization: `Bearer ${token}` } });
-                  setDietaForm({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
-                  setShowCreateDieta(false);
-                  await load();
-                  setMasterNotification({ show: true, message: 'Dieta criada com sucesso!', type: 'success' });
-                } catch (e) { setMasterNotification({ show: true, message: 'Erro ao criar dieta: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
-              }}
-            >
-              Criar dieta
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Editar Dieta */}
-      <Modal isOpen={showEditDietaModal} onClose={() => { setShowEditDietaModal(false); setEditingDietaId(''); }} title="Editar Dieta" showCloseButton>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Descrição</label>
-            <input
-              value={editingDieta.descricao}
-              onChange={(e) => setEditingDieta(v => ({ ...v, descricao: e.target.value }))}
-              placeholder="Descrição da dieta"
-              className={styles.filterInput}
-              style={{ width: '100%', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Quantidade por refeição (g)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={editingDieta.quantidade}
-                onChange={(e) => setEditingDieta(v => ({ ...v, quantidade: e.target.value }))}
-                placeholder="ex: 2.5"
-                className={styles.filterInput}
-                style={{ width: '100%', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Refeições por dia</label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={editingDieta.quantidadeRefeicoes || 1}
-                onChange={(e) => {
-                  const n = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
-                  setEditingDieta(v => ({
-                    ...v,
-                    quantidadeRefeicoes: n,
-                    horarios: Array.from({ length: n }, (_, i) => (v.horarios || [])[i] ?? ''),
-                  }));
-                }}
-                className={styles.filterInput}
-                style={{ width: '100%', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 8 }}>Horários de alimentação</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {Array.from({ length: editingDieta.quantidadeRefeicoes || 1 }, (_, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', minWidth: 70 }}>Refeição {i + 1}</span>
-                  <input
-                    type="time"
-                    value={(editingDieta.horarios || [])[i] || ''}
-                    onChange={(e) => setEditingDieta(v => { const hs = [...(v.horarios || [])]; hs[i] = e.target.value; return { ...v, horarios: hs }; })}
-                    className={styles.filterInput}
-                    style={{ flex: 1, boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
-            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => { setShowEditDietaModal(false); setEditingDietaId(''); }}>Cancelar</button>
-            <button
-              className={`${styles.btn} ${styles.btnSuccess}`}
-              onClick={async () => {
-                try {
-                  const token = getToken();
-                  const horariosValidos = (editingDieta.horarios || []).filter(h => h !== '');
-                  await axios.put(`${apiUrl}/dietas/${editingDietaId}`, {
-                    descricao: editingDieta.descricao,
-                    quantidade: editingDieta.quantidade,
-                    horarios: horariosValidos,
-                    quantidadeRefeicoes: horariosValidos.length || 1,
-                    horaAlimentacao: horariosValidos[0] || '',
-                  }, { headers: { Authorization: `Bearer ${token}` } });
-                  setShowEditDietaModal(false);
-                  setEditingDietaId('');
-                  setEditingDieta({ descricao: '', quantidade: '', quantidadeRefeicoes: 1, horarios: [''] });
-                  await load();
-                  setMasterNotification({ show: true, message: 'Dieta atualizada com sucesso!', type: 'success' });
-                } catch (e) { setMasterNotification({ show: true, message: 'Erro ao salvar edição: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
-              }}
-            >
-              Salvar alterações
             </button>
           </div>
         </div>
@@ -2403,19 +2043,9 @@ export default function MasterPanel() {
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Imagem do cativeiro</label>
                 <input type="file" accept="image/*" onChange={(e) => setCreateForm(f => ({ ...f, fotoFile: e.target.files?.[0] || null }))} style={{ width: '100%' }} />
               </div>
-              <div style={{ gridColumn: 'span 2', borderTop: '1px solid #eee', paddingTop: 8 }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Dieta (opcional)</label>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input type="checkbox" checked={createForm.dietaAtivar} onChange={(e) => setCreateForm(f => ({ ...f, dietaAtivar: e.target.checked }))} />
-                    Ativar dieta na criação
-                  </label>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', opacity: createForm.dietaAtivar ? 1 : 0.6 }}>
-                  <input disabled={!createForm.dietaAtivar} value={createForm.dietaDescricao} onChange={(e) => setCreateForm(f => ({ ...f, dietaDescricao: e.target.value }))} placeholder="Descrição" style={{ flex: 1, padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
-                  <input disabled={!createForm.dietaAtivar} type="number" step="0.01" value={createForm.dietaQuantidade} onChange={(e) => setCreateForm(f => ({ ...f, dietaQuantidade: e.target.value }))} placeholder="Quantidade (g)" style={{ width: 160, padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
-                </div>
-              </div>
+              <p style={{ gridColumn: 'span 2', margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
+                A dieta do cativeiro é definida depois, na aba Dietas.
+              </p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button onClick={() => setShowCreateModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancelar</button>
@@ -2604,37 +2234,6 @@ export default function MasterPanel() {
         </div>
       </Modal>
 
-      {/* Modal de confirmação substituição de dieta */}
-      <Modal isOpen={showAssignConfirm} onClose={() => setShowAssignConfirm(false)} title="Substituir dieta?" showCloseButton>
-        {assignConfirmData && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ margin: 0, fontSize: '0.9rem', color: '#374151', lineHeight: 1.6 }}>
-              O cativeiro <strong>{assignConfirmData.cativeiroNome}</strong> já possui a dieta <strong>&quot;{assignConfirmData.dietaAtualNome}&quot;</strong> ativa.
-              Deseja substituí-la por <strong>&quot;{assignConfirmData.dietaNovaNome}&quot;</strong>?
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowAssignConfirm(false)}>Cancelar</button>
-              <button
-                className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={async () => {
-                  try {
-                    const token = getToken();
-                    await axios.post(`${apiUrl}/dietas/assign/${assignConfirmData.cativeiroId}`, { dietaId: assignConfirmData.dietaId, ativo: true }, { headers: { Authorization: `Bearer ${token}` } });
-                    await loadDietaAtual(assignConfirmData.cativeiroId);
-                    setAssignForm({ cativeiroId: '', dietaId: '' });
-                    setShowAssignConfirm(false);
-                    setAssignConfirmData(null);
-                    setMasterNotification({ show: true, message: `Dieta substituída com sucesso!`, type: 'success' });
-                  } catch (e) { setMasterNotification({ show: true, message: 'Erro ao substituir: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
-                }}
-              >
-                Sim, substituir
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       {/* Flash notification */}
       <Modal isOpen={showDeleteConvModal} onClose={() => setShowDeleteConvModal(false)} title="Excluir conversa?" showCloseButton>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -2687,34 +2286,6 @@ export default function MasterPanel() {
                     await load();
                     setMasterNotification({ show: true, message: 'Sensor excluído com sucesso!', type: 'success' });
                   } catch (e) { setMasterNotification({ show: true, message: 'Erro ao excluir sensor: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
-                }}
-              >Excluir</button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      <Modal isOpen={showDeleteDietaModal} onClose={() => setShowDeleteDietaModal(false)} title="Excluir dieta?" showCloseButton>
-        {deleteDietaData && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
-              Tem certeza que deseja excluir a dieta <strong>&quot;{deleteDietaData.descricao}&quot;</strong>?
-              Esta ação não pode ser desfeita.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteDietaModal(false)}>Cancelar</button>
-              <button
-                className={`${styles.btn}`}
-                style={{ background: '#ef4444', color: '#fff', border: 'none' }}
-                onClick={async () => {
-                  try {
-                    const token = getToken();
-                    await axios.delete(`${apiUrl}/dietas/${deleteDietaData.id}`, { headers: { Authorization: `Bearer ${token}` } });
-                    setShowDeleteDietaModal(false);
-                    setDeleteDietaData(null);
-                    await load();
-                    setMasterNotification({ show: true, message: 'Dieta excluída com sucesso!', type: 'success' });
-                  } catch (e) { setMasterNotification({ show: true, message: 'Erro ao excluir dieta: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
                 }}
               >Excluir</button>
             </div>

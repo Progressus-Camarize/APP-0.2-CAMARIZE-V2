@@ -1,6 +1,12 @@
 import mongoose from "mongoose";
 
 const DietasSchema = new mongoose.Schema({
+  // Cativeiro dono da dieta: cada cativeiro tem a sua (não há mais dietas compartilhadas)
+  cativeiro: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Cativeiros",
+    default: null,
+  },
   descricao: {
     type: String,
     maxlength: 100,

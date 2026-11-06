@@ -115,6 +115,10 @@ class cativeiroService {
       await SensoresxCativeiros.deleteMany({ id_cativeiro: id });
       console.log(`🗑️ Relacionamentos sensor-cativeiro excluídos para cativeiro: ${id}`);
       
+      // Excluir a dieta do cativeiro (cada cativeiro tem a sua)
+      const { removerDietaDoCativeiro } = await import('./dietaService.js');
+      await removerDietaDoCativeiro(id);
+
       // Excluir o cativeiro
       const result = await Cativeiros.findByIdAndDelete(id);
       console.log(`🗑️ Cativeiro excluído: ${id}`);

@@ -9,7 +9,7 @@ const router = express.Router();
  * @swagger
  * tags:
  *   name: Dietas
- *   description: Planos de alimentação dos viveiros — criação, atribuição e controle
+ *   description: Dieta de cada viveiro (uma por cativeiro) — consulta do ESP32 e gestão pelo master
  */
 
 /**
@@ -41,127 +41,53 @@ router.get("/atual/:cativeiroId", Cache.noStore, dietaController.getDietaAtual);
 
 /**
  * @swagger
- * /dietas:
- *   post:
- *     summary: Criar nova dieta — requer role admin ou master
- *     tags: [Dietas]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/DietaCreate'
- *     responses:
- *       201:
- *         description: Dieta criada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Dieta'
- *       403:
- *         description: Sem permissão
+ * /dietas/fazendas:
  *   get:
- *     summary: Listar todas as dietas — requer role master
+ *     summary: Master — todas as fazendas com os cativeiros e a dieta de cada um
  *     tags: [Dietas]
- *     security:
- *       - BearerAuth: []
+ *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200:
- *         description: Lista de dietas
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Dieta'
- *       403:
- *         description: Sem permissão (apenas master)
+ *         description: "[{ _id, nome, cativeiros: [{ _id, nome, dieta: { descricao, quantidade, horarios, quantidadeRefeicoes } | null }] }]; cativeiros sem fazenda vêm no grupo \"Sem fazenda\" (_id null)"
+ *       403: { description: Apenas master }
  */
-router.post("/", Auth.Authorization, Auth.RequireRole(['admin','master']), dietaController.createDieta);
-router.get("/", Auth.Authorization, Auth.RequireRole(['master']), Cache.cacheControl(120, 180), dietaController.listDietas);
+router.get("/fazendas", Auth.Authorization, Auth.RequireRole(['master']), Cache.noStore, dietaController.visaoPorFazenda);
 
 /**
  * @swagger
- * /dietas/{id}:
+ * /dietas/cativeiro/{cativeiroId}:
  *   put:
- *     summary: Atualizar dieta — requer role admin ou master
+ *     summary: Master — define a dieta do cativeiro (cria ou edita a dele, sem solicitação)
  *     tags: [Dietas]
- *     security:
- *       - BearerAuth: []
+ *     security: [{ bearerAuth: [] }]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/DietaCreate'
- *     responses:
- *       200:
- *         description: Dieta atualizada
- *       404:
- *         description: Dieta não encontrada
- *   delete:
- *     summary: Excluir dieta — requer role master
- *     tags: [Dietas]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Dieta excluída
- *       403:
- *         description: Sem permissão (apenas master)
- *       404:
- *         description: Dieta não encontrada
- */
-// Dieta é compartilhada entre cativeiros de fazendas diferentes: só o master edita
-router.put("/:id", Auth.Authorization, Auth.RequireRole(['master']), dietaController.updateDieta);
-router.delete("/:id", Auth.Authorization, Auth.RequireRole(['master']), dietaController.deleteDieta);
-
-/**
- * @swagger
- * /dietas/assign/{cativeiroId}:
- *   post:
- *     summary: Atribuir dieta a um viveiro — requer role admin ou master
- *     tags: [Dietas]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: cativeiroId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do viveiro
+ *       - { in: path, name: cativeiroId, required: true, schema: { type: string } }
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [dietaId]
+ *             required: [quantidade, horarios]
  *             properties:
- *               dietaId:
- *                 type: string
- *                 description: ID da dieta a ser atribuída
+ *               descricao: { type: string, example: "Engorda" }
+ *               quantidade: { type: number, description: "Gramas por refeição", example: 25 }
+ *               horarios: { type: array, items: { type: string }, example: ["08:00", "17:00"] }
  *     responses:
- *       200:
- *         description: Dieta atribuída com sucesso
- *       404:
- *         description: Viveiro ou dieta não encontrada
+ *       200: { description: Dieta do cativeiro }
+ *       400: { description: Quantidade ou horários inválidos }
+ *       404: { description: Cativeiro não encontrado }
+ *   delete:
+ *     summary: Master — remove a dieta do cativeiro (o alimentador para de servir)
+ *     tags: [Dietas]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: cativeiroId, required: true, schema: { type: string } }
+ *     responses:
+ *       200: { description: Dieta removida }
+ *       404: { description: Cativeiro sem dieta }
  */
-router.post("/assign/:cativeiroId", Auth.Authorization, Auth.RequireRole(['admin','master']), dietaController.assignDietaToCativeiro);
+router.put("/cativeiro/:cativeiroId", Auth.Authorization, Auth.RequireRole(['master']), dietaController.definirDieta);
+router.delete("/cativeiro/:cativeiroId", Auth.Authorization, Auth.RequireRole(['master']), dietaController.removerDieta);
 
 export default router;
