@@ -101,6 +101,8 @@ test('fluxo completo de calibração do motor: iniciar -> executar -> peso', asy
 
   const cativeiro = await Cativeiros.findById(pond).lean();
   assert.equal(cativeiro.gramas_por_rotacao, 2.37);
+  // Admin/master: aplicada na hora, com a data da calibração
+  assert.ok(Date.now() - new Date(cativeiro.calibracao_motor_em) < 60_000);
 
   const dieta = await Dietas.create({ descricao: 'Dieta teste calibração', quantidade: 25, horarios: ['08:00'] });
   await DietasxCativeiros.create({ cativeiro: pond, dieta: dieta._id, ativo: true });
@@ -162,6 +164,7 @@ test('fluxo completo de calibração de pH: iniciar -> ph7 -> ph4, sem par incon
   cativeiro = await Cativeiros.findById(pond).lean();
   assert.equal(cativeiro.tensao_ph7, 2.51);
   assert.equal(cativeiro.tensao_ph4, 2.96);
+  assert.ok(Date.now() - new Date(cativeiro.calibracao_ph_em) < 60_000);
 });
 
 test('cancelar antes do ph4 não grava tensao_ph7 no cativeiro', async () => {
@@ -311,14 +314,19 @@ test('membro calibra, mas o resultado só vale depois que o admin da fazenda apr
 
   // Nada gravado no cativeiro até a aprovação
   assert.equal((await Cativeiros.findById(pond).lean()).gramas_por_rotacao, null);
+  assert.equal((await Cativeiros.findById(pond).lean()).calibracao_motor_em, null);
 
   const pendente = (await request('/requests', { auth: adminToken })).body.find(r => r.action === 'aplicar_calibracao');
   assert.ok(pendente, 'admin da fazenda vê a solicitação');
   assert.equal(String(pendente.fazenda?._id || pendente.fazenda), String(fazenda));
-  assert.deepEqual(pendente.payload, { cativeiroId: String(pond), tipo: 'motor', rotacoes: 5, gramas: 12, gramas_por_rotacao: 2.4 });
+  assert.deepEqual(pendente.payload, { cativeiroId: String(pond), cativeiroNome: 'Viveiro calibração do membro',
+    tipo: 'motor', rotacoes: 5, gramas: 12, gramas_por_rotacao: 2.4 });
 
   assert.equal((await request(`/requests/${pendente._id}/approve`, { method: 'POST', auth: adminToken, body: {} })).status, 200);
-  assert.equal((await Cativeiros.findById(pond).lean()).gramas_por_rotacao, 2.4);
+  const aplicado = await Cativeiros.findById(pond).lean();
+  assert.equal(aplicado.gramas_por_rotacao, 2.4);
+  // A data registrada é a da calibração (criação da solicitação), não a da aprovação
+  assert.equal(new Date(aplicado.calibracao_motor_em).toISOString(), new Date(pendente.createdAt).toISOString());
 
   // A solicitação de calibração só nasce do servidor: o cliente não consegue forjar valores
   assert.equal((await request('/requests', { method: 'POST', auth: membroToken,

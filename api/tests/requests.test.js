@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs';
 import User from '../models/Users.js';
 import Request from '../models/Requests.js';
 import UsuariosxFazendas from '../models/UsuariosxFazendas.js';
+import Sensores from '../models/Sensores.js';
+import SensoresxCativeiros from '../models/SensoresxCativeiros.js';
 import { connectTestDatabase, dropTestDatabase, password, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -140,6 +142,28 @@ test('funcionário em duas fazendas: a solicitação vai só para o admin da faz
 
   // Sem nada que identifique a fazenda, a API pede que ela seja informada
   assert.equal((await criar(tokens.membroDuplo, 'editar_dieta')).status, 400);
+});
+
+test('editar sensor: a solicitação guarda o cativeiro do sensor (e ignora o enviado pelo cliente)', async () => {
+  const cativeiro = fixtures.cativeiros[0];
+  const sensor = await Sensores.create({ id_tipo_sensor: new mongoose.Types.ObjectId(), apelido: 'Termômetro', user: fixtures.users[0]._id });
+  await SensoresxCativeiros.create({ id_sensor: sensor._id, id_cativeiro: cativeiro._id });
+
+  const criada = await criar(tokens.membroA, 'editar_sensor', {
+    payload: { id: String(sensor._id), apelido: 'Termômetro novo', cativeiroNome: 'Forjado' },
+  });
+  assert.equal(criada.status, 201);
+  assert.equal(criada.body.payload.cativeiroNome, cativeiro.nome);
+  assert.equal(criada.body.payload.cativeiroId, String(cativeiro._id));
+  assert.equal(criada.body.payload.apelido, 'Termômetro novo');
+
+  // Sensor sem cativeiro: nada é anotado
+  const solto = await Sensores.create({ id_tipo_sensor: new mongoose.Types.ObjectId(), apelido: 'Solto', user: fixtures.users[0]._id });
+  const semCativeiro = await criar(tokens.membroA, 'editar_sensor', {
+    payload: { id: String(solto._id), apelido: 'Solto 2', cativeiroNome: 'Forjado' }, fazenda: String(fixtures.fazendas[0]._id),
+  });
+  assert.equal(semCativeiro.status, 201);
+  assert.equal('cativeiroNome' in semCativeiro.body.payload, false);
 });
 
 test('funcionário não cria solicitação para fazenda da qual não faz parte', async () => {

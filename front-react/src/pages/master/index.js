@@ -8,6 +8,8 @@ import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
+import { rotuloAcao, DetalhesGenericos, DetalhesCalibracao, DetalhesSensor } from '../../lib/solicitacoes';
+import ConfirmarCalibracao, { mensagemCalibracaoAplicada } from '../../components/ConfirmarCalibracao';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 import Sidebar from '../../components/Sidebar';
 import { MASTER_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
@@ -45,6 +47,8 @@ export default function MasterPanel() {
   const [showDeleteDietaModal, setShowDeleteDietaModal] = useState(false);
   const [deleteDietaData, setDeleteDietaData] = useState(null); // { id, descricao }
   const [masterNotification, setMasterNotification] = useState({ show: false, message: '', type: 'success' });
+  const [confirmarCalib, setConfirmarCalib] = useState(null); // solicitação de calibração aguardando confirmação
+  const [decidindo, setDecidindo] = useState(null); // id da solicitação sendo aprovada/recusada
   const [previewImage, setPreviewImage] = useState({});
   const [photoErrors, setPhotoErrors] = useState({});
   const [uploadTargetCativeiro, setUploadTargetCativeiro] = useState(null);
@@ -532,13 +536,19 @@ export default function MasterPanel() {
     setFilteredRequests(filtered);
   }, [allRequests, requesterFilter, dateFilter, actionFilter]);
 
-  const act = async (id, op) => {
+  const act = async (id, op, { confirmado = false } = {}) => {
     const token = getToken();
     
     // Se for aprovar e a ação for associar_funcionario, usar a fazenda do request
     if (op === 'approve') {
       const request = items.find(r => r._id === id) || allRequests.find(r => r._id === id);
       if (request) {
+        // Calibração de um membro: confirma antes, mostrando o valor em uso e o novo
+        if (request.action === 'aplicar_calibracao' && !confirmado) {
+          setConfirmarCalib(request);
+          return false;
+        }
+
         // Para associar_funcionario, usar a fazenda do admin solicitante (já vem no request)
         if (request.action === 'associar_funcionario') {
           const fazendaId = request.fazenda?._id || request.fazenda || null;
@@ -577,16 +587,32 @@ export default function MasterPanel() {
       }
     }
     
-    // Para outras aprovações ou rejeições, fazer direto
-    const response = await axios.post(`${apiUrl}/requests/${id}/${op}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-    console.log('Request atualizado:', response.data);
-    await load();
-    // Recarregar requests completos se estivermos na aba requests
-    if (tab === 'requests') {
-      const updatedRequests = await loadAllRequests();
-      console.log('Requests recarregados:', updatedRequests);
-      setAllRequests(updatedRequests);
+    // Para outras aprovações ou rejeições, fazer direto (com retorno na tela)
+    const request = items.find(r => r._id === id) || allRequests.find(r => r._id === id);
+    setDecidindo(id);
+    try {
+      await axios.post(`${apiUrl}/requests/${id}/${op}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setMasterNotification({ show: true, type: 'success',
+        message: op !== 'approve' ? 'Solicitação recusada.'
+          : request?.action === 'aplicar_calibracao' ? mensagemCalibracaoAplicada(request.payload) : 'Solicitação aprovada.' });
+      await load();
+      // Recarregar requests completos se estivermos na aba requests
+      if (tab === 'requests') {
+        const updatedRequests = await loadAllRequests();
+        setAllRequests(updatedRequests);
+      }
+      return true;
+    } catch (e) {
+      setMasterNotification({ show: true, type: 'error',
+        message: `Não foi possível ${op === 'approve' ? 'aprovar' : 'recusar'} a solicitação: ${e?.response?.data?.error || e.message}` });
+      return false;
+    } finally {
+      setDecidindo(null);
     }
+  };
+
+  const aplicarCalibracaoConfirmada = async () => {
+    if (await act(confirmarCalib._id, 'approve', { confirmado: true })) setConfirmarCalib(null);
   };
 
   const handleApproveFuncionario = async () => {
@@ -710,27 +736,7 @@ export default function MasterPanel() {
       );
     } else if (action === 'aplicar_calibracao') {
       const nomeCativeiro = (cativeiros || []).find(c => String(c._id) === String(payload?.cativeiroId))?.nome;
-      const br = (n, casas) => (typeof n === 'number' ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: 4 }) : '—');
-      return (
-        <div className={cardStyles.detalhes}>
-          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nomeCativeiro || payload?.cativeiroId || 'N/A'}</div>
-          {payload?.tipo === 'motor' ? (
-            <ul>
-              <li><strong>Calibração:</strong> alimentador</li>
-              <li><strong>Rotações:</strong> {payload.rotacoes}</li>
-              <li><strong>Peso medido:</strong> {br(payload.gramas, 1)} g</li>
-              <li><strong>Resultado:</strong> {br(payload.gramas_por_rotacao, 1)} g/rotação</li>
-            </ul>
-          ) : (
-            <ul>
-              <li><strong>Calibração:</strong> sensor de pH</li>
-              <li><strong>Tensão no pH 7:</strong> {br(payload?.tensao_ph7, 2)} V</li>
-              <li><strong>Tensão no pH 4:</strong> {br(payload?.tensao_ph4, 2)} V</li>
-            </ul>
-          )}
-          <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>Ao aprovar, este resultado passa a valer para o cativeiro.</div>
-        </div>
-      );
+      return <DetalhesCalibracao payload={payload} nomeCativeiro={nomeCativeiro} rodape="Ao aprovar, este resultado passa a valer para o cativeiro." />;
     } else if (action === 'editar_dieta') {
       const horarios = Array.isArray(payload?.horarios) ? payload.horarios.filter(h => h) : [];
       return (
@@ -746,16 +752,8 @@ export default function MasterPanel() {
         </div>
       );
     } else if (action === 'editar_sensor') {
-      // Mostrar tipo e apelido do sensor em vez do _id
-      const sensorMatch = (sensores || []).find(s => String(s._id) === String(payload.id) || String(s.id) === String(payload.id));
-      const tipo = sensorMatch ? (typeof sensorMatch.id_tipo_sensor === 'object' ? sensorMatch.id_tipo_sensor.descricao : sensorMatch.id_tipo_sensor) : null;
-      const apelido = sensorMatch ? (sensorMatch.apelido || '') : (payload.apelido || 'N/A');
-      return (
-        <div className={cardStyles.detalhes}>
-          <div><strong>Sensor:</strong> {tipo ? `${tipo} — ${apelido}` : (payload.id || 'N/A')}</div>
-          {payload.apelido && <div><strong>Novo Apelido:</strong> {payload.apelido}</div>}
-        </div>
-      );
+      const sensor = (sensores || []).find(s => String(s._id) === String(payload?.id));
+      return <DetalhesSensor payload={payload} sensor={sensor} />;
     } else if (action === 'cadastrar_funcionario') {
       return (
         <div className={cardStyles.detalhes}>
@@ -790,27 +788,20 @@ export default function MasterPanel() {
         </div>
       );
     } else {
-      // Fallback para outras ações
-      return (
-        <div className={cardStyles.detalhes}><pre>{JSON.stringify(payload, null, 2)}</pre></div>
-      );
+      // Outras ações (inclusive antigas, como relatório individual): lista legível, sem JSON
+      return <DetalhesGenericos payload={payload} resolver={nomeDoId} />;
     }
   };
 
-  const getActionLabel = (action) => {
-    const map = {
-      editar_cativeiro_add_sensor: 'Solicitar vínculo de sensor',
-      editar_cativeiro_remove_sensor: 'Solicitar troca de sensor(es)',
-      cadastrar_cativeiro: 'Cadastrar cativeiro',
-      editar_cativeiro: 'Editar cativeiro',
-      editar_sensor: 'Editar sensor',
-      editar_dieta: 'Gerenciar dieta de cativeiro',
-      aplicar_calibracao: 'Aplicar calibração',
-      cadastrar_funcionario: 'Cadastrar funcionário',
-      associar_funcionario: 'Associar funcionário à fazenda',
-      cadastrar_proprietario: 'Cadastrar proprietário',
-    };
-    return map[action] || action;
+  const getActionLabel = (action) => rotuloAcao(action);
+
+  // Nome legível de um id citado numa solicitação (null = oculta o id técnico)
+  const nomeDoId = (chave, id) => {
+    const igual = (x) => String(x._id) === String(id);
+    if (/cativeiro/i.test(chave)) return cativeiros.find(igual)?.nome || null;
+    if (/fazenda/i.test(chave)) return fazendas.find(igual)?.nome || null;
+    if (/sensor/i.test(chave)) return sensores.find(igual)?.apelido || null;
+    return null;
   };
 
   const changeRole = async (id, role) => {
@@ -1159,8 +1150,9 @@ export default function MasterPanel() {
                     mostrarSolicitante
                     detalhes={item.payload && Object.keys(item.payload).length > 0 ? formatRequestDetails(item.action, item.payload) : null}
                     acoes={[
-                      { rotulo: 'Aprovar', tipo: 'aprovar', onClick: () => act(item._id, 'approve') },
-                      { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject') },
+                      { rotulo: decidindo === item._id ? 'Aplicando...' : 'Aprovar', tipo: 'aprovar',
+                        onClick: () => act(item._id, 'approve'), desabilitado: !!decidindo },
+                      { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject'), desabilitado: !!decidindo },
                     ]}
                   />
                 ))}
@@ -2729,6 +2721,16 @@ export default function MasterPanel() {
           </div>
         )}
       </Modal>
+
+      {confirmarCalib && (
+        <ConfirmarCalibracao
+          item={confirmarCalib}
+          cativeiro={cativeiros.find(c => String(c._id) === String(confirmarCalib.payload?.cativeiroId))}
+          enviando={decidindo === confirmarCalib._id}
+          onCancelar={() => setConfirmarCalib(null)}
+          onConfirmar={aplicarCalibracaoConfirmada}
+        />
+      )}
 
       <Notification
         isVisible={masterNotification.show}

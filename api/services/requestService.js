@@ -66,6 +66,16 @@ class RequestService {
     throw Object.assign(new Error('Informe a fazenda desta solicitação'), { status: 400 });
   }
 
+  // Editar sensor: anota em qual cativeiro o sensor está, para o histórico mostrar.
+  // Ignora cativeiroId/cativeiroNome vindos do cliente (o valor é sempre o do banco).
+  async anotarCativeiroDoSensor(payload = {}) {
+    const { cativeiroId, cativeiroNome, ...resto } = payload || {};
+    if (!mongoose.isValidObjectId(resto.id)) return resto;
+    const rel = await SensoresxCativeiros.findOne({ id_sensor: resto.id }).populate('id_cativeiro', 'nome').lean();
+    if (!rel?.id_cativeiro) return resto;
+    return { ...resto, cativeiroId: String(rel.id_cativeiro._id), cativeiroNome: rel.id_cativeiro.nome };
+  }
+
   async hasPending(requesterUser, action) {
     return !!(await Request.exists({ requesterUser, action, status: 'pendente' }));
   }
@@ -313,6 +323,8 @@ class RequestService {
       if (tipo === 'motor' && valido(gramas_por_rotacao) && gramas_por_rotacao > 0) campos = { gramas_por_rotacao };
       if (tipo === 'ph' && valido(tensao_ph7) && valido(tensao_ph4)) campos = { tensao_ph7, tensao_ph4 };
       if (!campos) throw new Error('Resultado de calibração inválido');
+      // A data é a de quando a calibração foi feita (criação da solicitação), não a da aprovação
+      campos[tipo === 'motor' ? 'calibracao_motor_em' : 'calibracao_ph_em'] = request.createdAt;
       await Cativeiros.updateOne({ _id: cativeiroId }, { $set: campos });
     }
 

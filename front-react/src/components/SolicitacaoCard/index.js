@@ -38,7 +38,7 @@ const BOTOES = {
  * - titulo: rótulo amigável da ação
  * - mostrarSolicitante: exibe nome/email de quem pediu (painéis admin/master)
  * - detalhes: conteúdo já formatado do payload
- * - acoes: [{ rotulo, tipo: 'aprovar' | 'recusar', onClick }]
+ * - acoes: [{ rotulo, tipo: 'aprovar' | 'recusar', onClick, desabilitado }]
  */
 export function SolicitacaoCard({ item, titulo, mostrarSolicitante = false, detalhes, acoes = [] }) {
   const Icone = ICONES[item.action] || TbFileText;
@@ -82,10 +82,10 @@ export function SolicitacaoCard({ item, titulo, mostrarSolicitante = false, deta
           <div className={styles.footer}>
             <span className={styles.footerHint}>Aguardando sua decisão</span>
             <div className={styles.actions}>
-              {acoes.map(({ rotulo, tipo, onClick }) => {
+              {acoes.map(({ rotulo, tipo, onClick, desabilitado = false }) => {
                 const b = BOTOES[tipo] || BOTOES.aprovar;
                 return (
-                  <button key={rotulo} type="button" className={`${styles.btn} ${b.classe}`} onClick={onClick}>
+                  <button key={rotulo} type="button" className={`${styles.btn} ${b.classe}`} onClick={onClick} disabled={desabilitado}>
                     <b.Icone aria-hidden="true" /> {rotulo}
                   </button>
                 );

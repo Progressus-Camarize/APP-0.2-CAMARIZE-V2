@@ -61,6 +61,15 @@ const CativeirosSchema = new mongoose.Schema({
   tensao_ph4: {
     type: Number,
     default: null
+  },
+  // Quando foi feita a calibração em uso (para comparar com solicitações antigas)
+  calibracao_motor_em: {
+    type: Date,
+    default: null
+  },
+  calibracao_ph_em: {
+    type: Date,
+    default: null
   }
 });
 

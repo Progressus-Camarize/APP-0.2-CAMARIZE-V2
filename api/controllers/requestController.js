@@ -63,13 +63,15 @@ const create = async (req, res) => {
 
     const computedType = type || (requesterRole === 'membro' ? 'leve' : (heavyActions.has(action) ? 'pesada' : 'leve'));
 
+    const payloadFinal = action === 'editar_sensor' ? await requestService.anotarCativeiroDoSensor(payload) : payload;
+
     const created = await requestService.create({
       requesterUser: requester._id,
       requesterRole,
       targetRole,
       type: computedType,
       action,
-      payload,
+      payload: payloadFinal,
       fazenda: fazendaDaSolicitacao
     });
     res.status(201).json(created);

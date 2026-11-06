@@ -1632,6 +1632,51 @@
   font-weight: 700;
 }
 
+.calibComparacao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.calibComparacaoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.calibComparacaoNova {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.calibComparacaoRotulo {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.calibComparacaoValor {
+  font-size: 15px;
+  color: #1e293b;
+}
+
+.calibComparacaoData {
+  font-size: 12px;
+  color: #64748b;
+}
+
+@media (max-width: 480px) {
+  .calibComparacao {
+    grid-template-columns: 1fr;
+  }
+}
+
 .calibAviso {
   font-size: 12.5px;
   color: #92400e;

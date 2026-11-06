@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
 import MemberLayout from '@/components/MemberLayout';
 import { SolicitacaoCard, SolicitacoesFiltros, SolicitacoesVazio, cardStyles } from '@/components/SolicitacaoCard';
+import { rotuloAcao, DetalhesGenericos, DetalhesCalibracao, DetalhesSensor } from '@/lib/solicitacoes';
 
 export default function MyRequests() {
   const { isAuthenticated, loading: authLoading } = useAuth();
@@ -57,8 +58,9 @@ export default function MyRequests() {
     excluir_sensor: 'Excluir sensor',
     editar_cativeiro_add_sensor: 'Adicionar sensor ao cativeiro',
     editar_cativeiro_remove_sensor: 'Remover sensor do cativeiro',
-    editar_dieta: 'Gerenciar dieta de cativeiro'
-  })[action] || action;
+    editar_dieta: 'Gerenciar dieta de cativeiro',
+    aplicar_calibracao: 'Aplicar calibração'
+  })[action] || rotuloAcao(action);
 
   const getTipoCamaraoNome = (id) => {
     const t = tiposCamarao.find(x => String(x._id) === String(id));
@@ -127,20 +129,16 @@ export default function MyRequests() {
       );
     }
 
-    // Fallback genérico: lista chaves legíveis e esconde ids técnicos
-    const hiddenKeys = new Set(['_id', 'id', 'cativeiroId', 'cativeiroNome', 'sensorId', 'fazendaId', 'fazenda', 'dietaId']);
-    const entries = Object.entries(payload).filter(([k]) => !hiddenKeys.has(k));
-    if (entries.length === 0) return null;
-    return (
-      <div className={cardStyles.detalhes}>
-        <div className={cardStyles.detalhesTitulo}>Alterações solicitadas</div>
-        <ul>
-          {entries.map(([k, v]) => (
-            <li key={k}><strong>{k.replaceAll('_', ' ')}:</strong> {typeof v === 'object' ? JSON.stringify(v) : String(v)}</li>
-          ))}
-        </ul>
-      </div>
-    );
+    if (action === 'editar_sensor') {
+      return <DetalhesSensor payload={payload} />;
+    }
+
+    if (action === 'aplicar_calibracao') {
+      return <DetalhesCalibracao payload={payload} rodape="O resultado passa a valer depois que o administrador da fazenda aprovar." />;
+    }
+
+    // Demais ações (inclusive antigas, como relatório individual): lista legível, ids técnicos ocultos
+    return <DetalhesGenericos payload={payload} titulo="Detalhes da solicitação" />;
   };
 
   const titulo = 'Minhas Solicitações';

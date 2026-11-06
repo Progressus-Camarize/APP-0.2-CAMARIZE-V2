@@ -8,6 +8,9 @@ import requestService from "./requestService.js";
 
 const round4 = (value) => Number(value.toFixed(4));
 
+// Campo do cativeiro com a data da calibração em uso, por tipo
+export const CAMPO_DATA_CALIBRACAO = { motor: "calibracao_motor_em", ph: "calibracao_ph_em" };
+
 export const isPositiveInteger = (value) => Number.isInteger(value) && value > 0;
 export const isPositiveNumber = (value) => Number.isFinite(value) && value > 0;
 export const isFiniteNumber = (value) => Number.isFinite(value);
@@ -127,18 +130,23 @@ async function finalizar(calibracao, camposDoCativeiro, resultado) {
   const pendenteAprovacao = calibracao.iniciadoPorRole === "membro";
 
   if (pendenteAprovacao) {
-    const vinculo = await FazendasxCativeiros.findOne({ cativeiro: calibracao.id_cativeiro }).lean();
+    const [vinculo, cativeiro] = await Promise.all([
+      FazendasxCativeiros.findOne({ cativeiro: calibracao.id_cativeiro }).lean(),
+      Cativeiros.findById(calibracao.id_cativeiro).select("nome").lean(),
+    ]);
     await requestService.create({
       requesterUser: calibracao.iniciadoPor,
       requesterRole: "membro",
       targetRole: "admin",
       type: "leve",
       action: "aplicar_calibracao",
-      payload: { cativeiroId: String(calibracao.id_cativeiro), tipo: calibracao.tipo, ...resultado },
+      // O nome vai junto para o histórico mostrar o cativeiro sem precisar buscar a lista
+      payload: { cativeiroId: String(calibracao.id_cativeiro), cativeiroNome: cativeiro?.nome || null, tipo: calibracao.tipo, ...resultado },
       fazenda: vinculo?.fazenda || null,
     });
   } else {
-    await Cativeiros.updateOne({ _id: calibracao.id_cativeiro }, { $set: camposDoCativeiro });
+    await Cativeiros.updateOne({ _id: calibracao.id_cativeiro },
+      { $set: { ...camposDoCativeiro, [CAMPO_DATA_CALIBRACAO[calibracao.tipo]]: new Date() } });
   }
 
   calibracao.etapa = "concluida";

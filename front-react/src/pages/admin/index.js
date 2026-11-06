@@ -9,6 +9,8 @@ import { useUnreadAvisos } from '@/hooks/useUnreadAvisos';
 import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 import styles from '../../styles/panel.module.css';
 import Notification from '../../components/Notification';
+import { rotuloAcao, DetalhesGenericos, DetalhesCalibracao, DetalhesSensor } from '../../lib/solicitacoes';
+import ConfirmarCalibracao, { mensagemCalibracaoAplicada } from '../../components/ConfirmarCalibracao';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 import Sidebar from '../../components/Sidebar';
@@ -68,6 +70,8 @@ export default function AdminPanel() {
   const [chatLoading, setChatLoading] = useState(false);
   const [showDeleteConvModal, setShowDeleteConvModal] = useState(false);
   const [adminNotification, setAdminNotification] = useState({ show: false, message: '', type: 'success' });
+  const [confirmarCalib, setConfirmarCalib] = useState(null); // solicitação de calibração aguardando confirmação
+  const [decidindo, setDecidindo] = useState(null); // id da solicitação sendo aprovada/recusada
   const chatEndRef = useRef(null);
 
   const getMyId = () => {
@@ -567,17 +571,15 @@ export default function AdminPanel() {
     }
   };
 
-  const getActionLabel = (action) => {
-    const map = {
-      editar_cativeiro_add_sensor: 'Solicitar vínculo de sensor',
-      editar_cativeiro_remove_sensor: 'Solicitar troca de sensor(es)',
-      cadastrar_cativeiro: 'Cadastrar cativeiro',
-      editar_cativeiro: 'Editar cativeiro',
-      editar_sensor: 'Editar sensor',
-      editar_dieta: 'Gerenciar dieta de cativeiro',
-      aplicar_calibracao: 'Aplicar calibração',
-    };
-    return map[action] || action;
+  const getActionLabel = (action) => rotuloAcao(action);
+
+  // Nome legível de um id citado numa solicitação (null = oculta o id técnico)
+  const nomeDoId = (chave, id) => {
+    const igual = (x) => String(x._id) === String(id);
+    if (/cativeiro/i.test(chave)) return cativeiros.find(igual)?.nome || null;
+    if (/fazenda/i.test(chave)) return fazendas.find(igual)?.nome || null;
+    if (/sensor/i.test(chave)) return sensores.find(igual)?.apelido || null;
+    return null;
   };
 
   const formatRequestDetails = (action, payload) => {
@@ -632,40 +634,12 @@ export default function AdminPanel() {
       );
     }
     if (action === 'editar_sensor') {
-      // Mostrar tipo e apelido do sensor quando disponível em `sensores`
-      const sensorMatch = (sensores || []).find(s => String(s._id) === String(payload?.id) || String(s.id) === String(payload?.id));
-      const tipo = sensorMatch ? (typeof sensorMatch.id_tipo_sensor === 'object' ? sensorMatch.id_tipo_sensor.descricao || sensorMatch.id_tipo_sensor.nome : sensorMatch.id_tipo_sensor) : null;
-      const apelido = sensorMatch ? (sensorMatch.apelido || '') : (payload?.apelido || 'N/A');
-      return (
-        <div className={cardStyles.detalhes}>
-          <div><strong>Sensor:</strong> {tipo ? `${tipo} | ${apelido}` : (payload?.apelido || payload?.id || 'N/A')}</div>
-          {payload?.apelido && <div><strong>Novo Apelido:</strong> {payload.apelido}</div>}
-        </div>
-      );
+      const sensor = (sensores || []).find(s => String(s._id) === String(payload?.id));
+      return <DetalhesSensor payload={payload} sensor={sensor} />;
     }
     if (action === 'aplicar_calibracao') {
       const nomeCativeiro = (cativeiros || []).find(c => String(c._id) === String(payload?.cativeiroId))?.nome;
-      const br = (n, casas) => (typeof n === 'number' ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: 4 }) : '—');
-      return (
-        <div className={cardStyles.detalhes}>
-          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nomeCativeiro || payload?.cativeiroId || 'N/A'}</div>
-          {payload?.tipo === 'motor' ? (
-            <ul>
-              <li><strong>Calibração:</strong> alimentador</li>
-              <li><strong>Rotações:</strong> {payload.rotacoes}</li>
-              <li><strong>Peso medido:</strong> {br(payload.gramas, 1)} g</li>
-              <li><strong>Resultado:</strong> {br(payload.gramas_por_rotacao, 1)} g/rotação</li>
-            </ul>
-          ) : (
-            <ul>
-              <li><strong>Calibração:</strong> sensor de pH</li>
-              <li><strong>Tensão no pH 7:</strong> {br(payload?.tensao_ph7, 2)} V</li>
-              <li><strong>Tensão no pH 4:</strong> {br(payload?.tensao_ph4, 2)} V</li>
-            </ul>
-          )}
-          <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>Ao aprovar, este resultado passa a valer para o cativeiro.</div>
-        </div>
-      );
+      return <DetalhesCalibracao payload={payload} nomeCativeiro={nomeCativeiro} rodape="Ao aprovar, este resultado passa a valer para o cativeiro." />;
     }
     if (action === 'editar_dieta') {
       const horarios = Array.isArray(payload?.horarios) ? payload.horarios.filter(h => h) : [];
@@ -681,9 +655,7 @@ export default function AdminPanel() {
         </div>
       );
     }
-    return (
-      <div className={cardStyles.detalhes}><pre>{JSON.stringify(payload, null, 2)}</pre></div>
-    );
+    return <DetalhesGenericos payload={payload} resolver={nomeDoId} />;
   };
 
   const getFazendaName = (id) => {
@@ -801,10 +773,28 @@ export default function AdminPanel() {
     }
   };
 
-  const act = async (id, op) => {
-    const token = getToken();
-    await axios.post(`${apiUrl}/requests/${id}/${op}`, {}, { headers: { Authorization: `Bearer ${token}` } });
-    await load();
+  // Aprova ou recusa uma solicitação, com retorno na tela; `sucesso` personaliza a mensagem
+  const act = async (id, op, sucesso) => {
+    setDecidindo(id);
+    try {
+      const token = getToken();
+      await axios.post(`${apiUrl}/requests/${id}/${op}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      setAdminNotification({ show: true, type: 'success',
+        message: sucesso || (op === 'approve' ? 'Solicitação aprovada.' : 'Solicitação recusada.') });
+      await load();
+      return true;
+    } catch (e) {
+      setAdminNotification({ show: true, type: 'error',
+        message: `Não foi possível ${op === 'approve' ? 'aprovar' : 'recusar'} a solicitação: ${e?.response?.data?.error || e.message}` });
+      return false;
+    } finally {
+      setDecidindo(null);
+    }
+  };
+
+  const aplicarCalibracaoConfirmada = async () => {
+    const item = confirmarCalib;
+    if (await act(item._id, 'approve', mensagemCalibracaoAplicada(item.payload))) setConfirmarCalib(null);
   };
 
   const applyAndApprove = async (item) => {
@@ -838,23 +828,25 @@ export default function AdminPanel() {
           if (tipoAtual) body.id_tipo_camarao = tipoAtual;
         }
         if (Object.keys(body).length === 0) {
-          alert('Nada para aplicar neste request.');
+          setAdminNotification({ show: true, message: 'Nada para aplicar nesta solicitação.', type: 'error' });
           return;
         }
         await axios.patch(`${apiUrl}/cativeiros/${payload.cativeiroId}`, body, { headers });
       } else if (action === 'editar_sensor' && payload?.id && payload?.apelido) {
         await axios.patch(`${apiUrl}/sensores/${payload.id}`, { apelido: payload.apelido }, { headers });
       } else if (action === 'aplicar_calibracao') {
-        // O servidor grava o resultado da calibração no cativeiro ao aprovar
+        // Confirma antes: mostra o valor em uso e o novo (o servidor grava ao aprovar)
+        setConfirmarCalib(item);
+        return;
       } else {
-        alert('Este tipo de solicitação não é leve ou falta informação.');
+        setAdminNotification({ show: true, message: 'Este tipo de solicitação não é leve ou falta informação.', type: 'error' });
         return;
       }
       // Recarrega dados do cativeiro para refletir alterações já aplicadas
       await load();
-      await act(_id, 'approve');
+      await act(_id, 'approve', 'Alteração aplicada e solicitação aprovada.');
     } catch (e) {
-      alert('Falha ao aplicar alteração: ' + (e?.response?.data?.error || e.message));
+      setAdminNotification({ show: true, message: 'Falha ao aplicar alteração: ' + (e?.response?.data?.error || e.message), type: 'error' });
     }
   };
 
@@ -1039,8 +1031,9 @@ export default function AdminPanel() {
                     mostrarSolicitante
                     detalhes={item.payload && Object.keys(item.payload).length > 0 ? formatRequestDetails(item.action, item.payload) : null}
                     acoes={[
-                      { rotulo: 'Aplicar e aprovar', tipo: 'aprovar', onClick: () => applyAndApprove(item) },
-                      { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject') },
+                      { rotulo: decidindo === item._id ? 'Aplicando...' : 'Aplicar e aprovar', tipo: 'aprovar',
+                        onClick: () => applyAndApprove(item), desabilitado: !!decidindo },
+                      { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject'), desabilitado: !!decidindo },
                     ]}
                   />
                 ))}
@@ -2183,6 +2176,16 @@ export default function AdminPanel() {
           </div>
         </div>
       </Modal>
+
+      {confirmarCalib && (
+        <ConfirmarCalibracao
+          item={confirmarCalib}
+          cativeiro={cativeiros.find(c => String(c._id) === String(confirmarCalib.payload?.cativeiroId))}
+          enviando={decidindo === confirmarCalib._id}
+          onCancelar={() => setConfirmarCalib(null)}
+          onConfirmar={aplicarCalibracaoConfirmada}
+        />
+      )}
 
       <Notification
         isVisible={adminNotification.show}
