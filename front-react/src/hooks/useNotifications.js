@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { chavePublicaVapid, urlBase64ToUint8Array, usaChaveAtual, enviarInscricao, removerInscricao } from '@/lib/push';
 
 export const useNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
@@ -41,7 +42,8 @@ export const useNotifications = () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      // Inscrição com chave antiga não recebe nada: aparece como "não inscrito" para o usuário reativar
+      setIsSubscribed(!!subscription && usaChaveAtual(subscription));
     } catch (error) {
       console.error('Erro ao verificar inscrição:', error);
     }
@@ -127,9 +129,18 @@ export const useNotifications = () => {
         throw new Error('Permissão necessária para notificações');
       }
 
-      // Converter VAPID key
-      const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa1l9aPvV0xXl3qzSxScyPRN-2M9ZAX4h6yJV9RqOEPf84jGrd0n3_2OlAi7Rg';
+      const vapidPublicKey = chavePublicaVapid();
+      if (!vapidPublicKey) {
+        throw new Error('Notificações push não estão configuradas neste ambiente (chave pública ausente).');
+      }
       const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+      // Inscrição antiga (feita com outra chave) é cancelada antes de criar a nova
+      const existente = await registration.pushManager.getSubscription();
+      if (existente && !usaChaveAtual(existente, vapidPublicKey)) {
+        await existente.unsubscribe();
+        await removerInscricao(existente).catch(() => {});
+      }
 
       // Inscrever para push
       const subscription = await registration.pushManager.subscribe({
@@ -140,7 +151,7 @@ export const useNotifications = () => {
       console.log('Inscrito para notificações push:', subscription);
 
       // Enviar subscription para o servidor
-      await sendSubscriptionToServer(subscription);
+      await enviarInscricao(subscription);
 
       setIsSubscribed(true);
       return true;
@@ -163,7 +174,7 @@ export const useNotifications = () => {
 
       if (subscription) {
         await subscription.unsubscribe();
-        await removeSubscriptionFromServer(subscription);
+        await removerInscricao(subscription);
         setIsSubscribed(false);
         console.log('Inscrição cancelada');
       }
@@ -197,93 +208,6 @@ export const useNotifications = () => {
       console.error('Erro ao enviar notificação de teste:', error);
       setError(error.message);
     }
-  };
-
-  const getStoredAuth = () => {
-    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-    try {
-      const u = JSON.parse(sessionStorage.getItem('usuarioCamarize') || localStorage.getItem('usuarioCamarize'));
-      return { token, userId: u?._id || u?.id || null };
-    } catch {
-      return { token, userId: null };
-    }
-  };
-
-  const sendSubscriptionToServer = async (subscription) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const { token, userId } = getStoredAuth();
-
-      const response = await fetch(`${apiUrl}/notifications/push/subscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          subscription: subscription,
-          userId: userId,
-          deviceInfo: {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Erro ao enviar subscription para o servidor');
-      }
-
-      console.log('Subscription enviada para o servidor');
-    } catch (error) {
-      console.error('Erro ao enviar subscription:', error);
-      throw error;
-    }
-  };
-
-  const removeSubscriptionFromServer = async (subscription) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const { token, userId } = getStoredAuth();
-
-      const response = await fetch(`${apiUrl}/notifications/push/unsubscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          subscription: subscription,
-          userId: userId
-        })
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Erro ao remover subscription do servidor');
-      }
-
-      console.log('Subscription removida do servidor');
-    } catch (error) {
-      console.error('Erro ao remover subscription:', error);
-      throw error;
-    }
-  };
-
-  const urlBase64ToUint8Array = (base64String) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
   };
 
   return {

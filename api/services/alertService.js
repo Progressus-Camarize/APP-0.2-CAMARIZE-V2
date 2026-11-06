@@ -62,6 +62,15 @@ const sendEmailsForAlert = async (alertData, userIds) => {
   }
 };
 
+// A inscrição nunca mais vai funcionar: o aparelho a cancelou (404/410) ou ela foi feita com outro
+// par de chaves VAPID (o Google responde 403 "do not correspond", a Apple 400 "VapidPkHashMismatch").
+// Outros 400/403 podem ser erro de configuração do próprio servidor: esses não desativam ninguém.
+export const inscricaoInvalida = (error) => {
+  const status = error?.statusCode;
+  if (status === 404 || status === 410) return true;
+  return (status === 400 || status === 403) && /VapidPkHashMismatch|do not correspond/i.test(String(error?.body || ''));
+};
+
 // Retorna {attempted, sent, failed} para quem chama decidir se deve tentar de novo.
 const sendPushForAlert = async (alertData, userIds) => {
   const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
@@ -107,9 +116,10 @@ const sendPushForAlert = async (alertData, userIds) => {
     } catch (error) {
       console.error(`❌ Erro ao enviar push para subscription ${sub._id}:`, error);
       failed++;
-      if (error.statusCode === 410) {
+      if (inscricaoInvalida(error)) {
+        // Para de tentar; o site reinscreve o aparelho com a chave atual quando ele for aberto
         await PushSubscription.findByIdAndUpdate(sub._id, { isActive: false });
-        console.log(`🗑️ Subscription ${sub._id} marcada como inativa`);
+        console.log(`🗑️ Subscription ${sub._id} marcada como inativa (${error.statusCode})`);
       }
     }
   }
