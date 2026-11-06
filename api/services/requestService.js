@@ -69,7 +69,9 @@ class RequestService {
   // Editar sensor: anota em qual cativeiro o sensor está, para o histórico mostrar.
   // Ignora cativeiroId/cativeiroNome vindos do cliente (o valor é sempre o do banco).
   async anotarCativeiroDoSensor(payload = {}) {
-    const { cativeiroId, cativeiroNome, ...resto } = payload || {};
+    const resto = { ...(payload || {}) };
+    delete resto.cativeiroId;
+    delete resto.cativeiroNome;
     if (!mongoose.isValidObjectId(resto.id)) return resto;
     const rel = await SensoresxCativeiros.findOne({ id_sensor: resto.id }).populate('id_cativeiro', 'nome').lean();
     if (!rel?.id_cativeiro) return resto;
