@@ -321,7 +321,7 @@ function CardCativeiro({ cativeiro: c, onCalibrar }) {
           <HiOutlineBeaker size={18} aria-hidden="true" />
           Calibrar pH
         </button>
-        <button type="button" className={styles.calibBotao} onClick={() => onCalibrar(c, 'motor')}>
+        <button type="button" className={`${styles.calibBotao} ${styles.calibBotaoAlimentador}`} onClick={() => onCalibrar(c, 'motor')}>
           <HiOutlineRefresh size={18} aria-hidden="true" />
           Calibrar alimentador
         </button>

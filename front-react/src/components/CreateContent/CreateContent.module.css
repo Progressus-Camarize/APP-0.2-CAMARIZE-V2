@@ -141,7 +141,7 @@
 .cadastrarBtn {
   width: 220px;
   margin: 24px auto 0 auto;
-  background: linear-gradient(90deg, #f7b0b7 0%, #a3c7f7 100%);
+  background: linear-gradient(90deg, var(--salmao-camarize) 0%, #a3c7f7 100%);
   color: #000;
   border: none;
   border-radius: 10px;

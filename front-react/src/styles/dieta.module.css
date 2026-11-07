@@ -1,0 +1,233 @@
+/* Como uma dieta aparece em qualquer tela (componente DietaCativeiro).
+   Usa a família Salmão Camarize (--salmao-* em globals.css). */
+
+.bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- Card da dieta ---------- */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 12px 18px;
+  background: var(--salmao-claro);
+  border: 1px solid var(--salmao-borda);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--salmao-forte);
+}
+
+.topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.icone {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--salmao-borda);
+  color: var(--salmao-texto);
+  font-size: 18px;
+}
+
+.titulos {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rotulo {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--salmao-texto);
+}
+
+.nome {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #1e293b;
+  overflow-wrap: anywhere;
+}
+
+.semNome {
+  font-weight: 400;
+  font-style: italic;
+  color: #64748b;
+}
+
+.total {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.total strong {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--salmao-texto);
+}
+
+.total small {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.linha {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--salmao-borda);
+  color: var(--salmao-texto);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+/* ---------- Alimentações de hoje ---------- */
+.hoje {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: #fff;
+  border-radius: 9px;
+}
+
+.hojeSolto {
+  border: 1px solid #e2e8f0;
+}
+
+.hojeRotulo {
+  margin-bottom: 2px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.alimentacao {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 0.78rem;
+}
+
+.alimentacao strong {
+  min-width: 40px;
+  color: #1e293b;
+}
+
+/* ---------- Estados ---------- */
+.vazio {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: #64748b;
+}
+
+.erro {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  font-size: 0.8rem;
+  color: #b91c1c;
+}
+
+.erroLinha {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b91c1c;
+}
+
+.carregando {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+/* ---------- Pedido aguardando o master ---------- */
+.pedido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px dashed var(--salmao-borda);
+  border-radius: 10px;
+}
+
+.pedidoTexto {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.pedidoTitulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: var(--salmao-texto);
+}
+
+.pedidoAcoes {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .topo {
+    flex-wrap: wrap;
+  }
+}

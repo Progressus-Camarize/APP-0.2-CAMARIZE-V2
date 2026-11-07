@@ -13,7 +13,7 @@ import { rotuloAcao, DetalhesGenericos, DetalhesCalibracao, DetalhesSensor } fro
 import ConfirmarCalibracao, { mensagemCalibracaoAplicada } from '../../components/ConfirmarCalibracao';
 import AdminMonitoramentoTab from '../../components/AdminMonitoramentoTab';
 import { useAuthToken, fotoCativeiroUrl, comprimirFoto } from "@/lib/fotoCativeiro";
-import { linhasAlimentacaoDoDia, COR_ALIMENTACAO } from "@/lib/alimentacoes";
+import DietaCativeiro from "../../components/DietaCativeiro";
 import Sidebar from '../../components/Sidebar';
 import { ADMIN_MENU, abasNavegaveis, abaInicialDaUrl } from '../../components/Sidebar/menus';
 import { lerCachePainel, salvarCachePainel } from "@/lib/painelCache";
@@ -1281,74 +1281,15 @@ export default function AdminPanel() {
 
                           {/* Dieta ativa */}
                           <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Dieta ativa</div>
-                            {cativeiroDieta[cativeiro._id] === undefined && <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Carregando...</div>}
-                            {cativeiroDieta[cativeiro._id] === null && (
-                              <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic', background: '#f8fafc', border: '1px dashed #e2e8f0', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
-                                Nenhuma dieta ativa para este cativeiro.
-                              </div>
-                            )}
-                            {cativeiroDieta[cativeiro._id]?.erro && (
-                              <div style={{ color: '#b91c1c', fontSize: '0.82rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
-                                Não foi possível carregar a dieta. Feche e abra o cativeiro para tentar de novo.
-                              </div>
-                            )}
-                            {cativeiroDieta[cativeiro._id] && !cativeiroDieta[cativeiro._id].erro && (() => {
-                              const d = cativeiroDieta[cativeiro._id];
-                              const horarios = Array.isArray(d.horarios) && d.horarios.length > 0 ? d.horarios : null;
-                              return (
-                                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
-                                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                                    <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 10px', borderRadius: 20, fontSize: '12px', fontWeight: 700, border: '1px solid #bbf7d0' }}>{d.descricao || '—'}</span>
-                                    {typeof d.quantidade !== 'undefined' && <span style={{ fontSize: '0.82rem', color: '#166534' }}><b>{d.quantidade}g</b> por refeição</span>}
-                                    {typeof d.quantidadeRefeicoes !== 'undefined' && <span style={{ fontSize: '0.82rem', color: '#166534' }}><b>{d.quantidadeRefeicoes}×</b> ao dia</span>}
-                                  </div>
-                                  {horarios && (
-                                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-                                      <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700 }}>Horários:</span>
-                                      {horarios.map((h, i) => (
-                                        <span key={i} style={{ background: '#dcfce7', color: '#15803d', padding: '1px 8px', borderRadius: 20, fontSize: '11px', fontWeight: 600, border: '1px solid #bbf7d0' }}>{h}</span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                            {(() => {
-                              const d = cativeiroDieta[cativeiro._id];
-                              const registros = alimentacoesHoje[cativeiro._id];
-                              if (registros === undefined) return null;
-                              if (registros?.erro) {
-                                return <div style={{ color: '#b91c1c', fontSize: '0.78rem', marginBottom: 8 }}>Não foi possível carregar as alimentações de hoje.</div>;
-                              }
-                              const linhas = linhasAlimentacaoDoDia(d && !d.erro ? d.horarios : [], registros);
-                              if (!linhas.length) return null;
-                              return (
-                                <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 14px', marginBottom: 8, background: '#fff' }}>
-                                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Alimentações de hoje</div>
-                                  {linhas.map(l => (
-                                    <div key={l.horario} style={{ display: 'flex', gap: 10, alignItems: 'baseline', fontSize: '0.8rem', padding: '3px 0' }}>
-                                      <b style={{ color: '#1e293b', minWidth: 42 }}>{l.horario}</b>
-                                      <span style={{ color: COR_ALIMENTACAO[l.situacao] }}>{l.texto}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            })()}
-                            {dietaPendente[cativeiro._id] && (() => {
-                              const p = dietaPendente[cativeiro._id].payload || {};
-                              const hs = Array.isArray(p.horarios) ? p.horarios.filter(Boolean) : [];
-                              const enviada = dietaPendente[cativeiro._id].createdAt
-                                ? new Date(dietaPendente[cativeiro._id].createdAt).toLocaleDateString('pt-BR') : null;
-                              return (
-                                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 8, fontSize: '0.8rem', color: '#1e40af', lineHeight: 1.45 }}>
-                                  <b>Aguardando aprovação do master</b>{enviada ? ` · enviada em ${enviada}` : ''}
-                                  <div style={{ color: '#1d4ed8' }}>
-                                    {p.quantidade}g por refeição · {p.quantidadeRefeicoes || hs.length || 1}× ao dia{hs.length ? ` (${hs.join(', ')})` : ''}
-                                  </div>
-                                </div>
-                              );
-                            })()}
+                            <div style={{ marginBottom: 10 }}>
+                              <DietaCativeiro
+                                dieta={cativeiroDieta[cativeiro._id]}
+                                alimentacoes={alimentacoesHoje[cativeiro._id]}
+                                pedido={dietaPendente[cativeiro._id]}
+                                textoSemDieta="Nenhuma dieta ativa para este cativeiro."
+                                textoErro="Não foi possível carregar a dieta. Feche e abra o cativeiro para tentar de novo."
+                              />
+                            </div>
                             <button
                               onClick={() => {
                                 const dietaAtual = cativeiroDieta[cativeiro._id]?.erro ? null : cativeiroDieta[cativeiro._id];
@@ -1443,11 +1384,11 @@ export default function AdminPanel() {
                         borderRadius: '50%',
                         background: funcionario.foto_perfil 
                           ? `url(${funcionario.foto_perfil}) center/cover`
-                          : '#10b981',
+                          : 'var(--salmao-camarize)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: 'white',
+                        color: '#000',
                         fontWeight: '600',
                         fontSize: '18px',
                         flexShrink: 0

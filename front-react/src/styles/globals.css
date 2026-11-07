@@ -33,6 +33,19 @@ body {
   --fourth-color: #121212;
   --fourth-color-alpha: #12121280;
   --label-color: #777;
+
+  /* Salmão Camarize: uma família só, no matiz do camarão do logo (#FDBFBD).
+     marca  = fundos de destaque (item ativo do menu, avatar, degradês)
+     forte  = faixas e traços (título da página, borda do card de dieta)
+     claro/borda = fundo e contorno dos cards de dieta e alimentação
+     texto  = texto sobre fundo salmão (escuro, para não parecer o vermelho de erro)
+     Uso: dieta, alimentação, números-chave e identidade. Nunca em botões comuns nem em alertas. */
+  --salmao-camarize: #fdbfbd;
+  --salmao-forte: #f28b88;
+  --salmao-claro: #fef1f0;
+  --salmao-hover: #fde3e2;
+  --salmao-borda: #fbd1d0;
+  --salmao-texto: #823835;
 }
 
 ::placeholder {

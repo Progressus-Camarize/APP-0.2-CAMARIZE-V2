@@ -63,7 +63,7 @@ export default function RegisterSucessoPage() {
           <button
             type="button"
             className={styles.loginButton}
-            style={{ background: "linear-gradient(90deg, #f7b0b7 0%, #a3c7f7 100%)", color: "#000", width: '100%' }}
+            style={{ background: "linear-gradient(90deg, var(--salmao-camarize) 0%, #a3c7f7 100%)", color: "#000", width: '100%' }}
           >
             Ir para Login
           </button>

@@ -1928,7 +1928,7 @@ export default function MasterPanel() {
               </button>
               <button
                 onClick={async () => { await changeRole(pendingRoleChange.userId, pendingRoleChange.newRole); setPendingRoleChange(null); }}
-                style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'linear-gradient(90deg, #f7b0b7 0%, #a3c7f7 100%)', color: '#0f172a', fontFamily: 'Poppins, sans-serif', fontSize: '0.855rem', fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'linear-gradient(90deg, var(--salmao-camarize) 0%, #a3c7f7 100%)', color: '#0f172a', fontFamily: 'Poppins, sans-serif', fontSize: '0.855rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 Confirmar
               </button>

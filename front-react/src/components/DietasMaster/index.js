@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-  TbBuildingWarehouse, TbChevronDown, TbToolsKitchen2, TbClock, TbPencil, TbTrash, TbPlus, TbX,
+  TbBuildingWarehouse, TbChevronDown, TbFish, TbPencil, TbTrash, TbPlus, TbX,
   TbCheck, TbRefresh, TbLoader2, TbAlertTriangle, TbSearch, TbHourglass,
 } from "react-icons/tb";
 import Modal from "../Modal";
 import { useSolicitacoesPendentes } from "@/hooks/useSolicitacoesPendentes";
-import { linhasAlimentacaoDoDia, COR_ALIMENTACAO } from "@/lib/alimentacoes";
+import DietaCativeiro from "../DietaCativeiro";
 import cardStyles from "@/styles/cards.module.css";
 import styles from "@/styles/dietas.module.css";
 
@@ -86,51 +86,27 @@ function FormularioDieta({ inicial, cativeiroNome, salvando, onCancelar, onSalva
   );
 }
 
-function ResumoDieta({ dieta }) {
-  const horarios = dieta.horarios || [];
-  return (
-    <div className={styles.dieta}>
-      <div className={styles.dietaLinha}>
-        {dieta.descricao && <span className={styles.dietaNome}>{dieta.descricao}</span>}
-        <span><strong>{numero(dieta.quantidade)} g</strong> por refeição</span>
-        <span><strong>{horarios.length}×</strong> ao dia</span>
-        <span className={styles.dietaTotal}>{numero(dieta.quantidade * horarios.length)} g/dia</span>
-      </div>
-      <div className={styles.chips}>
-        {horarios.map(h => <span key={h} className={styles.chip}><TbClock aria-hidden="true" />{h}</span>)}
-      </div>
-    </div>
-  );
-}
-
 function CativeiroDieta({ cativeiro, pedido, alimentacoes, decidindo, onEditar, onRemover, onDecidir }) {
   const dieta = cativeiro.dieta;
-  const linhas = alimentacoes && !alimentacoes.erro ? linhasAlimentacaoDoDia(dieta?.horarios || [], alimentacoes) : [];
-  const p = pedido?.payload || {};
-  const horariosPedido = horariosOrdenados(Array.isArray(p.horarios) ? p.horarios : []);
 
   return (
     <article className={styles.cativeiro}>
       <header className={styles.cativeiroTopo}>
-        <div className={styles.iconBox}><TbToolsKitchen2 aria-hidden="true" /></div>
+        <div className={styles.iconBox}><TbFish aria-hidden="true" /></div>
         <div className={styles.titulos}>
           <h4 className={styles.cativeiroNome}>{cativeiro.nome}</h4>
-          <span className={styles.subtitulo}>{dieta ? "Dieta configurada" : "Sem dieta: o alimentador não serve ração"}</span>
+          <span className={styles.subtitulo}>{dieta ? "Dieta configurada" : "Sem dieta"}</span>
         </div>
-        {pedido && <span className={styles.selo}><TbHourglass aria-hidden="true" /> Pedido pendente</span>}
+        {pedido && <span className={`${styles.selo} ${styles.seloPedido}`}><TbHourglass aria-hidden="true" /> Pedido pendente</span>}
       </header>
 
-      {dieta ? <ResumoDieta dieta={dieta} /> : <p className={styles.semDieta}>Nenhuma dieta definida para este cativeiro.</p>}
-
-      {pedido && (
-        <div className={styles.pedido}>
-          <div className={styles.pedidoTexto}>
-            <strong>{pedido.requesterUser?.nome || "Admin"}</strong> pediu
-            {pedido.createdAt ? ` em ${new Date(pedido.createdAt).toLocaleDateString("pt-BR")}` : ""}:{" "}
-            {p.descricao ? `"${p.descricao}" · ` : ""}{numero(p.quantidade)} g por refeição
-            {horariosPedido.length ? ` · ${horariosPedido.join(", ")}` : ""}
-          </div>
-          <div className={styles.pedidoAcoes}>
+      <DietaCativeiro
+        dieta={dieta}
+        alimentacoes={alimentacoes}
+        pedido={pedido}
+        pedidoTitulo={`${pedido?.requesterUser?.nome || "Admin"} pediu uma nova dieta`}
+        pedidoAcoes={pedido && (
+          <>
             <button type="button" className={`${cardStyles.btn} ${cardStyles.btnReject}`} disabled={decidindo}
               onClick={() => onDecidir(pedido, "reject")}>
               <TbX aria-hidden="true" /> Recusar
@@ -139,22 +115,10 @@ function CativeiroDieta({ cativeiro, pedido, alimentacoes, decidindo, onEditar, 
               onClick={() => onDecidir(pedido, "approve")}>
               {decidindo ? <TbLoader2 className={cardStyles.spin} aria-hidden="true" /> : <TbCheck aria-hidden="true" />} Aprovar
             </button>
-          </div>
-        </div>
-      )}
-
-      {alimentacoes?.erro && <p className={styles.erroLinha}>Não foi possível carregar as alimentações de hoje.</p>}
-      {linhas.length > 0 && (
-        <div className={styles.alimentacoes}>
-          <div className={styles.rotulo}>Alimentações de hoje</div>
-          {linhas.map(l => (
-            <div key={l.horario} className={styles.alimentacao}>
-              <strong>{l.horario}</strong>
-              <span style={{ color: COR_ALIMENTACAO[l.situacao] }}>{l.texto}</span>
-            </div>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+        textoSemDieta="Nenhuma dieta definida: o alimentador não serve ração."
+      />
 
       <footer className={styles.acoes}>
         {dieta && (

@@ -217,7 +217,7 @@ export default function RelatorioIndividual() {
           <div ref={relatorioRef}>
             {/* Card do cativeiro */}
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden', marginBottom: 20 }}>
-              <div style={{ height: 4, background: 'linear-gradient(90deg, #f7b0b7 0%, #a3c7f7 100%)' }} />
+              <div style={{ height: 4, background: 'linear-gradient(90deg, var(--salmao-camarize) 0%, #a3c7f7 100%)' }} />
               <div style={{ display: 'flex', gap: 16, padding: '16px 18px', alignItems: 'center' }}>
                 <img
                   src={fotoUrl}

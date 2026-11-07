@@ -135,6 +135,11 @@
   transition: transform 0.18s ease;
 }
 
+.seloPedido {
+  background: var(--salmao-claro);
+  color: var(--salmao-texto);
+}
+
 .setaAberta {
   transform: rotate(180deg);
 }
@@ -174,119 +179,11 @@
   overflow-wrap: anywhere;
 }
 
-.dieta {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
-  border-radius: 10px;
-}
-
-.dietaLinha {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 14px;
-  font-size: 0.82rem;
-  color: #1e3a8a;
-}
-
-.dietaNome {
-  font-weight: 600;
-  color: var(--accent-text);
-}
-
-.dietaTotal {
-  margin-left: auto;
-  font-weight: 600;
-  color: var(--accent-text);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: #fff;
-  border: 1px solid var(--accent-border);
-  color: var(--accent-text);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 .semDieta {
   margin: 0;
   font-size: 0.8rem;
   color: #64748b;
   font-style: italic;
-}
-
-/* Pedido do admin aguardando aprovação */
-.pedido {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px dashed var(--accent-border);
-  border-radius: 10px;
-  background: #fff;
-}
-
-.pedidoTexto {
-  flex: 1 1 260px;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: #334155;
-}
-
-.pedidoAcoes {
-  display: flex;
-  gap: 8px;
-}
-
-/* Alimentações de hoje */
-.alimentacoes {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.rotulo {
-  margin-bottom: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #94a3b8;
-}
-
-.alimentacao {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-  font-size: 0.8rem;
-}
-
-.alimentacao strong {
-  min-width: 42px;
-  color: #1e293b;
-}
-
-.erroLinha {
-  margin: 0;
-  font-size: 0.78rem;
-  color: #b91c1c;
 }
 
 .acoes {
@@ -367,7 +264,7 @@
   margin: 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--accent-text);
+  color: var(--salmao-texto);
 }
 
 .erroForm {
@@ -394,9 +291,5 @@
 
   .cativeiros {
     padding: 4px 12px 12px 16px;
-  }
-
-  .dietaTotal {
-    margin-left: 0;
   }
 }
