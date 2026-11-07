@@ -28,6 +28,7 @@ const sensoresPermitidos = async (ids, loggedUser) => {
 };
 import Aviso from '../models/Aviso.js';
 import { freshness, VALID_READING_FILTER } from '../services/avisoService.js';
+import { resumoAlimentacaoDoDia } from '../services/alimentacaoService.js';
 
 /**
  * Verifica se um usuário tem permissão para acessar um cativeiro.
@@ -450,6 +451,7 @@ const getSensoresCativeiro = async (req, res) => {
 const getCativeirosStatus = async (req, res) => {
   try {
     const cativeiros = await cativeiroService.getAllByUsuarioViaRelacionamentos(req.loggedUser.id);
+    const alimentacao = await resumoAlimentacaoDoDia(cativeiros.map(c => c._id));
     const items = await Promise.all(cativeiros.map(async cativeiro => {
       const [reading, avisos] = await Promise.all([
         ParametrosAtuais.findOne({ id_cativeiro: cativeiro._id, ...VALID_READING_FILTER }).sort({ datahora: -1 }).lean(),
@@ -474,6 +476,7 @@ const getCativeirosStatus = async (req, res) => {
         totalAlertas: avisos.length,
         ultimaAtualizacao: reading?.datahora,
         frescor,
+        alimentacao: alimentacao.get(String(cativeiro._id)) || null,
       };
     }));
     res.json({ success: true, cativeiros: items, resumo: {

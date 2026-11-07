@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import MemberLayout from "../MemberLayout";
 import Modal from "../Modal";
+import DietaCativeiro from "../DietaCativeiro";
 import panelStyles from "@/styles/panel.module.css";
 import { TbThermometer, TbWifiOff, TbFlask2 } from "react-icons/tb";
 import { rotaListaDeCativeiros } from "../Sidebar/menus";
@@ -61,6 +62,8 @@ export default function Dashboard() {
   const [sseKey, setSseKey]               = useState(0);
   const [showRelatorio, setShowRelatorio] = useState(false);
   const [tooltip, setTooltip]             = useState(null);
+  const [dieta, setDieta]                 = useState(undefined); // undefined carregando | null sem dieta | { erro }
+  const [alimentacoes, setAlimentacoes]   = useState(undefined);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
   // SSE conecta direto na API (sem passar pelo proxy do Next.js que buferiza streaming).
@@ -74,9 +77,27 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Dieta e alimentações de hoje (a placa informa cada refeição)
+  const carregarAlimentacao = async () => {
+    if (!id) return;
+    const headers = { Authorization: `Bearer ${getToken()}` };
+    const [d, a] = await Promise.allSettled([
+      axios.get(`${apiUrl}/dietas/atual/${id}`, { headers, params: { _: Date.now() } }),
+      axios.get(`${apiUrl}/alimentacoes/${id}`, { headers }),
+    ]);
+    setDieta(d.status === 'fulfilled' ? d.value.data : (d.reason?.response?.status === 404 ? null : { erro: true }));
+    setAlimentacoes(a.status === 'fulfilled' ? (a.value.data?.alimentacoes || []) : { erro: true });
+  };
+
+  useEffect(() => {
+    carregarAlimentacao();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   // Busca pontual via REST — usada pelo botão Atualizar como fallback
   const buscar = async () => {
     if (!id) return;
+    carregarAlimentacao();
     const token = getToken();
     if (!token) { setError('Token não encontrado. Faça login novamente.'); return; }
     try {
@@ -391,6 +412,16 @@ export default function Dashboard() {
               </div>
             );
           })}
+        </div>
+
+        {/* Alimentação */}
+        <div style={{ marginBottom: 24 }}>
+          <h2 className={panelStyles.sectionTitle} style={{ marginBottom: 10 }}>Alimentação</h2>
+          <DietaCativeiro
+            dieta={dieta}
+            alimentacoes={alimentacoes}
+            textoSemDieta="Este cativeiro ainda não tem dieta: o alimentador não serve ração."
+          />
         </div>
 
         {/* Gráfico de tendência semanal */}

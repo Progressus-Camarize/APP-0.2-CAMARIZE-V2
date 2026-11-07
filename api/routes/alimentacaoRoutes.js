@@ -37,6 +37,18 @@ router.post("/", alimentacaoController.registrarAlimentacao);
 
 /**
  * @swagger
+ * /alimentacoes/hoje:
+ *   get:
+ *     summary: Resumo de hoje (dieta, gramas servidos e próximo horário) de cada cativeiro do usuário
+ *     tags: [Alimentações]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: "{ data, cativeiros: { [id]: { dieta, gramasPrevistas, gramasServidas, refeicoesServidas, refeicoesPrevistas, proximo } } }" }
+ */
+router.get("/hoje", Auth.Authorization, Cache.noStore, alimentacaoController.resumoDeHoje);
+
+/**
+ * @swagger
  * /alimentacoes/{cativeiroId}:
  *   get:
  *     summary: Refeições de um dia do cativeiro (padrão hoje, horário de Brasília)

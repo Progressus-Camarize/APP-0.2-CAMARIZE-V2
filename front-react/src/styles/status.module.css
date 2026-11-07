@@ -62,9 +62,28 @@
 
 .resumoAtivo,
 .resumoAtivo:hover {
-  background: #dbeafe;
+  background: var(--resumo-ativo, #dbeafe);
   border-color: #e2e8f0;
   box-shadow: none;
+}
+
+/* Cada contador na cor do que representa ("Todos" fica no azul) */
+.resumoAlerta {
+  --accent: #f59e0b;
+  --accent-text: #b45309;
+  --resumo-ativo: #fef3c7;
+}
+
+.resumoSemDados {
+  --accent: #94a3b8;
+  --accent-text: #475569;
+  --resumo-ativo: #e2e8f0;
+}
+
+.resumoOk {
+  --accent: #22c55e;
+  --accent-text: #15803d;
+  --resumo-ativo: #dcfce7;
 }
 
 .resumoNumero {
@@ -318,6 +337,39 @@
 
 .leituraAntiga svg {
   color: #f59e0b;
+}
+
+.rodapeInfo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+/* Próxima ração: assunto alimentação, na família salmão */
+.racao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--salmao-claro);
+  border: 1px solid var(--salmao-borda);
+  color: var(--salmao-texto);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.racao svg {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.racaoSemDieta {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+  font-weight: 500;
 }
 
 @media (max-width: 900px) {

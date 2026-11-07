@@ -10,6 +10,22 @@ import GuidedTour from "../GuidedTour";
 import SolicitarVinculo from "../SolicitarVinculo";
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
+const gramasBr = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+
+// Quanto da ração prevista para hoje a placa já informou como servida
+function RacaoDoDia({ resumo }) {
+  if (!resumo?.dieta || !resumo.gramasPrevistas) return null;
+  const pct = Math.min(100, Math.round((resumo.gramasServidas / resumo.gramasPrevistas) * 100));
+  return (
+    <div className={styles.racao} title={`${resumo.refeicoesServidas} de ${resumo.refeicoesPrevistas} refeições servidas hoje`}>
+      <span className={styles.racaoTexto}>
+        Ração hoje <strong>{gramasBr(resumo.gramasServidas)} de {gramasBr(resumo.gramasPrevistas)} g</strong>
+      </span>
+      <span className={styles.racaoBarra} aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
+    </div>
+  );
+}
+
 export default function HomeContent({ sidebarRefs, hideTour = false }) {
   const authToken = useAuthToken();
   const router = useRouter();
@@ -37,6 +53,8 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
     setNotification({ show: false, message: '', type: 'success' });
   };
 
+  const [racaoHoje, setRacaoHoje] = useState({}); // cativeiroId -> resumo de /alimentacoes/hoje
+
   const fetchCativeiros = async () => {
     try {
       setLoading(true);
@@ -52,6 +70,10 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCativeiros(res.data);
+      // Ração de hoje de cada cativeiro: não bloqueia a lista se falhar
+      axios.get(`${apiUrl}/alimentacoes/hoje`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => setRacaoHoje(r.data?.cativeiros || {}))
+        .catch(() => setRacaoHoje({}));
     } catch (err) {
       console.error('Erro ao buscar cativeiros:', err);
       if (err.response?.status === 401) {
@@ -257,6 +279,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                       ? cativeiro.id_tipo_camarao.nome
                       : (cativeiro.id_tipo_camarao || 'Tipo não informado')
                   }</div>
+                  <RacaoDoDia resumo={racaoHoje[cativeiro._id]} />
                 </div>
                 
                 <div className={styles.cativeiroActions}>

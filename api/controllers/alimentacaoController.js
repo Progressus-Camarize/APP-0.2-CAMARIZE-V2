@@ -1,14 +1,12 @@
 import mongoose from "mongoose";
 import Alimentacoes from "../models/Alimentacoes.js";
 import cativeiroController from "./cativeiroController.js";
+import cativeiroService from "../services/cativeiroService.js";
 import { verificarChaveDispositivo } from "../services/deviceAuthService.js";
+import { hojeEmBrasilia, resumoAlimentacaoDoDia } from "../services/alimentacaoService.js";
 
 const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const HORARIO_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
-
-// Data de hoje no fuso da placa (Brasília), no mesmo formato que ela envia
-export const hojeEmBrasilia = (agora = new Date()) =>
-  agora.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 
 const numeroOuNull = (v) => (v === undefined || v === null || !Number.isFinite(Number(v)) ? null : Number(v));
 
@@ -74,4 +72,19 @@ const listarAlimentacoes = async (req, res) => {
   }
 };
 
-export default { registrarAlimentacao, listarAlimentacoes };
+// GET /alimentacoes/hoje — resumo de hoje de cada cativeiro que o usuário enxerga (Home)
+const resumoDeHoje = async (req, res) => {
+  try {
+    const { id, role } = req.loggedUser;
+    const cativeiros = role === "master"
+      ? await cativeiroService.getAll()
+      : await cativeiroService.getAllByUsuarioViaRelacionamentos(id);
+    const resumos = await resumoAlimentacaoDoDia(cativeiros.map(c => c._id));
+    return res.json({ data: hojeEmBrasilia(), cativeiros: Object.fromEntries(resumos) });
+  } catch (err) {
+    console.error("Erro ao resumir alimentações de hoje:", err);
+    return res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+export default { registrarAlimentacao, listarAlimentacoes, resumoDeHoje };

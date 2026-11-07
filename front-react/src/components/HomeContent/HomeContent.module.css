@@ -51,6 +51,41 @@
   margin-top: 2px;
 }
 
+/* Ração de hoje: família salmão (assunto alimentação) */
+.racao {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 220px;
+  margin-top: 6px;
+}
+
+.racaoTexto {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.racaoTexto strong {
+  color: var(--salmao-texto);
+  font-weight: 600;
+}
+
+.racaoBarra {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--salmao-claro);
+  border: 1px solid var(--salmao-borda);
+  overflow: hidden;
+}
+
+.racaoBarra span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--salmao-forte);
+}
+
 .cativeiroActions {
   display: flex;
   gap: 6px;

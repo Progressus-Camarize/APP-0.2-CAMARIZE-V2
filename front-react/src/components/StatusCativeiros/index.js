@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import axios from "axios";
 import {
   TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbAlertTriangle, TbCircleCheck,
-  TbActivity, TbRefresh, TbLoader2, TbTrendingUp, TbChartLine, TbBuildingWarehouse,
+  TbActivity, TbRefresh, TbLoader2, TbTrendingUp, TbChartLine, TbBuildingWarehouse, TbToolsKitchen2,
 } from "react-icons/tb";
 import { formatarTempoDesde } from "@/lib/tempo";
 import styles from "@/styles/status.module.css";
@@ -21,10 +21,10 @@ const STATUS = {
 const ORDEM = ["alerta", "sem_dados", "ok"];
 
 const FILTROS = [
-  { key: "", label: "Todos" },
-  { key: "alerta", label: "Com aviso" },
-  { key: "sem_dados", label: "Sem leitura recente" },
-  { key: "ok", label: "Normais" },
+  { key: "", label: "Todos", classe: "" },
+  { key: "alerta", label: "Com aviso", classe: styles.resumoAlerta },
+  { key: "sem_dados", label: "Sem leitura recente", classe: styles.resumoSemDados },
+  { key: "ok", label: "Normais", classe: styles.resumoOk },
 ];
 
 const ICONE_TIPO = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
@@ -77,6 +77,27 @@ function AlertaLinha({ alerta }) {
   );
 }
 
+const gramas = (n) => `${Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} g`;
+
+// Próxima refeição do alimentador (resumo calculado pela API no horário de Brasília)
+function ProximaRacao({ alimentacao }) {
+  if (!alimentacao) return null;
+  if (!alimentacao.dieta || !alimentacao.proximo) {
+    return (
+      <span className={`${styles.racao} ${styles.racaoSemDieta}`}>
+        <TbToolsKitchen2 aria-hidden="true" /> Sem dieta definida
+      </span>
+    );
+  }
+  const { proximo, dieta } = alimentacao;
+  return (
+    <span className={styles.racao} title={`${gramas(alimentacao.gramasServidas)} de ${gramas(alimentacao.gramasPrevistas)} servidos hoje`}>
+      <TbToolsKitchen2 aria-hidden="true" />
+      Próxima ração {proximo.amanha ? "amanhã " : ""}às {proximo.horario} · {gramas(dieta.quantidade)}
+    </span>
+  );
+}
+
 function CativeiroCard({ cativeiro, onAbrir }) {
   const cfg = STATUS[cativeiro.status] || STATUS.sem_dados;
   const alertas = cativeiro.alertasDetalhados || [];
@@ -109,10 +130,13 @@ function CativeiroCard({ cativeiro, onAbrir }) {
         )}
 
         <footer className={styles.cardRodape}>
-          <span className={`${styles.leitura} ${cativeiro.status === "sem_dados" ? styles.leituraAntiga : ""}`}>
-            <TbActivity aria-hidden="true" />
-            {ultimaLeitura ? `Última leitura ${ultimaLeitura}` : "Nenhuma leitura recebida"}
-          </span>
+          <div className={styles.rodapeInfo}>
+            <span className={`${styles.leitura} ${cativeiro.status === "sem_dados" ? styles.leituraAntiga : ""}`}>
+              <TbActivity aria-hidden="true" />
+              {ultimaLeitura ? `Última leitura ${ultimaLeitura}` : "Nenhuma leitura recebida"}
+            </span>
+            <ProximaRacao alimentacao={cativeiro.alimentacao} />
+          </div>
           <button type="button" className={`${cardStyles.btn} ${cardStyles.btnGhost}`} onClick={() => onAbrir(cativeiro.id)}>
             <TbChartLine aria-hidden="true" /> Ver dashboard
           </button>
@@ -198,13 +222,13 @@ export default function StatusCativeiros() {
   return (
     <section className={styles.wrap}>
       <div className={styles.resumo}>
-        {FILTROS.map(({ key, label }) => {
+        {FILTROS.map(({ key, label, classe }) => {
           const ativo = filtro === key;
           return (
             <button
               key={key || "todos"}
               type="button"
-              className={`${styles.resumoItem} ${ativo ? styles.resumoAtivo : ""}`}
+              className={`${styles.resumoItem} ${classe} ${ativo ? styles.resumoAtivo : ""}`}
               aria-pressed={ativo}
               onClick={() => setFiltro(ativo ? "" : key)}
             >
