@@ -62,8 +62,8 @@ export const useNotifications = () => {
           'Para testar localmente, adicione NEXT_PUBLIC_ENABLE_PUSH_DEV=true ao seu .env.local'
         );
         throw new Error(
-          'Push não disponível em desenvolvimento. ' +
-          'Adicione NEXT_PUBLIC_ENABLE_PUSH_DEV=true ao .env.local para habilitar.'
+          'Push is not available in development. ' +
+          'Add NEXT_PUBLIC_ENABLE_PUSH_DEV=true to .env.local to enable it.'
         );
       }
 
@@ -90,7 +90,7 @@ export const useNotifications = () => {
       setError(null);
 
       if (!('Notification' in window)) {
-        throw new Error('Notificações não são suportadas neste navegador');
+        throw new Error('Notifications are not supported in this browser');
       }
 
       const permission = await Notification.requestPermission();
@@ -100,7 +100,7 @@ export const useNotifications = () => {
         console.log('Permissão concedida!');
         return true;
       } else {
-        throw new Error('Permissão negada para notificações');
+        throw new Error('Notification permission denied');
       }
     } catch (error) {
       console.error('Erro ao solicitar permissão:', error);
@@ -120,18 +120,18 @@ export const useNotifications = () => {
       const registration = await registerServiceWorker();
 
       if (!registration) {
-        throw new Error('Service Worker não pôde ser registrado');
+        throw new Error('Service Worker could not be registered');
       }
 
       // Solicitar permissão
       const hasPermission = await requestPermission();
       if (!hasPermission) {
-        throw new Error('Permissão necessária para notificações');
+        throw new Error('Notification permission is required');
       }
 
       const vapidPublicKey = chavePublicaVapid();
       if (!vapidPublicKey) {
-        throw new Error('Notificações push não estão configuradas neste ambiente (chave pública ausente).');
+        throw new Error('Push notifications are not configured in this environment (missing public key).');
       }
       const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
 
@@ -195,8 +195,8 @@ export const useNotifications = () => {
 
       // Enviar notificação de teste através do Service Worker
       const registration = await navigator.serviceWorker.ready;
-      await registration.showNotification('Camarize - Teste', {
-        body: 'Esta é uma notificação de teste!',
+      await registration.showNotification('Camarize - Test', {
+        body: 'This is a test notification!',
         icon: '/images/logo_camarize1.png',
         badge: '/images/logo_camarize2.png',
         vibrate: [100, 50, 100],

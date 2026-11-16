@@ -5,9 +5,9 @@ import Notification from '../components/Notification';
 import styles from '../styles/panel.module.css';
 
 const SENSOR_CFG = {
-  temperatura: { label: 'Temperatura', icon: '🌡️', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
+  temperatura: { label: 'Temperature', icon: '🌡️', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
   ph:          { label: 'pH',          icon: '🧪', bg: '#eff6ff', stripe: '#3b82f6', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
-  amonia:      { label: 'Amônia',      icon: '⚗️', bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
+  amonia:      { label: 'Ammonia',     icon: '⚗️', bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
 };
 
 const DEFAULT_CFG = { label: 'Sensor', icon: '📡', bg: '#f8fafc', stripe: '#94a3b8', badgeBg: '#f1f5f9', badgeColor: '#475569' };
@@ -21,10 +21,10 @@ function normalizeTipo(raw) {
 }
 
 const FILTROS_TIPO = [
-  { key: '', label: 'Todos' },
-  { key: 'temperatura', label: 'Temperatura' },
+  { key: '', label: 'All' },
+  { key: 'temperatura', label: 'Temperature' },
   { key: 'ph', label: 'pH' },
-  { key: 'amonia', label: 'Amônia' },
+  { key: 'amonia', label: 'Ammonia' },
 ];
 
 export default function SensoresPage() {
@@ -47,7 +47,7 @@ export default function SensoresPage() {
           : null;
 
         if (!token) {
-          setError('Você precisa estar logado para acessar esta página.');
+          setError('You need to be logged in to access this page.');
           return;
         }
 
@@ -91,9 +91,9 @@ export default function SensoresPage() {
         setSensores(unique);
       } catch (err) {
         if (err.response?.status === 401) {
-          setError('Sessão expirada. Faça login novamente.');
+          setError('Session expired. Please log in again.');
         } else {
-          setError('Erro ao carregar os sensores. Tente novamente.');
+          setError('Error loading sensors. Please try again.');
         }
       } finally {
         setLoading(false);
@@ -126,9 +126,9 @@ export default function SensoresPage() {
 
   if (loading) {
     return (
-      <MemberLayout title="Sensores" subtitle="Sensores conectados aos seus cativeiros">
+      <MemberLayout title="Sensors" subtitle="Sensors connected to your ponds">
         <div className={styles.loadingScreen} style={{ minHeight: 'unset', padding: '60px 0' }}>
-          Carregando sensores...
+          Loading sensors...
         </div>
       </MemberLayout>
     );
@@ -136,7 +136,7 @@ export default function SensoresPage() {
 
   if (error) {
     return (
-      <MemberLayout title="Sensores" subtitle="Sensores conectados aos seus cativeiros">
+      <MemberLayout title="Sensors" subtitle="Sensors connected to your ponds">
         <div className={styles.emptyState}>
           <div className={styles.emptyStateIcon}>⚠️</div>
           <p className={styles.emptyStateText}>{error}</p>
@@ -146,27 +146,27 @@ export default function SensoresPage() {
   }
 
   return (
-    <MemberLayout title="Sensores" subtitle="Sensores conectados aos seus cativeiros">
+    <MemberLayout title="Sensors" subtitle="Sensors connected to your ponds">
       <div className={styles.section}>
 
         {/* Cabeçalho */}
         <div className={styles.sectionHeader}>
           <div>
-            <h2 className={styles.sectionTitle}>Sensores IoT</h2>
+            <h2 className={styles.sectionTitle}>IoT Sensors</h2>
             <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-              {sensores.length} sensor{sensores.length !== 1 ? 'es' : ''} vinculado{sensores.length !== 1 ? 's' : ''}
+              {sensores.length} linked sensor{sensores.length !== 1 ? 's' : ''}
             </p>
           </div>
           <button
             className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
             onClick={() => setOrdenado(o => !o)}
-            title={ordenado ? 'Remover ordenação' : 'Ordenar por código decrescente'}
+            title={ordenado ? 'Remove sorting' : 'Sort by code, descending'}
             style={ordenado ? { borderColor: '#a3c7f7', background: '#eff6ff', color: '#1d4ed8' } : {}}
           >
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
               <path d="M3 18h6M3 6h18M3 12h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            {ordenado ? 'Ordenado ↓' : 'Ordenar'}
+            {ordenado ? 'Sorted ↓' : 'Sort'}
           </button>
         </div>
 
@@ -204,7 +204,7 @@ export default function SensoresPage() {
         <div className={styles.filterBar} style={{ alignItems: 'center' }}>
           {/* Campo de busca com ícone interno */}
           <div className={styles.filterGroup} style={{ flex: 1 }}>
-            <label className={styles.filterLabel}>Buscar</label>
+            <label className={styles.filterLabel}>Search</label>
             <div style={{ position: 'relative' }}>
               <svg
                 width="15" height="15" fill="none" viewBox="0 0 24 24"
@@ -216,7 +216,7 @@ export default function SensoresPage() {
               <input
                 className={styles.filterInput}
                 type="text"
-                placeholder="Tipo, apelido ou cativeiro..."
+                placeholder="Type, nickname or pond..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 style={{ paddingLeft: 32, width: '100%', minWidth: 0 }}
@@ -226,7 +226,7 @@ export default function SensoresPage() {
 
           {/* Pills de tipo */}
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Tipo</label>
+            <label className={styles.filterLabel}>Type</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {FILTROS_TIPO.map(({ key, label }) => {
                 const cfg = SENSOR_CFG[key];
@@ -255,14 +255,14 @@ export default function SensoresPage() {
           {temFiltroAtivo && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'flex-end' }}>
               <span className={styles.filterCount}>
-                {lista.length} de {sensores.length}
+                {lista.length} of {sensores.length}
               </span>
               <button
                 onClick={() => { setBusca(''); setTipoFiltro(''); }}
                 className={`${styles.btn} ${styles.btnSm}`}
                 style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontSize: 11 }}
               >
-                Limpar filtros
+                Clear filters
               </button>
             </div>
           )}
@@ -274,8 +274,8 @@ export default function SensoresPage() {
             <div className={styles.emptyStateIcon}>📡</div>
             <p className={styles.emptyStateText}>
               {sensores.length === 0
-                ? 'Nenhum sensor vinculado aos seus cativeiros.'
-                : 'Nenhum sensor corresponde ao filtro aplicado.'}
+                ? 'No sensors linked to your ponds.'
+                : 'No sensors match the applied filter.'}
             </p>
           </div>
         ) : (
@@ -316,7 +316,7 @@ export default function SensoresPage() {
                           marginBottom: 4, whiteSpace: 'nowrap',
                           overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
-                          {sensor.apelido || 'Sem apelido'}
+                          {sensor.apelido || 'No nickname'}
                         </div>
                         <span style={{
                           display: 'inline-block',

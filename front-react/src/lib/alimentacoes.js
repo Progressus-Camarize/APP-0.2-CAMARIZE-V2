@@ -16,18 +16,18 @@ export function linhasAlimentacaoDoDia(horariosDieta, registros) {
   return horarios.map(horario => {
     const r = porHorario.get(horario);
     if (r?.status === 'servida') {
-      const hora = new Date(r.registradoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
-      const gramas = r.gramas != null ? ` · ${Number(r.gramas).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} g` : '';
-      const atraso = r.atrasoMin > 0 ? ` (${r.atrasoMin} min de atraso)` : '';
-      return { horario, situacao: 'servida', texto: `Servida às ${hora}${gramas}${atraso}` };
+      const hora = new Date(r.registradoEm).toLocaleTimeString('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+      const gramas = r.gramas != null ? ` · ${Number(r.gramas).toLocaleString('en-US', { maximumFractionDigits: 1 })} g` : '';
+      const atraso = r.atrasoMin > 0 ? ` (${r.atrasoMin} min late)` : '';
+      return { horario, situacao: 'servida', texto: `Served at ${hora}${gramas}${atraso}` };
     }
     if (r?.status === 'falhou') {
       const aindaTenta = minutoAgora <= minutosDoHorario(horario) + JANELA_ATRASO_ALIMENTACAO_MIN;
-      return { horario, situacao: 'falhou', texto: `Não servida${r.motivo ? `: ${r.motivo}` : ''}${aindaTenta ? ' · a placa ainda vai tentar' : ''}` };
+      return { horario, situacao: 'falhou', texto: `Not served${r.motivo ? `: ${r.motivo}` : ''}${aindaTenta ? ' · the board will retry' : ''}` };
     }
     if (minutoAgora > minutosDoHorario(horario) + JANELA_ATRASO_ALIMENTACAO_MIN) {
-      return { horario, situacao: 'sem_registro', texto: 'Sem registro da placa (desligada, sem internet ou firmware antigo)' };
+      return { horario, situacao: 'sem_registro', texto: 'No report from the board (off, offline or outdated firmware)' };
     }
-    return { horario, situacao: 'prevista', texto: minutoAgora >= minutosDoHorario(horario) ? 'Aguardando a placa' : 'Prevista' };
+    return { horario, situacao: 'prevista', texto: minutoAgora >= minutosDoHorario(horario) ? 'Waiting for the board' : 'Scheduled' };
   });
 }

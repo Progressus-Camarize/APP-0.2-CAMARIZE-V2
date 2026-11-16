@@ -26,7 +26,7 @@ export function useAuth() {
       const token = (typeof window !== 'undefined' ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null);
       if (!token) {
         setIsAuthenticated(false);
-        setError('Você precisa estar logado para acessar esta página');
+        setError('You need to be signed in to access this page');
         return;
       }
 
@@ -45,10 +45,10 @@ export function useAuth() {
       console.error('Erro de autenticação:', err);
       
       if (err.response?.status === 401) {
-        setError('Sessão expirada. Faça login novamente para continuar.');
+        setError('Session expired. Please sign in again to continue.');
         // Não limpar imediatamente o storage para evitar loop de redirecionamento
       } else {
-        setError('Erro ao verificar autenticação. Tente novamente.');
+        setError('Error verifying authentication. Please try again.');
       }
       
       setIsAuthenticated(false);

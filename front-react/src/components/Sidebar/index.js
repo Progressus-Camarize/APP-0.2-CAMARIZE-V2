@@ -27,11 +27,11 @@ export default function Sidebar({ items, userName, roleLabel, open, onLogout }) 
             onClick={item.disabled ? undefined : item.onClick}
             disabled={item.disabled}
             aria-current={item.active ? 'page' : undefined}
-            title={item.disabled ? `${item.label} — ${item.hint || 'em breve'}` : item.label}
+            title={item.disabled ? `${item.label} — ${item.hint || 'coming soon'}` : item.label}
           >
             <span className={styles.navIcon}>{item.icon}</span>
             <span className={styles.navLabel}>{item.label}</span>
-            {item.disabled && <span className={styles.navHint}>{item.hint || 'em breve'}</span>}
+            {item.disabled && <span className={styles.navHint}>{item.hint || 'coming soon'}</span>}
             {item.badge > 0 && <span className={styles.navBadge}>{item.badge}</span>}
           </button>
         ))}
@@ -46,7 +46,7 @@ export default function Sidebar({ items, userName, roleLabel, open, onLogout }) 
           </div>
         </div>
         <button type="button" className={styles.sidebarLogoutBtn} onClick={onLogout}>
-          Sair da conta
+          Log out
         </button>
       </div>
     </aside>

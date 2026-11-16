@@ -52,25 +52,25 @@ export default function NavBottom({ homeRef, settingsRef, requestsRef, notificat
         <img src="/images/settings.svg" alt="Settings" style={{ width: '32px', height: '32px' }} />
       </button>
       {/* <button ref={plusRef} onClick={() => router.push('/create-cativeiros')} className={styles.plusButton}>
-        <img src="/images/plus.svg" alt="Adicionar" className={styles.plusIcon} />
+        <img src="/images/plus.svg" alt="Add" className={styles.plusIcon} />
       </button> */}
       <button 
         ref={requestsRef} 
         onClick={() => router.push('/requests')} 
-        title="Minhas Solicitações"
+        title="My Requests"
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
       >
-        <img src="/images/history.svg" alt="Minhas Solicitações" style={{ width: '32px', height: '32px' }} />
+        <img src="/images/history.svg" alt="My Requests" style={{ width: '32px', height: '32px' }} />
       </button>
       <button
         ref={notificationsRef}
         onClick={() => router.push('/notifications')}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', position: 'relative' }}
       >
-        <img src="/images/bell.svg" alt="Notificações" style={{ width: '32px', height: '32px' }} />
+        <img src="/images/bell.svg" alt="Notifications" style={{ width: '32px', height: '32px' }} />
         {avisosNaoVistos > 0 && (
           <span
-            aria-label={`${avisosNaoVistos} avisos não vistos`}
+            aria-label={`${avisosNaoVistos} unseen alerts`}
             style={{
               position: 'absolute', top: -2, right: -2, minWidth: '16px', height: '16px',
               borderRadius: '8px', background: '#ef4444', color: '#fff', fontSize: '10px',
@@ -87,7 +87,7 @@ export default function NavBottom({ homeRef, settingsRef, requestsRef, notificat
         onClick={() => router.push('/profile')}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
       >
-        <img src="/images/user.svg" alt="Perfil" style={{ width: '32px', height: '32px' }} />
+        <img src="/images/user.svg" alt="Profile" style={{ width: '32px', height: '32px' }} />
       </button>
     </nav>
   );

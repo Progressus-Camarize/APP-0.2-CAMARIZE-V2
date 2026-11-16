@@ -51,7 +51,7 @@ export default function EditCativeiroPage() {
         });
         setCativeiro(res.data);
       } catch {
-        setNotification({ show: true, message: 'Erro ao carregar dados do cativeiro.', type: 'error' });
+        setNotification({ show: true, message: 'Failed to load pond data.', type: 'error' });
         router.push(rotaListaDeCativeiros());
       } finally {
         setLoading(false);
@@ -89,10 +89,10 @@ export default function EditCativeiroPage() {
       if (amonia_media_diaria !== '') payload.amonia_media_diaria = amonia_media_diaria;
       await axios.post(`${apiUrl}/requests`, { action: 'editar_cativeiro', payload }, { headers });
       setShowEditModal(false);
-      setNotification({ show: true, message: 'Solicitação de edição enviada ao administrador!', type: 'success' });
+      setNotification({ show: true, message: 'Edit request sent to the administrator!', type: 'success' });
       setTimeout(() => router.push(rotaListaDeCativeiros()), 2200);
     } catch (e) {
-      setNotification({ show: true, message: 'Erro ao enviar solicitação: ' + (e?.response?.data?.error || e.message), type: 'error' });
+      setNotification({ show: true, message: 'Failed to send request: ' + (e?.response?.data?.error || e.message), type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -100,9 +100,9 @@ export default function EditCativeiroPage() {
 
   if (loading) {
     return (
-      <MemberLayout title="Editar Cativeiro" subtitle="Solicite alterações ao administrador">
+      <MemberLayout title="Edit Pond" subtitle="Request changes from the administrator">
         <div className={panelStyles.loadingScreen} style={{ minHeight: 'unset', padding: '60px 0' }}>
-          Carregando dados do cativeiro...
+          Loading pond data...
         </div>
       </MemberLayout>
     );
@@ -111,15 +111,15 @@ export default function EditCativeiroPage() {
   const fotoUrl = fotoCativeiroUrl(apiUrl, id, authToken, cativeiro?.foto_versao);
 
   return (
-    <MemberLayout title="Editar Cativeiro" subtitle="Solicite alterações ao administrador">
+    <MemberLayout title="Edit Pond" subtitle="Request changes from the administrator">
       <div className={panelStyles.section}>
 
         {/* Cabeçalho */}
         <div className={panelStyles.sectionHeader} style={{ marginBottom: 20 }}>
           <div>
-            <h2 className={panelStyles.sectionTitle}>{cativeiro?.nome || 'Cativeiro'}</h2>
+            <h2 className={panelStyles.sectionTitle}>{cativeiro?.nome || 'Pond'}</h2>
             <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-              Preencha os campos abaixo para solicitar uma edição ao administrador
+              Fill in the fields below to request an edit from the administrator
             </p>
           </div>
           <button
@@ -129,7 +129,7 @@ export default function EditCativeiroPage() {
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
               <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Voltar
+            Back
           </button>
         </div>
 
@@ -146,7 +146,7 @@ export default function EditCativeiroPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>{cativeiro?.nome}</div>
               <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>
-                {cativeiro?.id_tipo_camarao?.nome || cativeiro?.id_tipo_camarao || 'Tipo não informado'}
+                {cativeiro?.id_tipo_camarao?.nome || cativeiro?.id_tipo_camarao || 'Type not specified'}
               </div>
               {cativeiro?.condicoes_ideais && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -174,49 +174,49 @@ export default function EditCativeiroPage() {
             <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
               <path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Solicitar Edição
+            Request Edit
           </button>
         </div>
 
         <div className={panelStyles.infoPanel} style={{ marginTop: 14 }}>
-          As alterações serão enviadas como solicitação ao administrador da fazenda para aprovação.
+          Changes will be sent as a request to the farm administrator for approval.
         </div>
       </div>
 
       {/* Modal de edição — idêntico ao admin */}
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Solicitar edição">
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Request edit">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Nome</label>
-            <input value={editForm.nome} onChange={(e) => setEditForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome do cativeiro" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Name</label>
+            <input value={editForm.nome} onChange={(e) => setEditForm(f => ({ ...f, nome: e.target.value }))} placeholder="Pond name" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Tipo de camarão</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Shrimp type</label>
             <select value={editForm.id_tipo_camarao} onChange={(e) => setEditForm(f => ({ ...f, id_tipo_camarao: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}>
-              <option value="">Selecione um tipo</option>
+              <option value="">Select a type</option>
               {tiposCamarao.map(t => <option key={t._id} value={t._id}>{t.nome}</option>)}
             </select>
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Data de instalação</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Installation date</label>
             <input type="date" value={editForm.data_instalacao} onChange={(e) => setEditForm(f => ({ ...f, data_instalacao: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp ideal (°C)</label>
-            <input value={editForm.temp_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, temp_media_diaria: e.target.value }))} placeholder="ex: 26" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal temp (°C)</label>
+            <input value={editForm.temp_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, temp_media_diaria: e.target.value }))} placeholder="e.g. 26" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>pH ideal</label>
-            <input value={editForm.ph_medio_diario} onChange={(e) => setEditForm(f => ({ ...f, ph_medio_diario: e.target.value }))} placeholder="ex: 7.5" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal pH</label>
+            <input value={editForm.ph_medio_diario} onChange={(e) => setEditForm(f => ({ ...f, ph_medio_diario: e.target.value }))} placeholder="e.g. 7.5" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Amônia ideal (mg/L)</label>
-            <input value={editForm.amonia_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, amonia_media_diaria: e.target.value }))} placeholder="ex: 0.05" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal ammonia (mg/L)</label>
+            <input value={editForm.amonia_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, amonia_media_diaria: e.target.value }))} placeholder="e.g. 0.05" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-            <button onClick={() => setShowEditModal(false)} disabled={submitting} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={() => setShowEditModal(false)} disabled={submitting} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancel</button>
             <button onClick={solicitarEdicaoCativeiro} disabled={submitting} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>
-              {submitting ? 'Enviando...' : 'Enviar Solicitação'}
+              {submitting ? 'Sending...' : 'Send Request'}
             </button>
           </div>
         </div>

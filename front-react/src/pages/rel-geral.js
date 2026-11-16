@@ -7,15 +7,15 @@ import { carregarHistorico } from '@/lib/parametros';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const PERIODO_MAP = {
-  dia:    { label: 'Últimas 24 horas', dias: 1 },
-  semana: { label: 'Últimos 7 dias',   dias: 7 },
-  mes:    { label: 'Últimos 30 dias',  dias: 30 },
+  dia:    { label: 'Last 24 hours', dias: 1 },
+  semana: { label: 'Last 7 days',      dias: 7 },
+  mes:    { label: 'Last 30 days',     dias: 30 },
 };
 
 const PARAM_CFG = [
   { key: 'temperatura', label: 'Temp.',  unit: '°C',    decimals: 1, color: '#f97316', icon: '🌡️' },
   { key: 'ph',          label: 'pH',     unit: '',      decimals: 1, color: '#3b82f6', icon: '🧪' },
-  { key: 'amonia',      label: 'Amônia experimental', unit: '', decimals: 3, color: '#a855f7', icon: '⚗️' },
+  { key: 'amonia',      label: 'Experimental ammonia', unit: '', decimals: 3, color: '#a855f7', icon: '⚗️' },
 ];
 
 function calcStats(dados, field) {
@@ -54,7 +54,7 @@ export default function RelatorioGeral() {
 
     if (!periodo || !PERIODO_MAP[periodo]) {
       setLoading(false);
-      setError('Período inválido. Volte e selecione um período.');
+      setError('Invalid period. Go back and select a period.');
       return;
     }
 
@@ -65,7 +65,7 @@ export default function RelatorioGeral() {
       setError(null);
       try {
         const token = getToken();
-        if (!token) { setError('Sessão expirada. Faça login novamente.'); setLoading(false); return; }
+        if (!token) { setError('Session expired. Please log in again.'); setLoading(false); return; }
         const headers = { Authorization: `Bearer ${token}` };
 
         const res = await axios.get(`${apiUrl}/cativeiros`, { headers });
@@ -85,8 +85,8 @@ export default function RelatorioGeral() {
         setDadosPorCativeiro(mapa);
       } catch (err) {
         setError(err.response?.status === 401
-          ? 'Sessão expirada. Faça login novamente.'
-          : 'Erro ao carregar dados. Tente novamente.');
+          ? 'Session expired. Please log in again.'
+          : 'Failed to load data. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -102,7 +102,7 @@ export default function RelatorioGeral() {
       const pdf = html2pdf.default || html2pdf;
       pdf().set({
         margin: 1,
-        filename: `relatorio-geral-${periodo}.pdf`,
+        filename: `general-report-${periodo}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -112,13 +112,13 @@ export default function RelatorioGeral() {
     }
   };
 
-  const geradoEm = new Date().toLocaleString('pt-BR');
+  const geradoEm = new Date().toLocaleString('en-US');
 
   if (loading) {
     return (
-      <MemberLayout title="Relatório Geral" subtitle={periodoInfo.label || '...'}>
+      <MemberLayout title="General Report" subtitle={periodoInfo.label || '...'}>
         <div className={panelStyles.loadingScreen} style={{ minHeight: 'unset', padding: '60px 0' }}>
-          Carregando dados do relatório...
+          Loading report data...
         </div>
       </MemberLayout>
     );
@@ -126,7 +126,7 @@ export default function RelatorioGeral() {
 
   if (error) {
     return (
-      <MemberLayout title="Relatório Geral" subtitle="Erro">
+      <MemberLayout title="General Report" subtitle="Error">
         <div className={panelStyles.emptyState}>
           <div className={panelStyles.emptyStateIcon}>⚠️</div>
           <p className={panelStyles.emptyStateText}>{error}</p>
@@ -135,7 +135,7 @@ export default function RelatorioGeral() {
             style={{ marginTop: 16 }}
             onClick={() => router.back()}
           >
-            ← Voltar
+            ← Back
           </button>
         </div>
       </MemberLayout>
@@ -143,15 +143,15 @@ export default function RelatorioGeral() {
   }
 
   return (
-    <MemberLayout title="Relatório Geral" subtitle={periodoInfo.label}>
+    <MemberLayout title="General Report" subtitle={periodoInfo.label}>
       <div className={panelStyles.section}>
 
         {/* Cabeçalho */}
         <div className={panelStyles.sectionHeader} style={{ marginBottom: 20 }}>
           <div>
-            <h2 className={panelStyles.sectionTitle}>Relatório Geral</h2>
+            <h2 className={panelStyles.sectionTitle}>General Report</h2>
             <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-              {periodoInfo.label} · {cativeiros.length} cativeiro{cativeiros.length !== 1 ? 's' : ''} · Gerado em {geradoEm}
+              {periodoInfo.label} · {cativeiros.length} pond{cativeiros.length !== 1 ? 's' : ''} · Generated on {geradoEm}
             </p>
           </div>
           <div className={panelStyles.sectionActions}>
@@ -162,13 +162,13 @@ export default function RelatorioGeral() {
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
                 <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Voltar
+              Back
             </button>
             <button
               className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
               onClick={handlePrint}
             >
-              🖨️ Imprimir
+              🖨️ Print
             </button>
             <button
               className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
@@ -183,7 +183,7 @@ export default function RelatorioGeral() {
           {cativeiros.length === 0 ? (
             <div className={panelStyles.emptyState}>
               <div className={panelStyles.emptyStateIcon}>📋</div>
-              <p className={panelStyles.emptyStateText}>Nenhum cativeiro encontrado.</p>
+              <p className={panelStyles.emptyStateText}>No ponds found.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -209,10 +209,10 @@ export default function RelatorioGeral() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1e293b' }}>{cativeiro.nome}</div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2 }}>
-                            {cativeiro.id_tipo_camarao?.nome || cativeiro.id_tipo_camarao || 'Tipo não informado'}
+                            {cativeiro.id_tipo_camarao?.nome || cativeiro.id_tipo_camarao || 'Type not specified'}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
-                            {dados.length} leitura{dados.length !== 1 ? 's' : ''} no período
+                            {dados.length} reading{dados.length !== 1 ? 's' : ''} in the period
                           </div>
                         </div>
                       </div>
@@ -220,7 +220,7 @@ export default function RelatorioGeral() {
                       {/* Estatísticas */}
                       {dados.length === 0 ? (
                         <div className={panelStyles.infoPanel} style={{ marginTop: 0 }}>
-                          📭 Nenhuma leitura registrada no período.
+                          📭 No readings recorded in the period.
                         </div>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -238,7 +238,7 @@ export default function RelatorioGeral() {
                                   {fmt(stats.avg, cfg.decimals, cfg.unit)}
                                 </div>
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                                  Mín {fmt(stats.min, cfg.decimals, cfg.unit)} · Máx {fmt(stats.max, cfg.decimals, cfg.unit)}
+                                  Min {fmt(stats.min, cfg.decimals, cfg.unit)} · Max {fmt(stats.max, cfg.decimals, cfg.unit)}
                                 </div>
                               </div>
                             );

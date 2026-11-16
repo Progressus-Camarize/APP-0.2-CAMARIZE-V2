@@ -6,8 +6,8 @@ import { useState, useEffect } from "react";
 
 // Figma "Telas do sistema / Tipo usuário"
 const TIPOS = [
-  { tipo: "funcionario", nome: "Funcionário", descricao: "Cadastre-se como funcionário", icone: "/images/tipo-funcionario.svg" },
-  { tipo: "proprietario", nome: "Proprietário", descricao: "Cadastre-se como proprietário", icone: "/images/tipo-proprietario.svg" },
+  { tipo: "funcionario", nome: "Employee", descricao: "Sign up as an employee", icone: "/images/tipo-funcionario.svg" },
+  { tipo: "proprietario", nome: "Owner", descricao: "Sign up as an owner", icone: "/images/tipo-proprietario.svg" },
 ];
 
 export default function RegisterTypePage() {
@@ -30,7 +30,7 @@ export default function RegisterTypePage() {
     <div className={styles.loginMobileWrapper}>
       <div className={styles.loginForm}>
         <h1 className={`${styles.loginTitle} ${styles.loginTitleCenter}`}>
-          Escolha que tipo de conta quer fazer
+          Choose the type of account you want to create
         </h1>
         <div className={styles.divider} />
         {TIPOS.map(({ tipo, nome, descricao, icone }) => (
@@ -47,8 +47,8 @@ export default function RegisterTypePage() {
         ))}
         <div className={styles.divider} />
         <div className={styles.registerRow}>
-          <span>Já tem uma conta?</span>
-          <Link href="/login" className={styles.registerLink}>Fazer login</Link>
+          <span>Already have an account?</span>
+          <Link href="/login" className={styles.registerLink}>Sign in</Link>
         </div>
       </div>
       <div className={styles.logoWrapper}>

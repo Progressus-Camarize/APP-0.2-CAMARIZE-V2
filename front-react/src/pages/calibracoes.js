@@ -5,7 +5,7 @@ import Calibracoes from "@/components/Calibracoes";
 // cativeiro depois que o admin da fazenda aprova (admin e master usam a aba do painel)
 export default function CalibracoesPage() {
   return (
-    <MemberLayout title="Calibrações" subtitle="Calibração do sensor de pH e alimentador">
+    <MemberLayout title="Calibrations" subtitle="pH sensor and feeder calibration">
       <Calibracoes />
     </MemberLayout>
   );

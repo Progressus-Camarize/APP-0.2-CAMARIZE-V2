@@ -4,49 +4,49 @@ import cardStyles from '@/styles/cards.module.css';
 // Cobre também ações antigas que não são mais criadas, mas continuam no histórico do banco.
 
 export const ROTULOS_ACAO = {
-  cadastrar_cativeiro: 'Cadastrar cativeiro',
-  editar_cativeiro: 'Editar cativeiro',
-  excluir_cativeiro: 'Excluir cativeiro',
-  editar_cativeiro_add_sensor: 'Solicitar vínculo de sensor',
-  editar_cativeiro_remove_sensor: 'Solicitar troca de sensor(es)',
-  cadastrar_sensor: 'Cadastrar sensor',
-  editar_sensor: 'Editar sensor',
-  excluir_sensor: 'Excluir sensor',
-  editar_dieta: 'Gerenciar dieta de cativeiro',
-  aplicar_calibracao: 'Aplicar calibração',
-  cadastrar_funcionario: 'Cadastrar funcionário',
-  associar_funcionario: 'Associar funcionário à fazenda',
-  cadastrar_proprietario: 'Cadastrar proprietário',
-  relatorio_individual: 'Relatório individual',
+  cadastrar_cativeiro: 'Create pond',
+  editar_cativeiro: 'Edit pond',
+  excluir_cativeiro: 'Delete pond',
+  editar_cativeiro_add_sensor: 'Request sensor link',
+  editar_cativeiro_remove_sensor: 'Request sensor replacement',
+  cadastrar_sensor: 'Register sensor',
+  editar_sensor: 'Edit sensor',
+  excluir_sensor: 'Delete sensor',
+  editar_dieta: 'Manage pond diet',
+  aplicar_calibracao: 'Apply calibration',
+  cadastrar_funcionario: 'Register employee',
+  associar_funcionario: 'Assign employee to farm',
+  cadastrar_proprietario: 'Register owner',
+  relatorio_individual: 'Individual report',
 };
 
 // "acao_desconhecida" -> "Acao desconhecida": nunca exibe snake_case na tela
 const humanizar = (texto) => {
   const s = String(texto || '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Solicitação';
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Request';
 };
 
 export const rotuloAcao = (action) => ROTULOS_ACAO[action] || humanizar(action);
 
 const ROTULOS_CAMPO = {
-  cativeiroId: 'Cativeiro',
-  cativeiroNome: 'Cativeiro',
-  fazendaId: 'Fazenda',
-  fazenda: 'Fazenda',
+  cativeiroId: 'Pond',
+  cativeiroNome: 'Pond',
+  fazendaId: 'Farm',
+  fazenda: 'Farm',
   sensorId: 'Sensor',
-  periodo: 'Período',
-  nome: 'Nome',
-  apelido: 'Apelido',
-  descricao: 'Descrição',
-  email: 'E-mail',
-  quantidade: 'Quantidade',
-  horarios: 'Horários',
-  data_instalacao: 'Data de instalação',
-  motivo: 'Motivo',
-  observacao: 'Observação',
+  periodo: 'Period',
+  nome: 'Name',
+  apelido: 'Nickname',
+  descricao: 'Description',
+  email: 'Email',
+  quantidade: 'Amount',
+  horarios: 'Times',
+  data_instalacao: 'Installation date',
+  motivo: 'Reason',
+  observacao: 'Note',
 };
 
-const PERIODOS = { dia: 'Últimas 24 horas', semana: 'Últimos 7 dias', mes: 'Últimos 30 dias' };
+const PERIODOS = { dia: 'Last 24 hours', semana: 'Last 7 days', mes: 'Last 30 days' };
 
 const pareceId = (v) => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v);
 const pareceData = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v) && !Number.isNaN(Date.parse(v));
@@ -62,8 +62,8 @@ function valorLegivel(chave, valor, resolver) {
     const resolvido = resolver?.(chave, valor);
     return resolvido || null;
   }
-  if (typeof valor === 'boolean') return valor ? 'Sim' : 'Não';
-  if (pareceData(valor)) return new Date(valor).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  if (typeof valor === 'boolean') return valor ? 'Yes' : 'No';
+  if (pareceData(valor)) return new Date(valor).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
   if (Array.isArray(valor)) {
     const itens = valor.map(v => valorLegivel(chave, v, resolver)).filter(Boolean);
     return itens.length ? itens.join(', ') : null;
@@ -106,7 +106,7 @@ export function DetalhesGenericos({ payload, resolver, titulo }) {
 }
 
 const br = (n, casas) => (typeof n === 'number' && Number.isFinite(n)
-  ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: 4 })
+  ? n.toLocaleString('en-US', { minimumFractionDigits: casas, maximumFractionDigits: 4 })
   : '—');
 
 /**
@@ -119,18 +119,18 @@ export function DetalhesCalibracao({ payload = {}, nomeCativeiro, rodape }) {
     <div className={cardStyles.detalhes}>
       {payload.tipo === 'motor' ? (
         <ul>
-          {cativeiro && <li><strong>Cativeiro:</strong> {cativeiro}</li>}
-          <li><strong>Calibração:</strong> alimentador</li>
-          <li><strong>Rotações:</strong> {payload.rotacoes ?? '—'}</li>
-          <li><strong>Peso medido:</strong> {br(payload.gramas, 1)} g</li>
-          <li><strong>Resultado:</strong> {br(payload.gramas_por_rotacao, 1)} g por volta</li>
+          {cativeiro && <li><strong>Pond:</strong> {cativeiro}</li>}
+          <li><strong>Calibration:</strong> feeder</li>
+          <li><strong>Rotations:</strong> {payload.rotacoes ?? '—'}</li>
+          <li><strong>Measured weight:</strong> {br(payload.gramas, 1)} g</li>
+          <li><strong>Result:</strong> {br(payload.gramas_por_rotacao, 1)} g per turn</li>
         </ul>
       ) : (
         <ul>
-          {cativeiro && <li><strong>Cativeiro:</strong> {cativeiro}</li>}
-          <li><strong>Calibração:</strong> sensor de pH</li>
-          <li><strong>Tensão no pH 7:</strong> {br(payload.tensao_ph7, 2)} V</li>
-          <li><strong>Tensão no pH 4:</strong> {br(payload.tensao_ph4, 2)} V</li>
+          {cativeiro && <li><strong>Pond:</strong> {cativeiro}</li>}
+          <li><strong>Calibration:</strong> pH sensor</li>
+          <li><strong>Voltage at pH 7:</strong> {br(payload.tensao_ph7, 2)} V</li>
+          <li><strong>Voltage at pH 4:</strong> {br(payload.tensao_ph4, 2)} V</li>
         </ul>
       )}
       {rodape && <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>{rodape}</div>}
@@ -151,9 +151,9 @@ export function DetalhesSensor({ payload = {}, sensor }) {
   return (
     <div className={cardStyles.detalhes}>
       <ul>
-        {payload.cativeiroNome && <li><strong>Cativeiro:</strong> {payload.cativeiroNome}</li>}
+        {payload.cativeiroNome && <li><strong>Pond:</strong> {payload.cativeiroNome}</li>}
         {atual && <li><strong>Sensor:</strong> {atual}</li>}
-        {payload.apelido && <li><strong>Novo apelido:</strong> {payload.apelido}</li>}
+        {payload.apelido && <li><strong>New nickname:</strong> {payload.apelido}</li>}
       </ul>
     </div>
   );

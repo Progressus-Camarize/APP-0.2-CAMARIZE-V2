@@ -89,10 +89,10 @@ export default function EmailSettings() {
         headers: { Authorization: `Bearer ${token}` },
       });
       alertTypesSalvos.current = res.data?.emailSettings?.alertTypes || alertTypes;
-      setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
+      setMessage({ type: 'success', text: 'Settings saved successfully!' });
     } catch (err) {
       const { error, details } = err.response?.data || {};
-      setMessage({ type: 'error', text: details ? `${error}: ${details}` : (error || 'Erro ao salvar configurações.') });
+      setMessage({ type: 'error', text: details ? `${error}: ${details}` : (error || 'Error saving settings.') });
     } finally {
       setSaving(false);
     }
@@ -105,9 +105,9 @@ export default function EmailSettings() {
       await axios.post(`${API_URL}/email/test`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setMessage({ type: 'success', text: 'Email de teste enviado!' });
+      setMessage({ type: 'success', text: 'Test email sent!' });
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.error || 'Erro ao enviar email de teste.' });
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Error sending test email.' });
     }
   };
 
@@ -118,7 +118,7 @@ export default function EmailSettings() {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-        Carregando configurações...
+        Loading settings...
       </div>
     );
   }
@@ -196,16 +196,16 @@ export default function EmailSettings() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
-              Notificações por Email
+              Email Notifications
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
-              Ativar ou desativar todas as notificações por email
+              Turn all email notifications on or off
             </p>
           </div>
           <button
             onClick={() => handleChange('emailEnabled', !settings.emailEnabled)}
             style={toggleStyle(settings.emailEnabled)}
-            aria-label="Ativar notificações"
+            aria-label="Enable notifications"
             aria-pressed={settings.emailEnabled}
           >
             <div style={toggleDotStyle(settings.emailEnabled)} />
@@ -215,11 +215,11 @@ export default function EmailSettings() {
 
       {/* Email Destinatário */}
       <div style={cardStyle}>
-        <label style={labelStyle}>Email para notificações</label>
+        <label style={labelStyle}>Notification email</label>
         <input
           type="email"
           style={inputStyle}
-          placeholder="seu@email.com"
+          placeholder="you@email.com"
           value={settings.emailAddress}
           onChange={(e) => handleChange('emailAddress', e.target.value)}
         />
@@ -230,16 +230,16 @@ export default function EmailSettings() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: settings.silencioAtivo ? '16px' : 0 }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
-              Horário de silêncio
+              Quiet hours
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
-              Não enviar emails nesse intervalo (ex.: durante a noite)
+              Don&apos;t send emails during this window (e.g. overnight)
             </p>
           </div>
           <button
             onClick={() => handleChange('silencioAtivo', !settings.silencioAtivo)}
             style={toggleStyle(settings.silencioAtivo)}
-            aria-label="Ativar horário de silêncio"
+            aria-label="Enable quiet hours"
             aria-pressed={settings.silencioAtivo}
           >
             <div style={toggleDotStyle(settings.silencioAtivo)} />
@@ -248,7 +248,7 @@ export default function EmailSettings() {
         {settings.silencioAtivo && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label style={labelStyle}>Início</label>
+              <label style={labelStyle}>Start</label>
               <input
                 type="time"
                 style={inputStyle}
@@ -257,7 +257,7 @@ export default function EmailSettings() {
               />
             </div>
             <div>
-              <label style={labelStyle}>Fim</label>
+              <label style={labelStyle}>End</label>
               <input
                 type="time"
                 style={inputStyle}
@@ -272,20 +272,20 @@ export default function EmailSettings() {
       {/* Tipos de Notificação */}
       <div style={cardStyle}>
         <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
-          Tipos de Notificação
+          Notification Types
         </h3>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Alertas Críticos</span>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Critical Alerts</span>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>
-              Parâmetros muito fora dos limites ideais (severidade alta)
+              Parameters far outside ideal limits (high severity)
             </p>
           </div>
           <button
             onClick={() => handleChange('alertasCriticos', !settings.alertasCriticos)}
             style={toggleStyle(settings.alertasCriticos)}
-            aria-label="Ativar alertas críticos"
+            aria-label="Enable critical alerts"
             aria-pressed={settings.alertasCriticos}
           >
             <div style={toggleDotStyle(settings.alertasCriticos)} />
@@ -294,15 +294,15 @@ export default function EmailSettings() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Alertas Moderados</span>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>Moderate Alerts</span>
             <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>
-              Parâmetros saindo dos limites ideais (severidade média)
+              Parameters drifting outside ideal limits (medium severity)
             </p>
           </div>
           <button
             onClick={() => handleChange('alertasModerados', !settings.alertasModerados)}
             style={toggleStyle(settings.alertasModerados)}
-            aria-label="Ativar alertas moderados"
+            aria-label="Enable moderate alerts"
             aria-pressed={settings.alertasModerados}
           >
             <div style={toggleDotStyle(settings.alertasModerados)} />
@@ -328,7 +328,7 @@ export default function EmailSettings() {
             transition: 'background 0.2s',
           }}
         >
-          {saving ? 'Salvando...' : 'Salvar Configurações'}
+          {saving ? 'Saving...' : 'Save Settings'}
         </button>
         <button
           onClick={handleTestEmail}
@@ -344,7 +344,7 @@ export default function EmailSettings() {
             transition: 'background 0.2s',
           }}
         >
-          📧 Testar Email
+          📧 Test Email
         </button>
       </div>
     </div>

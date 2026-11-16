@@ -10,16 +10,16 @@ import GuidedTour from "../GuidedTour";
 import SolicitarVinculo from "../SolicitarVinculo";
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
-const gramasBr = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+const gramasBr = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 1 });
 
 // Quanto da ração prevista para hoje a placa já informou como servida
 function RacaoDoDia({ resumo }) {
   if (!resumo?.dieta || !resumo.gramasPrevistas) return null;
   const pct = Math.min(100, Math.round((resumo.gramasServidas / resumo.gramasPrevistas) * 100));
   return (
-    <div className={styles.racao} title={`${resumo.refeicoesServidas} de ${resumo.refeicoesPrevistas} refeições servidas hoje`}>
+    <div className={styles.racao} title={`${resumo.refeicoesServidas} of ${resumo.refeicoesPrevistas} meals served today`}>
       <span className={styles.racaoTexto}>
-        Ração hoje <strong>{gramasBr(resumo.gramasServidas)} de {gramasBr(resumo.gramasPrevistas)} g</strong>
+        Feed today <strong>{gramasBr(resumo.gramasServidas)} of {gramasBr(resumo.gramasPrevistas)} g</strong>
       </span>
       <span className={styles.racaoBarra} aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
     </div>
@@ -62,7 +62,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const token = typeof window !== "undefined" ? (sessionStorage.getItem('token') || localStorage.getItem("token")) : null;
       if (!token) {
-        setError('Você precisa estar logado para acessar esta página');
+        setError('You need to be signed in to access this page');
         setLoading(false);
         return;
       }
@@ -77,9 +77,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
     } catch (err) {
       console.error('Erro ao buscar cativeiros:', err);
       if (err.response?.status === 401) {
-        setError('Sessão expirada. Faça login novamente para continuar.');
+        setError('Session expired. Please sign in again to continue.');
       } else {
-        setError('Erro ao carregar os dados. Tente novamente.');
+        setError('Error loading data. Please try again.');
       }
       setCativeiros([]);
     } finally {
@@ -137,7 +137,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
     }));
 
     // Notificação com desfazer real (sem tocar no backend se desfizer)
-    showNotification('Cativeiro marcado para exclusão', 'warning', 'Desfazer', () => {
+    showNotification('Pond marked for deletion', 'warning', 'Undo', () => {
       const pending = pendingDeletion[id] || { timeoutId };
       clearTimeout(pending.timeoutId);
       setPendingDeletion((prev) => {
@@ -145,7 +145,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
         delete cp[id];
         return cp;
       });
-      showNotification('Exclusão desfeita.', 'success');
+      showNotification('Deletion undone.', 'success');
     });
   };
 
@@ -200,7 +200,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
       <section className={panelStyles.section}>
         <div className={panelStyles.sectionHeader}>
           <h2 className={panelStyles.sectionTitle}>
-            Cativeiros
+            Ponds
             {cativeiros.length > 0 && (
               <span className={panelStyles.filterCount} style={{ marginLeft: 10, fontSize: '0.78rem' }}>
                 {cativeiros.length}
@@ -212,23 +212,23 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               ref={infoRef}
               className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
               onClick={() => setShowInfoModal(true)}
-              title="Sobre o Camarize"
+              title="About Camarize"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
                 <path d="M12 16V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 <circle cx="12" cy="8" r="1" fill="currentColor"/>
               </svg>
-              Sobre
+              About
             </button>
             {role !== 'membro' && (
               <button
                 ref={addRef}
                 className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
                 onClick={() => router.push('/create-cativeiros')}
-                title="Cadastrar Cativeiro"
+                title="Add Pond"
               >
-                + Cativeiro
+                + Pond
               </button>
             )}
           </div>
@@ -237,17 +237,17 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
         <div className={styles.cativeiroList}>
         {cativeiros.length === 0 ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyMessage}>Sem cativeiros cadastrados</div>
+            <div className={styles.emptyMessage}>No ponds registered</div>
             {(() => {
               const comeceAqui = (
                 <div className={panelStyles.infoPanel} style={{ maxWidth: 480 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Comece por aqui</div>
-                  <div style={{ fontSize: 13, marginBottom: 12 }}>Crie seu primeiro cativeiro e conecte sensores para ver dados no dashboard.</div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Start here</div>
+                  <div style={{ fontSize: 13, marginBottom: 12 }}>Create your first pond and connect sensors to see data on the dashboard.</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {role !== 'membro' && (
-                      <button className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`} onClick={() => router.push('/create-cativeiros')}>+ Cadastrar cativeiro</button>
+                      <button className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`} onClick={() => router.push('/create-cativeiros')}>+ Add pond</button>
                     )}
-                    <button className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`} onClick={() => router.push('/sensores')}>🔧 Gerenciar sensores</button>
+                    <button className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`} onClick={() => router.push('/sensores')}>🔧 Manage sensors</button>
                   </div>
                 </div>
               );
@@ -268,16 +268,16 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               >
                 <img
                   src={fotoUrl}
-                  alt={`Cativeiro ${idx + 1}`}
+                  alt={`Pond ${idx + 1}`}
                   className={styles.cativeiroImg}
                   onError={(e) => { e.target.src = "/images/cativeiro1.jpg"; }}
                 />
                 <div className={styles.cativeiroInfo}>
-                  <div className={styles.cativeiroNome}>{cativeiro.nome || `Cativeiro ${idx + 1}`}</div>
+                  <div className={styles.cativeiroNome}>{cativeiro.nome || `Pond ${idx + 1}`}</div>
                   <div className={styles.cativeiroCultivo}>{
                     (typeof cativeiro.id_tipo_camarao === 'object' && cativeiro.id_tipo_camarao?.nome)
                       ? cativeiro.id_tipo_camarao.nome
-                      : (cativeiro.id_tipo_camarao || 'Tipo não informado')
+                      : (cativeiro.id_tipo_camarao || 'Type not specified')
                   }</div>
                   <RacaoDoDia resumo={racaoHoje[cativeiro._id]} />
                 </div>
@@ -286,7 +286,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                   <button 
                     className={styles.actionBtn} 
                     onClick={(e) => handleEditCativeiro(e, cativeiro._id)}
-                    title="Editar"
+                    title="Edit"
                   >
                     <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
                       <path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5l12.232-12.268Z" stroke="#7ecbff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -296,7 +296,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                     <button 
                       className={styles.actionBtn} 
                       onClick={(e) => handleDeleteCativeiro(e, cativeiro._id)}
-                      title="Excluir"
+                      title="Delete"
                     >
                       <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
                         <path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z" stroke="#ff6b6b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -316,15 +316,15 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
         <GuidedTour
           steps={
             [
-              { ref: infoRef, title: 'Sobre o Camarize', content: 'Saiba o que é o Camarize e por que monitoramos temperatura, pH e amônia.' },
-              ...(cativeiros.length > 0 ? [{ ref: firstCativeiroRef, title: 'Cativeiro', content: 'Clique no cativeiro para abrir o dashboard com dados em tempo real.' }] : []),
-              { ref: addRef, title: 'Adicionar cativeiro', content: 'Cadastre um novo cativeiro para começar a monitorar.' },
-              { ref: sidebarRefs?.['/status-cativeiros'], title: 'Status', content: 'Veja o status geral de saúde de todos os seus cativeiros.' },
-              { ref: sidebarRefs?.['/sensores'], title: 'Sensores', content: 'Gerencie os sensores IoT conectados aos seus cativeiros.' },
-              { ref: sidebarRefs?.['/requests'], title: 'Solicitações', content: 'Envie e acompanhe solicitações ao administrador da fazenda.' },
-              { ref: sidebarRefs?.['/notifications'], title: 'Notificações', content: 'Veja alertas e avisos gerados pelo sistema de monitoramento.' },
-              { ref: sidebarRefs?.['/settings'], title: 'Configurações', content: 'Gerencie as informações da sua fazenda e preferências do sistema.' },
-              { ref: sidebarRefs?.['/profile'], title: 'Perfil', content: 'Visualize e edite seus dados pessoais e foto de perfil.' },
+              { ref: infoRef, title: 'About Camarize', content: 'Learn what Camarize is and why we monitor temperature, pH and ammonia.' },
+              ...(cativeiros.length > 0 ? [{ ref: firstCativeiroRef, title: 'Pond', content: 'Click a pond to open its dashboard with real-time data.' }] : []),
+              { ref: addRef, title: 'Add pond', content: 'Register a new pond to start monitoring.' },
+              { ref: sidebarRefs?.['/status-cativeiros'], title: 'Status', content: 'See the overall health status of all your ponds.' },
+              { ref: sidebarRefs?.['/sensores'], title: 'Sensors', content: 'Manage the IoT sensors connected to your ponds.' },
+              { ref: sidebarRefs?.['/requests'], title: 'Requests', content: 'Send and track requests to the farm administrator.' },
+              { ref: sidebarRefs?.['/notifications'], title: 'Notifications', content: 'See alerts and warnings generated by the monitoring system.' },
+              { ref: sidebarRefs?.['/settings'], title: 'Settings', content: 'Manage your farm information and system preferences.' },
+              { ref: sidebarRefs?.['/profile'], title: 'Profile', content: 'View and edit your personal details and profile picture.' },
             ].filter(s => s.ref && s.ref.current)
           }
           onFinish={() => {
@@ -356,11 +356,11 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
       <Modal
         isOpen={showDeleteModal}
         onClose={() => { setShowDeleteModal(false); setCativeiroToDelete(null); }}
-        title="Confirmar Exclusão"
+        title="Confirm Deletion"
         showCloseButton={false}
       >
         <p style={{ margin: '0 0 16px', fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>
-          Tem certeza que deseja excluir este cativeiro? Esta ação não pode ser desfeita.
+          Are you sure you want to delete this pond? This action cannot be undone.
         </p>
         
         {/* Botões */}
@@ -369,13 +369,13 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             className={`${panelStyles.btn} ${panelStyles.btnSecondary}`}
             onClick={() => { setShowDeleteModal(false); setCativeiroToDelete(null); }}
           >
-            Cancelar
+            Cancel
           </button>
           <button
             className={`${panelStyles.btn} ${panelStyles.btnDanger}`}
             onClick={confirmDelete}
           >
-            Excluir
+            Delete
           </button>
         </div>
       </Modal>
@@ -387,9 +387,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
           onClose={hideNotification}
           actionLabel={notification.actionLabel}
           onAction={notification.onAction}
-          showProgress={notification.message?.toLowerCase().includes('marcado para exclusão')}
+          showProgress={notification.message?.toLowerCase().includes('marked for deletion')}
           progressDuration={3000}
-          duration={notification.message?.toLowerCase().includes('marcado para exclusão') ? 3000 : 3000}
+          duration={notification.message?.toLowerCase().includes('marked for deletion') ? 3000 : 3000}
           onTimeout={async () => {
             // Executa a exclusão quando o toast some (sincronizado com a barra)
             const ids = Object.keys(pendingDeletion);
@@ -407,7 +407,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                 return cp;
               });
               await fetchCativeiros();
-              showNotification('Cativeiro excluído com sucesso!', 'success');
+              showNotification('Pond deleted successfully!', 'success');
             } catch (err) {
               console.error('Erro ao deletar cativeiro:', err);
               setPendingDeletion((prev) => {
@@ -415,7 +415,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                 delete cp[idToDelete];
                 return cp;
               });
-              showNotification('Erro ao excluir cativeiro. Ação desfeita.', 'error');
+              showNotification('Error deleting pond. Action undone.', 'error');
             }
           }}
         />
@@ -425,7 +425,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
       <Modal
         isOpen={showInfoModal}
         onClose={() => setShowInfoModal(false)}
-        title="Sobre o Camarize"
+        title="About Camarize"
         showCloseButton
       >
         {/* O que é o Camarize */}
@@ -436,7 +436,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             fontWeight: '600',
             color: '#1f2937'
           }}>
-            🦐 O que é o Camarize?
+            🦐 What is Camarize?
           </h3>
           <p style={{
             margin: 0,
@@ -444,9 +444,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             lineHeight: '1.6',
             color: '#4b5563'
           }}>
-            O Camarize é um sistema inteligente de monitoramento para cativeiros de camarão. 
-            Ele ajuda você a acompanhar em tempo real as condições ideais para o cultivo, 
-            garantindo a saúde e produtividade dos seus camarões.
+            Camarize is a smart monitoring system for shrimp ponds. 
+            It helps you track ideal farming conditions in real time, 
+            ensuring the health and productivity of your shrimp.
           </p>
         </div>
 
@@ -458,7 +458,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             fontWeight: '600',
             color: '#1f2937'
           }}>
-            📊 Por que monitorar estes parâmetros?
+            📊 Why monitor these parameters?
           </h3>
           <p style={{
             margin: '0 0 16px 0',
@@ -466,9 +466,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             lineHeight: '1.6',
             color: '#4b5563'
           }}>
-            O monitoramento constante destes três parâmetros é essencial para o sucesso 
-            do cultivo de camarões. Qualquer variação pode afetar diretamente a saúde 
-            e o crescimento dos animais.
+            Constant monitoring of these three parameters is essential for successful 
+            shrimp farming. Any variation can directly affect the health 
+            and growth of the animals.
           </p>
         </div>
 
@@ -495,7 +495,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                 fontWeight: '600',
                 color: '#92400e'
               }}>
-                Temperatura da Água
+                Water Temperature
               </h4>
             </div>
             <p style={{
@@ -504,9 +504,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               lineHeight: '1.5',
               color: '#92400e'
             }}>
-              <strong>Por que é importante:</strong> A temperatura afeta diretamente o metabolismo, 
-              crescimento e reprodução dos camarões. Temperaturas inadequadas podem causar 
-              estresse, doenças e até mortalidade.
+              <strong>Why it matters:</strong> Temperature directly affects shrimp metabolism, 
+              growth and reproduction. Unsuitable temperatures can cause 
+              stress, disease and even mortality.
             </p>
           </div>
 
@@ -530,7 +530,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                 fontWeight: '600',
                 color: '#1e40af'
               }}>
-                pH da Água
+                Water pH
               </h4>
             </div>
             <p style={{
@@ -539,9 +539,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               lineHeight: '1.5',
               color: '#1e40af'
             }}>
-              <strong>Por que é importante:</strong> O pH influencia a disponibilidade de 
-              nutrientes, a toxicidade de substâncias e o bem-estar dos camarões. 
-              Valores inadequados podem causar problemas respiratórios e de crescimento.
+              <strong>Why it matters:</strong> pH influences nutrient availability, 
+              the toxicity of substances and the well-being of the shrimp. 
+              Unsuitable values can cause respiratory and growth problems.
             </p>
           </div>
 
@@ -565,7 +565,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                 fontWeight: '600',
                 color: '#be185d'
               }}>
-                Nível de Amônia
+                Ammonia Level
               </h4>
             </div>
             <p style={{
@@ -574,9 +574,9 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               lineHeight: '1.5',
               color: '#be185d'
             }}>
-              <strong>Por que é importante:</strong> A amônia é tóxica para os camarões 
-              mesmo em baixas concentrações. Níveis elevados podem causar danos nas 
-              brânquias, estresse e mortalidade.
+              <strong>Why it matters:</strong> Ammonia is toxic to shrimp 
+              even at low concentrations. High levels can cause gill 
+              damage, stress and mortality.
             </p>
           </div>
         </div>
@@ -594,7 +594,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             fontWeight: '600',
             color: '#166534'
           }}>
-            ✅ Benefícios do Monitoramento
+            ✅ Benefits of Monitoring
           </h4>
           <ul style={{
             margin: 0,
@@ -603,18 +603,18 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             lineHeight: '1.6',
             color: '#166534'
           }}>
-            <li>Prevenção de doenças e mortalidade</li>
-            <li>Otimização do crescimento dos camarões</li>
-            <li>Redução de perdas na produção</li>
-            <li>Melhoria na qualidade da água</li>
-            <li>Aumento da produtividade do cativeiro</li>
+            <li>Prevention of disease and mortality</li>
+            <li>Optimized shrimp growth</li>
+            <li>Reduced production losses</li>
+            <li>Improved water quality</li>
+            <li>Increased pond productivity</li>
           </ul>
         </div>
 
         {/* Botão de fechar */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
           <button className={`${panelStyles.btn} ${panelStyles.btnPrimary}`} onClick={() => setShowInfoModal(false)}>
-            Entendi!
+            Got it!
           </button>
         </div>
       </Modal>

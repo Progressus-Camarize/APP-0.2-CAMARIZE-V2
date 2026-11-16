@@ -44,7 +44,7 @@ async function chamarApi(caminho, corpo) {
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || `Erro ao chamar ${caminho}`);
+    throw new Error(data.error || `Error calling ${caminho}`);
   }
 }
 

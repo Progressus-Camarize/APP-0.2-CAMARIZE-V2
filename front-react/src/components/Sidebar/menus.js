@@ -7,27 +7,27 @@ import {
 // Abas dos painéis /admin e /master. As páginas compartilhadas (dashboard, edição de
 // cativeiro, relatórios...) usam o mesmo menu e voltam ao painel com ?tab=<id>.
 export const ADMIN_MENU = [
-  { id: 'requests', icon: HiOutlineClipboardList, label: 'Histórico' },
-  { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Avisos' },
+  { id: 'requests', icon: HiOutlineClipboardList, label: 'History' },
+  { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Alerts' },
   { id: 'status', icon: HiOutlineCheckCircle, label: 'Status' },
-  { id: 'solicitacoes', icon: HiOutlineBell, label: 'Solicitações' },
-  { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Cativeiros' },
-  { id: 'monitoramento', icon: HiOutlineChartBar, label: 'Monitoramento' },
-  { id: 'funcionarios', icon: HiOutlineUsers, label: 'Funcionários' },
+  { id: 'solicitacoes', icon: HiOutlineBell, label: 'Requests' },
+  { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Ponds' },
+  { id: 'monitoramento', icon: HiOutlineChartBar, label: 'Monitoring' },
+  { id: 'funcionarios', icon: HiOutlineUsers, label: 'Employees' },
   { id: 'chat', icon: HiOutlineChatAlt2, label: 'Chat' },
-  { id: 'calibracoes', icon: HiOutlineAdjustments, label: 'Calibrações' },
+  { id: 'calibracoes', icon: HiOutlineAdjustments, label: 'Calibrations' },
 ];
 
 export const MASTER_MENU = [
-  { id: 'requests', icon: HiOutlineClipboardList, label: 'Histórico' },
-  { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Avisos' },
-  { id: 'solicitacoes', icon: HiOutlineBell, label: 'Solicitações' },
-  { id: 'usuarios', icon: HiOutlineUsers, label: 'Usuários' },
-  { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Cativeiros' },
-  { id: 'sensores', icon: HiOutlineChip, label: 'Sensores' },
-  { id: 'dietas', icon: HiOutlineBeaker, label: 'Dietas' },
+  { id: 'requests', icon: HiOutlineClipboardList, label: 'History' },
+  { id: 'avisos', icon: HiOutlineExclamationCircle, label: 'Alerts' },
+  { id: 'solicitacoes', icon: HiOutlineBell, label: 'Requests' },
+  { id: 'usuarios', icon: HiOutlineUsers, label: 'Users' },
+  { id: 'cativeiros', icon: HiOutlineOfficeBuilding, label: 'Ponds' },
+  { id: 'sensores', icon: HiOutlineChip, label: 'Sensors' },
+  { id: 'dietas', icon: HiOutlineBeaker, label: 'Diets' },
   { id: 'chat', icon: HiOutlineChatAlt2, label: 'Chat' },
-  { id: 'calibracoes', icon: HiOutlineAdjustments, label: 'Calibrações' },
+  { id: 'calibracoes', icon: HiOutlineAdjustments, label: 'Calibrations' },
 ];
 
 // Aba que corresponde às páginas compartilhadas de cativeiro (de onde o painel chega nelas)

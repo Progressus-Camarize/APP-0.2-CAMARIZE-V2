@@ -123,9 +123,9 @@ export default function GuidedTour({ steps, onFinish }) {
         {currentStep.title && <div className={styles.title}>{currentStep.title}</div>}
         <div className={styles.content}>{currentStep.content}</div>
         <div className={styles.actions}>
-          <button className={styles.secondary} onClick={() => onFinish?.()}>Pular</button>
+          <button className={styles.secondary} onClick={() => onFinish?.()}>Skip</button>
           {!isFirst && (
-            <button className={styles.secondary} onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}>Voltar</button>
+            <button className={styles.secondary} onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}>Back</button>
           )}
           <button
             className={styles.primary}
@@ -134,7 +134,7 @@ export default function GuidedTour({ steps, onFinish }) {
               else setCurrentIndex(i => Math.min(steps.length - 1, i + 1));
             }}
           >
-            {isLast ? "Concluir" : "Próximo"}
+            {isLast ? "Finish" : "Next"}
           </button>
         </div>
       </div>

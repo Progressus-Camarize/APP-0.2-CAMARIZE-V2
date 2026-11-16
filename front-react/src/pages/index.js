@@ -21,7 +21,7 @@ export default function StartScreen() {
   return (
     <>
       <Head>
-        <title>Camarize - Início</title>
+        <title>Camarize - Home</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main className={styles.startMain}>
@@ -35,7 +35,7 @@ export default function StartScreen() {
             priority
           />
         </div>
-        <button className={styles.startButton} onClick={() => router.push("/login")}>Conecte-se</button>
+        <button className={styles.startButton} onClick={() => router.push("/login")}>Get started</button>
       </main>
     </>
   );

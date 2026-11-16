@@ -71,7 +71,7 @@ export default function MasterPanel() {
 
   const getDisplayName = (senderId) => {
     const me = getMyId();
-    if (String(senderId) === String(me)) return 'Você (Master)';
+    if (String(senderId) === String(me)) return 'You (Master)';
     const u = (users || []).find(x => String(x.id || x._id) === String(senderId));
     // Se não achou no users (pois users contém admins), rotula como Admin por padrão
     return u?.nome || u?.email || 'Admin';
@@ -207,7 +207,7 @@ export default function MasterPanel() {
       await load();
     } catch (e) {
       console.error('Falha ao salvar limites de avisos:', e);
-      alert('Erro ao salvar limites: ' + (e?.response?.data?.error || e.message));
+      alert('Error saving limits: ' + (e?.response?.data?.error || e.message));
     } finally {
       setLimitesSubmitting(false);
     }
@@ -305,7 +305,7 @@ export default function MasterPanel() {
       setTiposCamarao(tipos.data);
       setSensores(sens.data);
     } catch (e) {
-      setError('Erro ao carregar dados');
+      setError('Error loading data');
     } finally {
       setLoading(false);
     }
@@ -381,15 +381,15 @@ export default function MasterPanel() {
         const meRes = await axios.get(`${apiUrl}/users/me`, { headers });
         me = meRes.data?._id || meRes.data?.id;
       }
-      if (!me || !adminId) throw new Error('IDs inválidos');
+      if (!me || !adminId) throw new Error('Invalid IDs');
       const res = await axios.post(`${apiUrl}/chat/conversations`, { adminId, masterId: me }, { headers });
       const convs = await axios.get(`${apiUrl}/chat/conversations/mine`, { headers });
       setChatConversations(convs.data || []);
       setTab('chat');
       if (res?.data?._id) openConversation(res.data._id);
     } catch (e) {
-      const msg = e?.response?.data?.error || e.message || 'Falha desconhecida';
-      alert('Não foi possível iniciar a conversa: ' + msg);
+      const msg = e?.response?.data?.error || e.message || 'Unknown error';
+      alert('Could not start the conversation: ' + msg);
     }
   };
 
@@ -557,7 +557,7 @@ export default function MasterPanel() {
               setAllRequests(updatedRequests);
             }
           } catch (error) {
-            alert('Erro ao aprovar: ' + (error?.response?.data?.error || error.message));
+            alert('Error approving: ' + (error?.response?.data?.error || error.message));
           }
           return;
         }
@@ -578,8 +578,8 @@ export default function MasterPanel() {
     try {
       await axios.post(`${apiUrl}/requests/${id}/${op}`, {}, { headers: { Authorization: `Bearer ${token}` } });
       setMasterNotification({ show: true, type: 'success',
-        message: op !== 'approve' ? 'Solicitação recusada.'
-          : request?.action === 'aplicar_calibracao' ? mensagemCalibracaoAplicada(request.payload) : 'Solicitação aprovada.' });
+        message: op !== 'approve' ? 'Request rejected.'
+          : request?.action === 'aplicar_calibracao' ? mensagemCalibracaoAplicada(request.payload) : 'Request approved.' });
       await load();
       // Recarregar requests completos se estivermos na aba requests
       if (tab === 'requests') {
@@ -589,7 +589,7 @@ export default function MasterPanel() {
       return true;
     } catch (e) {
       setMasterNotification({ show: true, type: 'error',
-        message: `Não foi possível ${op === 'approve' ? 'aprovar' : 'recusar'} a solicitação: ${e?.response?.data?.error || e.message}` });
+        message: `Could not ${op === 'approve' ? 'approve' : 'reject'} the request: ${e?.response?.data?.error || e.message}` });
       return false;
     } finally {
       setDecidindo(null);
@@ -602,7 +602,7 @@ export default function MasterPanel() {
 
   const handleApproveFuncionario = async () => {
     if (!selectedFazendaId) {
-      alert('Por favor, selecione uma fazenda.');
+      alert('Please select a farm.');
       return;
     }
 
@@ -623,7 +623,7 @@ export default function MasterPanel() {
         setAllRequests(updatedRequests);
       }
     } catch (error) {
-      alert('Erro ao aprovar: ' + (error?.response?.data?.error || error.message));
+      alert('Error approving: ' + (error?.response?.data?.error || error.message));
     }
   };
 
@@ -642,12 +642,12 @@ export default function MasterPanel() {
       const tipos = Array.isArray(payload?.tipos) ? payload.tipos : [];
       return (
         <div className={cardStyles.detalhes}>
-          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nome}</div>
-          <div className={cardStyles.detalhesTitulo}>Sensores solicitados</div>
+          <div style={{ marginBottom: 6 }}><strong>Pond:</strong> {nome}</div>
+          <div className={cardStyles.detalhesTitulo}>Requested sensors</div>
           <div className={cardStyles.tags}>
             {tipos.length > 0 ? tipos.map(t => (
               <span key={t} className={cardStyles.tag}>{t}</span>
-            )) : <span style={{ color: '#6b7280' }}>Nenhum tipo informado</span>}
+            )) : <span style={{ color: '#6b7280' }}>No type provided</span>}
           </div>
         </div>
       );
@@ -657,12 +657,12 @@ export default function MasterPanel() {
       const tipos = Array.isArray(payload?.tipos) ? payload.tipos : [];
       return (
         <div className={cardStyles.detalhes}>
-          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {nome}</div>
-          <div className={cardStyles.detalhesTitulo}>Trocar sensores</div>
+          <div style={{ marginBottom: 6 }}><strong>Pond:</strong> {nome}</div>
+          <div className={cardStyles.detalhesTitulo}>Replace sensors</div>
           <div className={cardStyles.tags}>
             {tipos.length > 0 ? tipos.map(t => (
               <span key={t} className={cardStyles.tag}>{t}</span>
-            )) : <span style={{ color: '#6b7280' }}>Nenhum tipo informado</span>}
+            )) : <span style={{ color: '#6b7280' }}>No type provided</span>}
           </div>
         </div>
       );
@@ -675,25 +675,25 @@ export default function MasterPanel() {
         <div className={cardStyles.detalhes}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <strong>Nome:</strong> {payload.nome || 'N/A'}
+              <strong>Name:</strong> {payload.nome || 'N/A'}
             </div>
             <div>
-              <strong>Fazenda:</strong> {fazenda ? `${fazenda.nome} - ${fazenda.codigo}` : payload.fazendaId || 'N/A'}
+              <strong>Farm:</strong> {fazenda ? `${fazenda.nome} - ${fazenda.codigo}` : payload.fazendaId || 'N/A'}
             </div>
             <div>
-              <strong>Tipo de Camarão:</strong> {tipoCamarao ? tipoCamarao.nome : payload.id_tipo_camarao || 'N/A'}
+              <strong>Shrimp type:</strong> {tipoCamarao ? tipoCamarao.nome : payload.id_tipo_camarao || 'N/A'}
             </div>
             <div>
-              <strong>Data de Instalação:</strong> {payload.data_instalacao ? new Date(payload.data_instalacao).toLocaleDateString('pt-BR') : 'N/A'}
+              <strong>Installation date:</strong> {payload.data_instalacao ? new Date(payload.data_instalacao).toLocaleDateString('en-US') : 'N/A'}
             </div>
             <div>
-              <strong>Temp Ideal:</strong> {payload.temp_media_diaria ? `${payload.temp_media_diaria}°C` : 'N/A'}
+              <strong>Ideal temp:</strong> {payload.temp_media_diaria ? `${payload.temp_media_diaria}°C` : 'N/A'}
             </div>
             <div>
-              <strong>pH Ideal:</strong> {payload.ph_medio_diario || 'N/A'}
+              <strong>Ideal pH:</strong> {payload.ph_medio_diario || 'N/A'}
             </div>
             <div>
-              <strong>Amônia Ideal:</strong> {payload.amonia_media_diaria ? `${payload.amonia_media_diaria} mg/L` : 'N/A'}
+              <strong>Ideal ammonia:</strong> {payload.amonia_media_diaria ? `${payload.amonia_media_diaria} mg/L` : 'N/A'}
             </div>
           </div>
         </div>
@@ -703,36 +703,36 @@ export default function MasterPanel() {
       const tipoCamarao = payload.id_tipo_camarao ? (tiposCamarao.find(t => String(t._id) === String(payload.id_tipo_camarao)) || null) : null;
       return (
         <div className={cardStyles.detalhes}>
-          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {cativeiroNome}</div>
-          <div className={cardStyles.detalhesTitulo}>Alterações solicitadas</div>
+          <div style={{ marginBottom: 6 }}><strong>Pond:</strong> {cativeiroNome}</div>
+          <div className={cardStyles.detalhesTitulo}>Requested changes</div>
           <ul>
-            {typeof payload?.nome !== 'undefined' && <li><strong>Nome:</strong> {payload.nome || 'N/A'}</li>}
+            {typeof payload?.nome !== 'undefined' && <li><strong>Name:</strong> {payload.nome || 'N/A'}</li>}
             {typeof payload?.id_tipo_camarao !== 'undefined' && (
-              <li><strong>Tipo de Camarão:</strong> {tipoCamarao ? tipoCamarao.nome : payload.id_tipo_camarao}</li>
+              <li><strong>Shrimp type:</strong> {tipoCamarao ? tipoCamarao.nome : payload.id_tipo_camarao}</li>
             )}
             {typeof payload?.data_instalacao !== 'undefined' && (
-              <li><strong>Data de instalação:</strong> {payload.data_instalacao ? new Date(payload.data_instalacao).toLocaleDateString('pt-BR') : 'N/A'}</li>
+              <li><strong>Installation date:</strong> {payload.data_instalacao ? new Date(payload.data_instalacao).toLocaleDateString('en-US') : 'N/A'}</li>
             )}
-            {typeof payload?.temp_media_diaria !== 'undefined' && <li><strong>Temp ideal (°C):</strong> {payload.temp_media_diaria}</li>}
-            {typeof payload?.ph_medio_diario !== 'undefined' && <li><strong>pH ideal:</strong> {payload.ph_medio_diario}</li>}
-            {typeof payload?.amonia_media_diaria !== 'undefined' && <li><strong>Amônia ideal (mg/L):</strong> {payload.amonia_media_diaria}</li>}
+            {typeof payload?.temp_media_diaria !== 'undefined' && <li><strong>Ideal temp (°C):</strong> {payload.temp_media_diaria}</li>}
+            {typeof payload?.ph_medio_diario !== 'undefined' && <li><strong>Ideal pH:</strong> {payload.ph_medio_diario}</li>}
+            {typeof payload?.amonia_media_diaria !== 'undefined' && <li><strong>Ideal ammonia (mg/L):</strong> {payload.amonia_media_diaria}</li>}
           </ul>
         </div>
       );
     } else if (action === 'aplicar_calibracao') {
       const nomeCativeiro = (cativeiros || []).find(c => String(c._id) === String(payload?.cativeiroId))?.nome;
-      return <DetalhesCalibracao payload={payload} nomeCativeiro={nomeCativeiro} rodape="Ao aprovar, este resultado passa a valer para o cativeiro." />;
+      return <DetalhesCalibracao payload={payload} nomeCativeiro={nomeCativeiro} rodape="Once approved, this result takes effect for the pond." />;
     } else if (action === 'editar_dieta') {
       const horarios = Array.isArray(payload?.horarios) ? payload.horarios.filter(h => h) : [];
       return (
         <div className={cardStyles.detalhes}>
-          <div style={{ marginBottom: 6 }}><strong>Cativeiro:</strong> {payload?.cativeiroNome || payload?.cativeiroId || 'N/A'}</div>
-          <div className={cardStyles.detalhesTitulo}>Alterações solicitadas</div>
+          <div style={{ marginBottom: 6 }}><strong>Pond:</strong> {payload?.cativeiroNome || payload?.cativeiroId || 'N/A'}</div>
+          <div className={cardStyles.detalhesTitulo}>Requested changes</div>
           <ul>
-            {payload?.descricao && <li><strong>Descrição:</strong> {payload.descricao}</li>}
-            {typeof payload?.quantidade !== 'undefined' && <li><strong>Quantidade:</strong> {payload.quantidade}g por refeição</li>}
-            {typeof payload?.quantidadeRefeicoes !== 'undefined' && <li><strong>Refeições/dia:</strong> {payload.quantidadeRefeicoes}</li>}
-            {horarios.length > 0 && <li><strong>Horários:</strong> {horarios.join(', ')}</li>}
+            {payload?.descricao && <li><strong>Description:</strong> {payload.descricao}</li>}
+            {typeof payload?.quantidade !== 'undefined' && <li><strong>Amount:</strong> {payload.quantidade}g per meal</li>}
+            {typeof payload?.quantidadeRefeicoes !== 'undefined' && <li><strong>Meals/day:</strong> {payload.quantidadeRefeicoes}</li>}
+            {horarios.length > 0 && <li><strong>Times:</strong> {horarios.join(', ')}</li>}
           </ul>
         </div>
       );
@@ -742,32 +742,32 @@ export default function MasterPanel() {
     } else if (action === 'cadastrar_funcionario') {
       return (
         <div className={cardStyles.detalhes}>
-          <div><strong>Nome:</strong> {payload.nome || 'N/A'}</div>
+          <div><strong>Name:</strong> {payload.nome || 'N/A'}</div>
           <div><strong>Email:</strong> {payload.email || 'N/A'}</div>
           <div style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>
-            Selecione a fazenda ao aprovar.
+            Select the farm when approving.
           </div>
         </div>
       );
     } else if (action === 'associar_funcionario') {
       return (
         <div className={cardStyles.detalhes}>
-          {payload.nome && <div><strong>Funcionário:</strong> {payload.nome}</div>}
-          <div><strong>Email do Funcionário:</strong> {payload.email || payload.emailFuncionario || 'N/A'}</div>
-          {payload.fazendaInformada && <div><strong>Fazenda informada:</strong> {payload.fazendaInformada}</div>}
+          {payload.nome && <div><strong>Employee:</strong> {payload.nome}</div>}
+          <div><strong>Employee email:</strong> {payload.email || payload.emailFuncionario || 'N/A'}</div>
+          {payload.fazendaInformada && <div><strong>Farm provided:</strong> {payload.fazendaInformada}</div>}
           <div style={{ color: '#6b7280', fontSize: 13, marginTop: 4 }}>
-            Selecione a fazenda ao aprovar para associar este funcionário.
+            Select the farm when approving to link this employee.
           </div>
         </div>
       );
     } else if (action === 'cadastrar_proprietario') {
       return (
         <div className={cardStyles.detalhes}>
-          <div><strong>Nome:</strong> {payload.nome || 'N/A'}</div>
+          <div><strong>Name:</strong> {payload.nome || 'N/A'}</div>
           <div><strong>Email:</strong> {payload.email || 'N/A'}</div>
           {payload.fazenda && (
             <div style={{ marginTop: 8 }}>
-              <strong>Fazenda:</strong> {payload.fazenda.nome || 'N/A'}
+              <strong>Farm:</strong> {payload.fazenda.nome || 'N/A'}
             </div>
           )}
         </div>
@@ -822,15 +822,15 @@ export default function MasterPanel() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setMasterNotification({ show: true, message: 'Selecione um arquivo de imagem válido.', type: 'error' });
+      setMasterNotification({ show: true, message: 'Select a valid image file.', type: 'error' });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setMasterNotification({ show: true, message: 'Imagem muito grande. Máximo 5MB.', type: 'error' });
+      setMasterNotification({ show: true, message: 'Image too large. Maximum 5MB.', type: 'error' });
       return;
     }
     if (!uploadTargetCativeiro) {
-      setMasterNotification({ show: true, message: 'Nenhum cativeiro selecionado.', type: 'error' });
+      setMasterNotification({ show: true, message: 'No pond selected.', type: 'error' });
       return;
     }
     const targetId = uploadTargetCativeiro;
@@ -850,10 +850,10 @@ export default function MasterPanel() {
       await axios.post(`${apiUrl}/cativeiros/${cativeiroId}/foto`, form, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
-      setMasterNotification({ show: true, message: 'Foto atualizada com sucesso!', type: 'success' });
+      setMasterNotification({ show: true, message: 'Photo updated successfully!', type: 'success' });
       await load();
     } catch {
-      setMasterNotification({ show: true, message: 'Falha ao atualizar foto. Tente novamente.', type: 'error' });
+      setMasterNotification({ show: true, message: 'Failed to update photo. Please try again.', type: 'error' });
       setPreviewImage(prev => { const next = { ...prev }; delete next[cativeiroId]; return next; });
     }
   };
@@ -888,7 +888,7 @@ export default function MasterPanel() {
   const getFazendaName = (id) => {
     const idStr = String(id);
     const f = fazendas.find(fz => String(fz._id) === idStr);
-    if (!f) return 'Sem fazenda';
+    if (!f) return 'No farm';
     return f.nome && f.codigo ? `${f.nome} - ${f.codigo}` : (f.nome || f.codigo || id);
   };
 
@@ -924,7 +924,7 @@ export default function MasterPanel() {
       setShowEditFazendaModal(false);
       await load();
     } catch (e) {
-      alert('Erro ao atualizar fazenda: ' + (e?.response?.data?.error || e.message));
+      alert('Error updating farm: ' + (e?.response?.data?.error || e.message));
     }
   };
 
@@ -938,18 +938,18 @@ export default function MasterPanel() {
       setNewFazendaForm({ nome: '', rua: '', bairro: '', cidade: '', numero: '', adminId: '' });
       await load();
     } catch (e) {
-      alert('Erro ao criar fazenda: ' + (e?.response?.data?.error || e.message));
+      alert('Error creating farm: ' + (e?.response?.data?.error || e.message));
     }
   };
 
   const handleDeleteFazenda = async (id, nome) => {
-    if (!window.confirm(`Excluir a fazenda "${nome}"? Esta ação removerá todos os vínculos de usuários com ela.`)) return;
+    if (!window.confirm(`Delete the farm "${nome}"? This will remove all user links to it.`)) return;
     try {
       const token = getToken();
       await axios.delete(`${apiUrl}/fazendas/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       await load();
     } catch (e) {
-      alert('Erro ao excluir fazenda: ' + (e?.response?.data?.error || e.message));
+      alert('Error deleting farm: ' + (e?.response?.data?.error || e.message));
     }
   };
 
@@ -984,7 +984,7 @@ export default function MasterPanel() {
       const token = getToken();
       const form = new FormData();
       form.append('fazendaId', createForm.fazendaId);
-      form.append('nome', createForm.nome && createForm.nome.trim() ? createForm.nome.trim() : 'Novo cativeiro');
+      form.append('nome', createForm.nome && createForm.nome.trim() ? createForm.nome.trim() : 'New pond');
       form.append('id_tipo_camarao', createForm.id_tipo_camarao);
       form.append('data_instalacao', new Date(createForm.data_instalacao).toISOString());
       if (createForm.temp_media_diaria) form.append('temp_media_diaria', createForm.temp_media_diaria);
@@ -998,7 +998,7 @@ export default function MasterPanel() {
       setExpandedFazenda(prev => ({ ...prev, [String(createForm.fazendaId)]: true }));
     } catch (e) {
       console.error('Falha ao criar cativeiro:', e);
-      alert('Erro ao criar cativeiro. Verifique os dados e tente novamente.');
+      alert('Error creating pond. Check the data and try again.');
     }
   };
 
@@ -1006,21 +1006,21 @@ export default function MasterPanel() {
   const effectiveRole = user?.role || localRole;
   // Com dados guardados, o login é conferido em segundo plano (se falhar, o efeito acima manda para /login)
   const conferindoLogin = authLoading ? !cacheInicial : !isAuthenticated;
-  if (conferindoLogin || loading || effectiveRole !== 'master') return <div className={styles.loadingScreen}>Carregando...</div>;
+  if (conferindoLogin || loading || effectiveRole !== 'master') return <div className={styles.loadingScreen}>Loading...</div>;
   if (error) return <div className={styles.loadingScreen} style={{ color: '#ef4444' }}>{error}</div>;
 
   const badges = { avisos: avisosNaoVistos, solicitacoes: items.length };
 
   const masterPageTitles = {
-    requests: ['Histórico', 'Histórico de ações dos admins'],
-    avisos: ['Avisos', 'Alertas gerados pelo monitoramento dos viveiros'],
-    solicitacoes: ['Solicitações', 'Aprovações pesadas pendentes'],
-    usuarios: ['Usuários', 'Gestão de usuários e permissões'],
-    cativeiros: ['Fazendas & Cativeiros', 'Visão geral de todas as fazendas'],
-    sensores: ['Sensores', 'Gestão e vinculação de sensores IoT'],
-    dietas: ['Dietas', 'A dieta de cada cativeiro, por fazenda'],
-    chat: ['Chat com Admins', 'Comunicação com administradores'],
-    calibracoes: ['Calibrações', 'Calibração do sensor de pH e alimentador'],
+    requests: ['History', 'History of admin actions'],
+    avisos: ['Alerts', 'Alerts generated by pond monitoring'],
+    solicitacoes: ['Requests', 'Pending approvals'],
+    usuarios: ['Users', 'User and permission management'],
+    cativeiros: ['Farms & Ponds', 'Overview of all farms'],
+    sensores: ['Sensors', 'IoT sensor management and linking'],
+    dietas: ['Diets', 'Each pond\'s diet, by farm'],
+    chat: ['Chat with Admins', 'Communication with administrators'],
+    calibracoes: ['Calibrations', 'pH sensor and feeder calibration'],
   };
 
   return (
@@ -1051,7 +1051,7 @@ export default function MasterPanel() {
       {/* MAIN */}
       <div className={styles.main}>
         <header className={styles.topBar}>
-          <button className={styles.hamburgerBtn} onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
+          <button className={styles.hamburgerBtn} onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
@@ -1093,8 +1093,8 @@ export default function MasterPanel() {
 
           {filteredRequests.length === 0 && (
             allRequests.length > 0
-              ? <SolicitacoesVazio titulo="Nada encontrado" texto="Nenhum registro corresponde aos filtros aplicados." />
-              : <SolicitacoesVazio titulo="Nenhum registro" texto="As solicitações da fazenda aparecem aqui." />
+              ? <SolicitacoesVazio titulo="Nothing found" texto="No records match the applied filters." />
+              : <SolicitacoesVazio titulo="No records" texto="Farm requests appear here." />
           )}
 
           <div className={cardStyles.list}>
@@ -1106,8 +1106,8 @@ export default function MasterPanel() {
                 mostrarSolicitante
                 detalhes={item.payload && Object.keys(item.payload).length > 0 ? formatRequestDetails(item.action, item.payload) : null}
               acoes={item.status === 'pendente' ? [
-                { rotulo: 'Aprovar', tipo: 'aprovar', onClick: () => act(item._id, 'approve') },
-                { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject') },
+                { rotulo: 'Approve', tipo: 'aprovar', onClick: () => act(item._id, 'approve') },
+                { rotulo: 'Reject', tipo: 'recusar', onClick: () => act(item._id, 'reject') },
               ] : []}
               />
             ))}
@@ -1118,10 +1118,10 @@ export default function MasterPanel() {
       {tab === 'solicitacoes' && (
         <section className={styles.section}>
           {items.length === 0 ? (
-            <SolicitacoesVazio titulo="Tudo em dia" texto="Nenhuma solicitação aguardando aprovação." />
+            <SolicitacoesVazio titulo="All caught up" texto="No requests awaiting approval." />
           ) : (
             <>
-              <SolicitacoesFiltros filtrados={items.length} rotulo={items.length === 1 ? 'solicitação pendente' : 'solicitações pendentes'} />
+              <SolicitacoesFiltros filtrados={items.length} rotulo={items.length === 1 ? 'pending request' : 'pending requests'} />
               <div className={cardStyles.list}>
                 {items.map(item => (
                   <SolicitacaoCard
@@ -1131,9 +1131,9 @@ export default function MasterPanel() {
                     mostrarSolicitante
                     detalhes={item.payload && Object.keys(item.payload).length > 0 ? formatRequestDetails(item.action, item.payload) : null}
                     acoes={[
-                      { rotulo: decidindo === item._id ? 'Aplicando...' : 'Aprovar', tipo: 'aprovar',
+                      { rotulo: decidindo === item._id ? 'Applying...' : 'Approve', tipo: 'aprovar',
                         onClick: () => act(item._id, 'approve'), desabilitado: !!decidindo },
-                      { rotulo: 'Recusar', tipo: 'recusar', onClick: () => act(item._id, 'reject'), desabilitado: !!decidindo },
+                      { rotulo: 'Reject', tipo: 'recusar', onClick: () => act(item._id, 'reject'), desabilitado: !!decidindo },
                     ]}
                   />
                 ))}
@@ -1146,8 +1146,8 @@ export default function MasterPanel() {
       {tab === 'usuarios' && (
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Usuários</h2>
-            <span className={styles.filterCount}>{users.length} usuário{users.length !== 1 ? 's' : ''}</span>
+            <h2 className={styles.sectionTitle}>Users</h2>
+            <span className={styles.filterCount}>{users.length} user{users.length !== 1 ? 's' : ''}</span>
           </div>
           {users.map(u => {
             const roleBadgeClass = u.role === 'master' ? styles.userRowRoleMaster : u.role === 'admin' ? styles.userRowRoleAdmin : styles.userRowRoleMembro;
@@ -1158,14 +1158,14 @@ export default function MasterPanel() {
                 <div className={styles.userRowInfo}>
                   <div className={styles.userRowName}>{u.nome}</div>
                   <div className={styles.userRowEmail}>{u.email}</div>
-                  <span className={`${styles.userRowRoleBadge} ${roleBadgeClass}`}>{u.role}</span>
+                  <span className={`${styles.userRowRoleBadge} ${roleBadgeClass}`}>{({ membro: 'Member', admin: 'Admin', master: 'Master' })[u.role] || u.role}</span>
                 </div>
                 <select
                   className={styles.userRowSelect}
                   value={u.role}
                   onChange={(e) => setPendingRoleChange({ userId: u.id, userName: u.nome, currentRole: u.role, newRole: e.target.value })}
                 >
-                  <option value="membro">Membro</option>
+                  <option value="membro">Member</option>
                   <option value="admin">Admin</option>
                   <option value="master">Master</option>
                 </select>
@@ -1179,7 +1179,7 @@ export default function MasterPanel() {
         const SENSOR_TIPO_CFG = {
           temperatura: { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa', label: 'Temp' },
           ph:          { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: 'pH'   },
-          amonia:      { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: 'Amônia' },
+          amonia:      { bg: '#fdf4ff', color: '#7e22ce', border: '#e9d5ff', label: 'Ammonia' },
           sensor:      { bg: '#f8fafc', color: '#475569', border: '#e2e8f0', label: '—'    },
         };
         const grouped = groupedByFazenda();
@@ -1188,19 +1188,19 @@ export default function MasterPanel() {
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <div>
-                <h2 className={styles.sectionTitle}>Fazendas e Cativeiros</h2>
+                <h2 className={styles.sectionTitle}>Farms and Ponds</h2>
                 <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                  {fazendas.length} fazenda{fazendas.length !== 1 ? 's' : ''} · {cativeiros.length} cativeiro{cativeiros.length !== 1 ? 's' : ''}
+                  {fazendas.length} farm{fazendas.length !== 1 ? 's' : ''} · {cativeiros.length} pond{cativeiros.length !== 1 ? 's' : ''}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => openCreateModal()}>
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-                  Novo Cativeiro
+                  New Pond
                 </button>
                 <button className={`${styles.btn} ${styles.btnSuccess}`} onClick={() => setShowCreateFazendaModal(true)}>
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-                  Nova Fazenda
+                  New Farm
                 </button>
               </div>
             </div>
@@ -1233,23 +1233,23 @@ export default function MasterPanel() {
                         <div className={styles.accordionFarmName}>
                           {getFazendaName(fzId)}
                           <span style={{ marginLeft: 8, fontSize: '0.7rem', fontWeight: 500, background: '#f1f5f9', color: '#64748b', padding: '1px 7px', borderRadius: 20, verticalAlign: 'middle' }}>
-                            {cats.length} cativeiro{cats.length !== 1 ? 's' : ''}
+                            {cats.length} pond{cats.length !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <div className={styles.accordionFarmAdmin}>
-                          {fzAdmins.length > 0 ? `Admin: ${fzAdmins.map(a => a.nome).join(', ')}` : 'Sem admin responsável'}
+                          {fzAdmins.length > 0 ? `Admin: ${fzAdmins.map(a => a.nome).join(', ')}` : 'No admin assigned'}
                         </div>
                       </div>
                       <div className={styles.accordionHeaderRight}>
                         <button
                           className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
                           onClick={e => { e.stopPropagation(); openEditFazenda(fzObj); }}
-                        >Editar</button>
+                        >Edit</button>
                         <button
                           className={`${styles.btn} ${styles.btnSm}`}
                           style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}
                           onClick={e => { e.stopPropagation(); handleDeleteFazenda(fzId, fzObj?.nome); }}
-                        >Excluir</button>
+                        >Delete</button>
                         <span className={styles.accordionArrow} style={{ display: 'inline-block', transition: 'transform 0.2s', transform: expandedFazenda[fzId] ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                       </div>
                     </div>
@@ -1258,7 +1258,7 @@ export default function MasterPanel() {
                     {expandedFazenda[fzId] && (
                       <div className={styles.accordionBody}>
                         {cats.length === 0 ? (
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>Nenhum cativeiro nesta fazenda.</p>
+                          <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>No ponds on this farm.</p>
                         ) : (
                           (((Array.isArray(cativeirosByFazenda[fzId]) && cativeirosByFazenda[fzId].length > 0) ? cativeirosByFazenda[fzId] : cats) || []).map(c => {
                             const sensorCount = Array.isArray(c.sensores) ? c.sensores.length : 0;
@@ -1289,7 +1289,7 @@ export default function MasterPanel() {
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     {sensorCount > 0 && (
                                       <span style={{ background: '#dbeafe', color: '#1d4ed8', borderRadius: 20, padding: '2px 8px', fontSize: '11px', fontWeight: 600, border: '1px solid #bfdbfe' }}>
-                                        {sensorCount} sensor{sensorCount !== 1 ? 'es' : ''}
+                                        {sensorCount} sensor{sensorCount !== 1 ? 's' : ''}
                                       </span>
                                     )}
                                     <span style={{ color: '#94a3b8', fontSize: 11, display: 'inline-block', transition: 'transform 0.2s', transform: expandedCativeiro[c._id] ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
@@ -1319,23 +1319,23 @@ export default function MasterPanel() {
                                         }}
                                       >
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        Editar
+                                        Edit
                                       </button>
                                       <button
                                         className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
                                         onClick={() => abrirModalLimites(c)}
-                                        title="Configurar limites de temperatura e sensibilidade dos avisos"
+                                        title="Configure temperature limits and alert sensitivity"
                                       >
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        Alertas
+                                        Alerts
                                       </button>
                                       <button
                                         className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
                                         onClick={() => abrirHistoricoChave(c)}
-                                        title="Gerar a chave do dispositivo (ESP32) deste viveiro e ver o histórico"
+                                        title="Generate this pond's device key (ESP32) and view its history"
                                       >
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        Chave
+                                        Key
                                       </button>
                                       <button
                                         className={`${styles.btn} ${styles.btnSm}`}
@@ -1343,18 +1343,18 @@ export default function MasterPanel() {
                                         onClick={() => deleteCativeiro(c._id)}
                                       >
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        Excluir
+                                        Delete
                                       </button>
                                     </div>
 
                                     {/* Info grid */}
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 8, marginBottom: 18 }}>
                                       {[
-                                        ['Tipo de camarão', c.id_tipo_camarao?.nome || (typeof c.id_tipo_camarao === 'string' ? c.id_tipo_camarao : '—')],
-                                        ['Instalação', c.data_instalacao ? new Date(c.data_instalacao).toLocaleDateString('pt-BR') : '—'],
-                                        ['Temp ideal', c.condicoes_ideais?.temp_ideal != null ? `${c.condicoes_ideais.temp_ideal} °C` : c.temp_media_diaria ? `${c.temp_media_diaria} °C` : '—'],
-                                        ['pH ideal', c.condicoes_ideais?.ph_ideal ?? c.ph_medio_diario ?? '—'],
-                                        ['Amônia ideal', c.condicoes_ideais?.amonia_ideal != null ? `${c.condicoes_ideais.amonia_ideal} mg/L` : c.amonia_media_diaria ? `${c.amonia_media_diaria} mg/L` : '—'],
+                                        ['Shrimp type', c.id_tipo_camarao?.nome || (typeof c.id_tipo_camarao === 'string' ? c.id_tipo_camarao : '—')],
+                                        ['Installation', c.data_instalacao ? new Date(c.data_instalacao).toLocaleDateString('en-US') : '—'],
+                                        ['Ideal temp', c.condicoes_ideais?.temp_ideal != null ? `${c.condicoes_ideais.temp_ideal} °C` : c.temp_media_diaria ? `${c.temp_media_diaria} °C` : '—'],
+                                        ['Ideal pH', c.condicoes_ideais?.ph_ideal ?? c.ph_medio_diario ?? '—'],
+                                        ['Ideal ammonia', c.condicoes_ideais?.amonia_ideal != null ? `${c.condicoes_ideais.amonia_ideal} mg/L` : c.amonia_media_diaria ? `${c.amonia_media_diaria} mg/L` : '—'],
                                       ].map(([label, value]) => (
                                         <div key={label} style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 12px' }}>
                                           <div style={{ fontSize: '0.67rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
@@ -1365,12 +1365,12 @@ export default function MasterPanel() {
 
                                     {/* Foto */}
                                     <div style={{ marginBottom: 16 }}>
-                                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Foto</div>
+                                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Photo</div>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                         {(previewImage[c._id] || !photoErrors[c._id]) ? (
                                           <img
                                             src={previewImage[c._id] || fotoCativeiroUrl(apiUrl, c._id, authToken, c.foto_versao)}
-                                            alt="Foto do cativeiro"
+                                            alt="Pond photo"
                                             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', flexShrink: 0 }}
                                             onError={() => {
                                               if (!previewImage[c._id]) {
@@ -1387,18 +1387,18 @@ export default function MasterPanel() {
                                           onClick={() => { setUploadTargetCativeiro(c._id); fileInputRef.current?.click(); }}
                                           className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`}
                                         >
-                                          Alterar foto
+                                          Change photo
                                         </button>
                                       </div>
                                     </div>
 
                                     {/* Sensors */}
                                     <div style={{ marginBottom: 16 }}>
-                                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Sensores vinculados</div>
+                                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Linked sensors</div>
                                       {!Array.isArray(c.sensores) ? (
-                                        <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Carregando...</div>
+                                        <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Loading...</div>
                                       ) : c.sensores.length === 0 ? (
-                                        <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic' }}>Nenhum sensor vinculado.</div>
+                                        <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic' }}>No linked sensors.</div>
                                       ) : (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                           {c.sensores.map(s => {
@@ -1417,12 +1417,12 @@ export default function MasterPanel() {
                                                         data: { id_sensor: s._id || s.id, id_cativeiro: c._id }
                                                       });
                                                       await loadSensorsForCativeiro(c._id);
-                                                      setMasterNotification({ show: true, message: 'Sensor desvinculado com sucesso!', type: 'success' });
+                                                      setMasterNotification({ show: true, message: 'Sensor unlinked successfully!', type: 'success' });
                                                     } catch (e) {
-                                                      setMasterNotification({ show: true, message: 'Erro ao desvincular sensor: ' + (e?.response?.data?.message || e.message), type: 'error' });
+                                                      setMasterNotification({ show: true, message: 'Error unlinking sensor: ' + (e?.response?.data?.message || e.message), type: 'error' });
                                                     }
                                                   }}
-                                                  title="Desvincular"
+                                                  title="Unlink"
                                                   style={{ width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fee2e2', border: 'none', borderRadius: '50%', cursor: 'pointer', color: '#ef4444', fontWeight: 700, fontSize: 13, padding: 0, flexShrink: 0, lineHeight: 1 }}
                                                 >×</button>
                                               </div>
@@ -1434,11 +1434,11 @@ export default function MasterPanel() {
 
                                     {/* Diet */}
                                     <div>
-                                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Dieta ativa</div>
-                                      {cativeiroDieta[c._id] === undefined && <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Carregando...</div>}
+                                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Active diet</div>
+                                      {cativeiroDieta[c._id] === undefined && <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Loading...</div>}
                                       {cativeiroDieta[c._id] === null && (
                                         <div style={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic', background: '#f8fafc', border: '1px dashed #e2e8f0', borderRadius: 8, padding: '10px 14px' }}>
-                                          Nenhuma dieta ativa para este cativeiro.
+                                          No active diet for this pond.
                                         </div>
                                       )}
                                       {cativeiroDieta[c._id] && (() => {
@@ -1449,15 +1449,15 @@ export default function MasterPanel() {
                                             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                                               <span style={{ background: '#dcfce7', color: '#15803d', padding: '3px 10px', borderRadius: 20, fontSize: '12px', fontWeight: 700, border: '1px solid #bbf7d0' }}>{d.descricao || '—'}</span>
                                               {typeof d.quantidade !== 'undefined' && (
-                                                <span style={{ fontSize: '0.82rem', color: '#166534' }}><b>{d.quantidade}g</b> por refeição</span>
+                                                <span style={{ fontSize: '0.82rem', color: '#166534' }}><b>{d.quantidade}g</b> per meal</span>
                                               )}
                                               {typeof d.quantidadeRefeicoes !== 'undefined' && (
-                                                <span style={{ fontSize: '0.82rem', color: '#166534' }}><b>{d.quantidadeRefeicoes}×</b> ao dia</span>
+                                                <span style={{ fontSize: '0.82rem', color: '#166534' }}><b>{d.quantidadeRefeicoes}×</b> a day</span>
                                               )}
                                             </div>
                                             {horarios && (
                                               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-                                                <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700 }}>Horários:</span>
+                                                <span style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 700 }}>Times:</span>
                                                 {horarios.map((h, i) => (
                                                   <span key={i} style={{ background: '#dcfce7', color: '#15803d', padding: '1px 8px', borderRadius: 20, fontSize: '11px', fontWeight: 600, border: '1px solid #bbf7d0' }}>{h}</span>
                                                 ))}
@@ -1473,7 +1473,7 @@ export default function MasterPanel() {
                             );
                           })
                         )}
-                        {loadingFazenda[fzId] && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>Carregando cativeiros...</div>}
+                        {loadingFazenda[fzId] && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>Loading ponds...</div>}
                       </div>
                     )}
                   </div>
@@ -1486,9 +1486,9 @@ export default function MasterPanel() {
 
       {tab === 'sensores' && (() => {
         const SENSOR_CFG = {
-          temperatura: { label: 'Temperatura', icon: '🌡️', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
+          temperatura: { label: 'Temperature', icon: '🌡️', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
           ph:          { label: 'pH',          icon: '🧪', bg: '#eff6ff', stripe: '#3b82f6', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
-          amonia:      { label: 'Amônia',      icon: '⚗️', bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
+          amonia:      { label: 'Ammonia',     icon: '⚗️', bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
         };
         const countByType = { temperatura: 0, ph: 0, amonia: 0 };
         sensores.forEach(s => { const t = getSensorType(s); if (countByType[t] !== undefined) countByType[t]++; });
@@ -1496,9 +1496,9 @@ export default function MasterPanel() {
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
-              <h2 className={styles.sectionTitle}>Sensores IoT</h2>
+              <h2 className={styles.sectionTitle}>IoT Sensors</h2>
               <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                {sensores.length} sensor{sensores.length !== 1 ? 'es' : ''} cadastrado{sensores.length !== 1 ? 's' : ''}
+                {sensores.length} registered sensor{sensores.length !== 1 ? 's' : ''}
               </p>
             </div>
             <button
@@ -1506,7 +1506,7 @@ export default function MasterPanel() {
               onClick={() => { setSensorForm({ id_tipo_sensor: 'temperatura', apelido: '', fotoFile: null }); setShowCreateSensor(true); }}
             >
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-              Novo Sensor
+              New Sensor
             </button>
           </div>
 
@@ -1528,7 +1528,7 @@ export default function MasterPanel() {
           {sensores.length === 0 ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyStateIcon}>📡</div>
-              <p className={styles.emptyStateText}>Nenhum sensor cadastrado ainda.</p>
+              <p className={styles.emptyStateText}>No sensors registered yet.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 12 }}>
@@ -1549,7 +1549,7 @@ export default function MasterPanel() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {s.apelido || 'Sem apelido'}
+                            {s.apelido || 'No nickname'}
                           </div>
                           <span style={{ display: 'inline-block', background: cfg.badgeBg, color: cfg.badgeColor, padding: '2px 9px', borderRadius: 20, fontSize: '10.5px', fontWeight: 700, textTransform: 'capitalize', letterSpacing: '0.03em' }}>
                             {cfg.label}
@@ -1563,7 +1563,7 @@ export default function MasterPanel() {
                           onClick={() => { setSensorForm({ id: s._id, id_tipo_sensor: tipo, apelido: s.apelido || '', fotoFile: null }); setShowCreateSensor(true); }}
                         >
                           <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          Editar
+                          Edit
                         </button>
                         <button
                           className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSm}`}
@@ -1571,12 +1571,12 @@ export default function MasterPanel() {
                           onClick={() => { setLinkForm({ sensorId: s._id, cativeiroId: '', currentSensorIds: [] }); setShowLinkModal(true); }}
                         >
                           <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                          Vincular
+                          Link
                         </button>
                         <button
                           className={`${styles.btn} ${styles.btnSm}`}
                           style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}
-                          onClick={() => { setDeleteSensorData({ id: s._id, apelido: s.apelido || 'Sem apelido', tipo: cfg.label }); setShowDeleteSensorModal(true); }}
+                          onClick={() => { setDeleteSensorData({ id: s._id, apelido: s.apelido || 'No nickname', tipo: cfg.label }); setShowDeleteSensorModal(true); }}
                         >
                           <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </button>
@@ -1603,19 +1603,19 @@ export default function MasterPanel() {
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
-              <h2 className={styles.sectionTitle}>Chat com Admins</h2>
+              <h2 className={styles.sectionTitle}>Chat with Admins</h2>
               <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                {chatConversations.length} conversa{chatConversations.length !== 1 ? 's' : ''}
+                {chatConversations.length} conversation{chatConversations.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
           <div className={styles.chatLayout}>
             {/* Sidebar de conversas */}
             <div className={styles.chatSidebar}>
-              <div className={styles.chatSidebarHeader}>Conversas</div>
+              <div className={styles.chatSidebarHeader}>Conversations</div>
               <div className={styles.chatConvList}>
                 {chatConversations.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>Nenhuma conversa ainda.</div>
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem' }}>No conversations yet.</div>
                 ) : (
                   chatConversations.map(c => (
                     <button
@@ -1625,20 +1625,20 @@ export default function MasterPanel() {
                     >
                       <div className={styles.chatConvTitle}>{getConversationTitle(c)}</div>
                       <div className={styles.chatConvTime}>
-                        {new Date(c.updatedAt || c.lastMessageAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(c.updatedAt || c.lastMessageAt).toLocaleString('en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </button>
                   ))
                 )}
               </div>
               <div className={styles.chatStartSection}>
-                <div className={styles.chatStartLabel}>Nova conversa</div>
+                <div className={styles.chatStartLabel}>New conversation</div>
                 <select
                   onChange={(e) => { const val = e.target.value; if (val) { startConversationWithAdmin(val); e.target.value = ''; } }}
                   className={styles.formSelect}
                   style={{ width: '100%' }}
                 >
-                  <option value="">Selecione um admin...</option>
+                  <option value="">Select an admin...</option>
                   {(users || []).filter(u => u.role === 'admin').map(u => (
                     <option key={u.id || u._id} value={u.id || u._id}>{u.nome || u.email}</option>
                   ))}
@@ -1663,7 +1663,7 @@ export default function MasterPanel() {
                       </div>
                     </>
                   ) : (
-                    <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Selecione uma conversa</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Select a conversation</span>
                   )}
                 </div>
                 {chatSelectedId && (
@@ -1671,10 +1671,10 @@ export default function MasterPanel() {
                     className={`${styles.btn} ${styles.btnSm}`}
                     style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}
                     onClick={() => setShowDeleteConvModal(true)}
-                    title="Excluir conversa"
+                    title="Delete conversation"
                   >
                     <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M3 6h18M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Excluir conversa
+                    Delete conversation
                   </button>
                 )}
               </div>
@@ -1684,7 +1684,7 @@ export default function MasterPanel() {
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{ textAlign: 'center', color: '#94a3b8' }}>
                       <svg width="40" height="40" fill="none" viewBox="0 0 24 24" style={{ marginBottom: 8, opacity: 0.4 }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      <p style={{ margin: 0, fontSize: '0.85rem' }}>Selecione uma conversa para começar</p>
+                      <p style={{ margin: 0, fontSize: '0.85rem' }}>Select a conversation to start</p>
                     </div>
                   </div>
                 )}
@@ -1698,7 +1698,7 @@ export default function MasterPanel() {
                       <div className={`${styles.chatBubble} ${isMine ? styles.chatBubbleMine : styles.chatBubbleOther}`}>
                         <div style={{ whiteSpace: 'pre-wrap' }}>{m.text}</div>
                         <div className={`${styles.chatBubbleTime} ${isMine ? styles.chatBubbleTimeMine : styles.chatBubbleTimeOther}`}>
-                          {new Date(m.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(m.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     </div>
@@ -1714,7 +1714,7 @@ export default function MasterPanel() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
                   }}
-                  placeholder={chatSelectedId ? 'Digite sua mensagem... (Enter para enviar)' : 'Selecione uma conversa'}
+                  placeholder={chatSelectedId ? 'Type your message... (Enter to send)' : 'Select a conversation'}
                   rows={2}
                   disabled={!chatSelectedId}
                   className={styles.chatTextarea}
@@ -1726,7 +1726,7 @@ export default function MasterPanel() {
                   style={{ alignSelf: 'flex-end', minWidth: 80 }}
                 >
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Enviar
+                  Send
                 </button>
               </div>
             </div>
@@ -1741,39 +1741,39 @@ export default function MasterPanel() {
       <Modal
         isOpen={showCreateSensor}
         onClose={() => setShowCreateSensor(false)}
-        title={sensorForm?.id ? 'Editar Sensor' : 'Novo Sensor'}
+        title={sensorForm?.id ? 'Edit Sensor' : 'New Sensor'}
         showCloseButton
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Tipo de sensor</label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Sensor type</label>
             <select
               value={sensorForm.id_tipo_sensor}
               onChange={(e) => setSensorForm(f => ({ ...f, id_tipo_sensor: e.target.value }))}
               className={styles.userRowSelect}
               style={{ width: '100%' }}
             >
-              <option value="temperatura">🌡️ Temperatura</option>
+              <option value="temperatura">🌡️ Temperature</option>
               <option value="ph">🧪 pH</option>
-              <option value="amonia">⚗️ Amônia</option>
+              <option value="amonia">⚗️ Ammonia</option>
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Apelido</label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Nickname</label>
             <input
               value={sensorForm.apelido}
               onChange={(e) => setSensorForm(f => ({ ...f, apelido: e.target.value }))}
-              placeholder="ex: Sensor Tanque A"
+              placeholder="e.g.: Tank A Sensor"
               className={styles.filterInput}
               style={{ width: '100%', boxSizing: 'border-box' }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Imagem do sensor <span style={{ fontWeight: 400, color: '#94a3b8' }}>(opcional)</span></label>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: 6 }}>Sensor image <span style={{ fontWeight: 400, color: '#94a3b8' }}>(optional)</span></label>
             <input type="file" accept="image/*" onChange={(e) => setSensorForm(f => ({ ...f, fotoFile: e.target.files?.[0] || null }))} style={{ fontSize: '0.85rem' }} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
-            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateSensor(false)}>Cancelar</button>
+            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateSensor(false)}>Cancel</button>
             <button
               className={`${styles.btn} ${styles.btnSuccess}`}
               onClick={async () => {
@@ -1792,11 +1792,11 @@ export default function MasterPanel() {
                   await load();
                   setTab('sensores');
                 } catch (e) {
-                  alert('Erro ao salvar sensor: ' + (e?.response?.data?.error || e.message));
+                  alert('Error saving sensor: ' + (e?.response?.data?.error || e.message));
                 }
               }}
             >
-              {sensorForm?.id ? 'Salvar alterações' : 'Criar sensor'}
+              {sensorForm?.id ? 'Save changes' : 'Create sensor'}
             </button>
           </div>
         </div>
@@ -1805,12 +1805,12 @@ export default function MasterPanel() {
       {showLinkModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', padding: 20, borderRadius: 8, width: '95%', maxWidth: 480 }}>
-            <h3 style={{ marginTop: 0 }}>Relacionar sensor a cativeiro</h3>
+            <h3 style={{ marginTop: 0 }}>Link sensor to pond</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Cativeiro</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Pond</label>
                 <select value={linkForm.cativeiroId} onChange={(e) => setLinkForm(f => ({ ...f, cativeiroId: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}>
-                  <option value="">Selecione</option>
+                  <option value="">Select</option>
                   {cativeiros.map(c => (
                     <option key={c._id} value={c._id}>{c.nome || c._id}</option>
                   ))}
@@ -1818,13 +1818,13 @@ export default function MasterPanel() {
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button onClick={() => setShowLinkModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setShowLinkModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 10px', cursor: 'pointer' }}>Cancel</button>
               <button onClick={async () => {
                 try {
                   const token = getToken();
                   const cId = linkForm.cativeiroId;
                   if (!cId) {
-                    setMasterNotification({ show: true, message: 'Selecione um cativeiro.', type: 'error' });
+                    setMasterNotification({ show: true, message: 'Select a pond.', type: 'error' });
                     return;
                   }
                   // Verifica se o sensor já está vinculado a este cativeiro
@@ -1832,7 +1832,7 @@ export default function MasterPanel() {
                   const existingIds = (Array.isArray(existingRes.data) ? existingRes.data : [])
                     .map(item => String((item?.id_sensor?._id || item?.id_sensor || item?._id || item) || ''));
                   if (existingIds.includes(String(linkForm.sensorId))) {
-                    setMasterNotification({ show: true, message: 'Este sensor já está vinculado a este cativeiro.', type: 'error' });
+                    setMasterNotification({ show: true, message: 'This sensor is already linked to this pond.', type: 'error' });
                     return;
                   }
                   await axios.post(`${apiUrl}/sensoresxCativeiros`, { id_sensor: linkForm.sensorId, id_cativeiro: cId }, { headers: { Authorization: `Bearer ${token}` } });
@@ -1846,11 +1846,11 @@ export default function MasterPanel() {
                     if (fzId) setExpandedFazenda(prev => ({ ...prev, [fzId]: true }));
                   } catch {}
                   await loadSensorsForCativeiro(cId);
-                  setMasterNotification({ show: true, message: 'Sensor vinculado com sucesso!', type: 'success' });
+                  setMasterNotification({ show: true, message: 'Sensor linked successfully!', type: 'success' });
                 } catch (e) {
-                  setMasterNotification({ show: true, message: 'Erro ao relacionar: ' + (e?.response?.data?.error || e.message), type: 'error' });
+                  setMasterNotification({ show: true, message: 'Error linking: ' + (e?.response?.data?.error || e.message), type: 'error' });
                 }
-              }} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 6, padding: '8px 12px', cursor: 'pointer' }}>Relacionar</button>
+              }} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 6, padding: '8px 12px', cursor: 'pointer' }}>Link</button>
             </div>
           </div>
         </div>
@@ -1859,26 +1859,26 @@ export default function MasterPanel() {
       {showEditFazendaModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', padding: 24, borderRadius: 8, width: '95%', maxWidth: 480 }}>
-            <h3 style={{ marginTop: 0 }}>Editar fazenda</h3>
+            <h3 style={{ marginTop: 0 }}>Edit farm</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Nome</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Name</label>
                 <input value={editFazendaForm.nome} onChange={e => setEditFazendaForm(f => ({ ...f, nome: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Rua</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Street</label>
                 <input value={editFazendaForm.rua} onChange={e => setEditFazendaForm(f => ({ ...f, rua: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Bairro</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Neighborhood</label>
                 <input value={editFazendaForm.bairro} onChange={e => setEditFazendaForm(f => ({ ...f, bairro: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Cidade</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>City</label>
                 <input value={editFazendaForm.cidade} onChange={e => setEditFazendaForm(f => ({ ...f, cidade: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Número</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Number</label>
                 <input value={editFazendaForm.numero} onChange={e => setEditFazendaForm(f => ({ ...f, numero: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               {(() => {
@@ -1887,13 +1887,13 @@ export default function MasterPanel() {
                 const hasLinkedAdmin = getFazendaAdmins(editFazendaForm.id).length > 0;
                 return (
                   <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Admin responsável</label>
+                    <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Responsible admin</label>
                     <select
                       value={editFazendaForm.adminId}
                       onChange={e => setEditFazendaForm(f => ({ ...f, adminId: e.target.value }))}
                       style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }}
                     >
-                      {!hasLinkedAdmin && <option value="">Sem admin responsável (opcional)</option>}
+                      {!hasLinkedAdmin && <option value="">No responsible admin (optional)</option>}
                       {allAdmins.map(a => (
                         <option key={a.id || a._id} value={a.id || a._id}>{a.nome} — {a.email}</option>
                       ))}
@@ -1903,8 +1903,8 @@ export default function MasterPanel() {
               })()}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setShowEditFazendaModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleUpdateFazenda} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}>Salvar</button>
+              <button onClick={() => setShowEditFazendaModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleUpdateFazenda} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}>Save</button>
             </div>
           </div>
         </div>
@@ -1914,23 +1914,23 @@ export default function MasterPanel() {
       {pendingRoleChange && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => setPendingRoleChange(null)}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 400, width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px', fontSize: '1.05rem', fontWeight: 700, color: '#1e293b' }}>Alterar permissão</h3>
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.05rem', fontWeight: 700, color: '#1e293b' }}>Change permission</h3>
             <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '0 0 18px' }} />
             <p style={{ margin: '0 0 20px', fontSize: '0.9rem', color: '#475569', lineHeight: 1.6 }}>
-              Tem certeza que deseja alterar a permissão de <strong style={{ color: '#1e293b' }}>{pendingRoleChange.userName}</strong> de <strong style={{ color: '#1e293b' }}>{pendingRoleChange.currentRole}</strong> para <strong style={{ color: '#1e293b' }}>{pendingRoleChange.newRole}</strong>?
+              Are you sure you want to change the permission of <strong style={{ color: '#1e293b' }}>{pendingRoleChange.userName}</strong> from <strong style={{ color: '#1e293b' }}>{({ membro: 'Member', admin: 'Admin', master: 'Master' })[pendingRoleChange.currentRole] || pendingRoleChange.currentRole}</strong> to <strong style={{ color: '#1e293b' }}>{({ membro: 'Member', admin: 'Admin', master: 'Master' })[pendingRoleChange.newRole] || pendingRoleChange.newRole}</strong>?
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setPendingRoleChange(null)}
                 style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#374151', fontFamily: 'Poppins, sans-serif', fontSize: '0.855rem', fontWeight: 500, cursor: 'pointer' }}
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={async () => { await changeRole(pendingRoleChange.userId, pendingRoleChange.newRole); setPendingRoleChange(null); }}
                 style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: 'linear-gradient(90deg, var(--salmao-camarize) 0%, #a3c7f7 100%)', color: '#0f172a', fontFamily: 'Poppins, sans-serif', fontSize: '0.855rem', fontWeight: 600, cursor: 'pointer' }}
               >
-                Confirmar
+                Confirm
               </button>
             </div>
           </div>
@@ -1941,41 +1941,41 @@ export default function MasterPanel() {
       {showCreateFazendaModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', padding: 24, borderRadius: 8, width: '95%', maxWidth: 480 }}>
-            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Nova fazenda</h3>
+            <h3 style={{ marginTop: 0, marginBottom: 12 }}>New farm</h3>
             <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0 0 16px 0' }} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Nome</label>
-                <input value={newFazendaForm.nome} onChange={e => setNewFazendaForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome da fazenda" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Name</label>
+                <input value={newFazendaForm.nome} onChange={e => setNewFazendaForm(f => ({ ...f, nome: e.target.value }))} placeholder="Farm name" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Rua</label>
-                <input value={newFazendaForm.rua} onChange={e => setNewFazendaForm(f => ({ ...f, rua: e.target.value }))} placeholder="Rua" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Street</label>
+                <input value={newFazendaForm.rua} onChange={e => setNewFazendaForm(f => ({ ...f, rua: e.target.value }))} placeholder="Street" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Bairro</label>
-                <input value={newFazendaForm.bairro} onChange={e => setNewFazendaForm(f => ({ ...f, bairro: e.target.value }))} placeholder="Bairro" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Neighborhood</label>
+                <input value={newFazendaForm.bairro} onChange={e => setNewFazendaForm(f => ({ ...f, bairro: e.target.value }))} placeholder="Neighborhood" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Cidade</label>
-                <input value={newFazendaForm.cidade} onChange={e => setNewFazendaForm(f => ({ ...f, cidade: e.target.value }))} placeholder="Cidade" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>City</label>
+                <input value={newFazendaForm.cidade} onChange={e => setNewFazendaForm(f => ({ ...f, cidade: e.target.value }))} placeholder="City" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Número</label>
-                <input value={newFazendaForm.numero} onChange={e => setNewFazendaForm(f => ({ ...f, numero: e.target.value }))} placeholder="Número" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Number</label>
+                <input value={newFazendaForm.numero} onChange={e => setNewFazendaForm(f => ({ ...f, numero: e.target.value }))} placeholder="Number" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }} />
               </div>
               {(() => {
                 const allAdmins = (users || []).filter(u => u.role === 'admin');
                 if (allAdmins.length === 0) return null;
                 return (
                   <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Admin responsável</label>
+                    <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Responsible admin</label>
                     <select
                       value={newFazendaForm.adminId}
                       onChange={e => setNewFazendaForm(f => ({ ...f, adminId: e.target.value }))}
                       style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, boxSizing: 'border-box' }}
                     >
-                      <option value="">Sem admin responsável (opcional)</option>
+                      <option value="">No responsible admin (optional)</option>
                       {allAdmins.map(a => (
                         <option key={a.id || a._id} value={a.id || a._id}>{a.nome} — {a.email}</option>
                       ))}
@@ -1985,12 +1985,12 @@ export default function MasterPanel() {
               })()}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setShowCreateFazendaModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setShowCreateFazendaModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
               <button
                 onClick={handleCreateFazenda}
                 disabled={!newFazendaForm.nome || !newFazendaForm.rua || !newFazendaForm.bairro || !newFazendaForm.cidade || !newFazendaForm.numero}
                 style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}
-              >Criar fazenda</button>
+              >Create farm</button>
             </div>
           </div>
         </div>
@@ -2000,11 +2000,11 @@ export default function MasterPanel() {
       {showCreateModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', padding: 24, borderRadius: 8, width: '95%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Criar cativeiro</h3>
+            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Create pond</h3>
             <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '0 0 16px 0' }} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Fazenda</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Farm</label>
                 <select value={createForm.fazendaId} onChange={(e) => setCreateForm(f => ({ ...f, fazendaId: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}>
                   {fazendas.map(f => (
                     <option key={f._id} value={f._id}>{getFazendaName(f._id)}</option>
@@ -2012,11 +2012,11 @@ export default function MasterPanel() {
                 </select>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Nome</label>
-                <input value={createForm.nome} onChange={(e) => setCreateForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome do cativeiro" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Name</label>
+                <input value={createForm.nome} onChange={(e) => setCreateForm(f => ({ ...f, nome: e.target.value }))} placeholder="Pond name" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Tipo de camarão</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Shrimp type</label>
                 <select value={createForm.id_tipo_camarao} onChange={(e) => setCreateForm(f => ({ ...f, id_tipo_camarao: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}>
                   {tiposCamarao.map(t => (
                     <option key={t._id} value={t._id}>{t.nome}</option>
@@ -2024,45 +2024,45 @@ export default function MasterPanel() {
                 </select>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Data de instalação</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Installation date</label>
                 <input type="date" value={createForm.data_instalacao} onChange={(e) => setCreateForm(f => ({ ...f, data_instalacao: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp ideal (°C)</label>
-                <input value={createForm.temp_media_diaria} onChange={(e) => setCreateForm(f => ({ ...f, temp_media_diaria: e.target.value }))} placeholder="ex: 26" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal temp (°C)</label>
+                <input value={createForm.temp_media_diaria} onChange={(e) => setCreateForm(f => ({ ...f, temp_media_diaria: e.target.value }))} placeholder="e.g.: 26" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>pH ideal</label>
-                <input value={createForm.ph_medio_diario} onChange={(e) => setCreateForm(f => ({ ...f, ph_medio_diario: e.target.value }))} placeholder="ex: 7.5" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal pH</label>
+                <input value={createForm.ph_medio_diario} onChange={(e) => setCreateForm(f => ({ ...f, ph_medio_diario: e.target.value }))} placeholder="e.g.: 7.5" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Amônia ideal (mg/L)</label>
-                <input value={createForm.amonia_media_diaria} onChange={(e) => setCreateForm(f => ({ ...f, amonia_media_diaria: e.target.value }))} placeholder="ex: 0.05" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal ammonia (mg/L)</label>
+                <input value={createForm.amonia_media_diaria} onChange={(e) => setCreateForm(f => ({ ...f, amonia_media_diaria: e.target.value }))} placeholder="e.g.: 0.05" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Imagem do cativeiro</label>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Pond image</label>
                 <input type="file" accept="image/*" onChange={(e) => setCreateForm(f => ({ ...f, fotoFile: e.target.files?.[0] || null }))} style={{ width: '100%' }} />
               </div>
               <p style={{ gridColumn: 'span 2', margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-                A dieta do cativeiro é definida depois, na aba Dietas.
+                The pond&apos;s diet is set later, in the Diets tab.
               </p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-              <button onClick={() => setShowCreateModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={submitCreateModal} style={{ border: 'none', background: '#10b981', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}>Criar</button>
+              <button onClick={() => setShowCreateModal(false)} style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={submitCreateModal} style={{ border: 'none', background: '#10b981', color: '#fff', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600 }}>Create</button>
             </div>
           </div>
         </div>
       )}
       {/* Modal de edição de cativeiro */}
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Editar cativeiro">
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit pond">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Nome</label>
-            <input value={editForm.nome} onChange={(e) => setEditForm(f => ({ ...f, nome: e.target.value }))} placeholder="Nome do cativeiro" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Name</label>
+            <input value={editForm.nome} onChange={(e) => setEditForm(f => ({ ...f, nome: e.target.value }))} placeholder="Pond name" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Tipo de camarão</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Shrimp type</label>
             <select value={editForm.id_tipo_camarao} onChange={(e) => setEditForm(f => ({ ...f, id_tipo_camarao: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}>
               {tiposCamarao.map(t => (
                 <option key={t._id} value={t._id}>{t.nome}</option>
@@ -2070,23 +2070,23 @@ export default function MasterPanel() {
             </select>
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Data de instalação</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Installation date</label>
             <input type="date" value={editForm.data_instalacao} onChange={(e) => setEditForm(f => ({ ...f, data_instalacao: e.target.value }))} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp ideal (°C)</label>
-            <input value={editForm.temp_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, temp_media_diaria: e.target.value }))} placeholder="ex: 26" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal temp (°C)</label>
+            <input value={editForm.temp_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, temp_media_diaria: e.target.value }))} placeholder="e.g.: 26" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>pH ideal</label>
-            <input value={editForm.ph_medio_diario} onChange={(e) => setEditForm(f => ({ ...f, ph_medio_diario: e.target.value }))} placeholder="ex: 7.5" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal pH</label>
+            <input value={editForm.ph_medio_diario} onChange={(e) => setEditForm(f => ({ ...f, ph_medio_diario: e.target.value }))} placeholder="e.g.: 7.5" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Amônia ideal (mg/L)</label>
-            <input value={editForm.amonia_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, amonia_media_diaria: e.target.value }))} placeholder="ex: 0.05" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ideal ammonia (mg/L)</label>
+            <input value={editForm.amonia_media_diaria} onChange={(e) => setEditForm(f => ({ ...f, amonia_media_diaria: e.target.value }))} placeholder="e.g.: 0.05" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-            <button onClick={() => setShowEditModal(false)} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={() => setShowEditModal(false)} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancel</button>
             <button onClick={async () => {
               try {
                 const token = getToken();
@@ -2102,59 +2102,59 @@ export default function MasterPanel() {
                 await load();
               } catch (e) {
                 console.error('Falha ao editar cativeiro:', e);
-                alert('Erro ao editar cativeiro.');
+                alert('Error editing pond.');
               }
-            }} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Salvar</button>
+            }} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Save</button>
           </div>
         </div>
       </Modal>
       {/* Modal de limites de avisos (temperatura e sensibilidade de pH/amônia) */}
-      <Modal isOpen={showLimitesModal} onClose={() => setShowLimitesModal(false)} title={`Limites de avisos — ${limitesForm.nome}`}>
+      <Modal isOpen={showLimitesModal} onClose={() => setShowLimitesModal(false)} title={`Alert limits — ${limitesForm.nome}`}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: 'span 2', fontSize: '0.78rem', color: '#64748b', marginBottom: 4 }}>
-            Define quando a detecção de tendência abre um aviso para este viveiro. Deixe um par de
-            campos em branco para manter o padrão do sistema naquele parâmetro.
+            Defines when trend detection opens an alert for this pond. Leave a pair of
+            fields blank to keep the system default for that parameter.
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp. mínima (°C)</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Min. temp (°C)</label>
             <input type="number" step="0.1" value={limitesForm.minimo}
               onChange={(e) => setLimitesForm(f => ({ ...f, minimo: e.target.value }))}
-              placeholder="padrão: ideal − 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+              placeholder="default: ideal − 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Temp. máxima (°C)</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Max. temp (°C)</label>
             <input type="number" step="0.1" value={limitesForm.maximo}
               onChange={(e) => setLimitesForm(f => ({ ...f, maximo: e.target.value }))}
-              placeholder="padrão: ideal + 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+              placeholder="default: ideal + 2°C" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           {limitesSugestoes?.temperatura && (
             <div style={{ gridColumn: 'span 2', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '8px 12px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span>{limitesSugestoes.temperatura.motivo} Sugestão: {limitesSugestoes.temperatura.valorSugerido.minimo}°C a {limitesSugestoes.temperatura.valorSugerido.maximo}°C.</span>
-              <button onClick={aplicarSugestaoTemperatura} style={{ border: '1px solid #1d4ed8', background: '#fff', color: '#1d4ed8', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>Aplicar sugestão</button>
+              <span>{limitesSugestoes.temperatura.motivo} Suggestion: {limitesSugestoes.temperatura.valorSugerido.minimo}°C to {limitesSugestoes.temperatura.valorSugerido.maximo}°C.</span>
+              <button onClick={aplicarSugestaoTemperatura} style={{ border: '1px solid #1d4ed8', background: '#fff', color: '#1d4ed8', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>Apply suggestion</button>
             </div>
           )}
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Limiar de pH</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>pH threshold</label>
             <input type="number" step="0.01" min="0.05" max="3" value={limitesForm.phLimiar}
               onChange={(e) => setLimitesForm(f => ({ ...f, phLimiar: e.target.value }))}
-              placeholder="padrão: 0,35" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+              placeholder="default: 0.35" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Limiar de amônia (%)</label>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Ammonia threshold (%)</label>
             <input type="number" step="0.01" min="0.05" max="1" value={limitesForm.amoniaLimiarPct}
               onChange={(e) => setLimitesForm(f => ({ ...f, amoniaLimiarPct: e.target.value }))}
-              placeholder="padrão: 0,25 (25%)" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
+              placeholder="default: 0.25 (25%)" style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }} />
           </div>
           {['ph', 'amonia'].map(tipo => limitesSugestoes?.[tipo] && (
             <div key={tipo} style={{ gridColumn: 'span 2', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '8px 12px', fontSize: '0.8rem', color: '#1e40af', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span>{limitesSugestoes[tipo].motivo} Sugestão de {tipo === 'ph' ? 'pH' : 'amônia'}: {limitesSugestoes[tipo].valorSugerido}.</span>
-              <button onClick={() => aplicarSugestaoSensibilidade(tipo)} style={{ border: '1px solid #1d4ed8', background: '#fff', color: '#1d4ed8', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>Aplicar sugestão</button>
+              <span>{limitesSugestoes[tipo].motivo} {tipo === 'ph' ? 'pH' : 'Ammonia'} suggestion: {limitesSugestoes[tipo].valorSugerido}.</span>
+              <button onClick={() => aplicarSugestaoSensibilidade(tipo)} style={{ border: '1px solid #1d4ed8', background: '#fff', color: '#1d4ed8', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>Apply suggestion</button>
             </div>
           ))}
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-            <button onClick={() => setShowLimitesModal(false)} disabled={limitesSubmitting} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={() => setShowLimitesModal(false)} disabled={limitesSubmitting} style={{ border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancel</button>
             <button onClick={salvarLimitesAvisos} disabled={limitesSubmitting} style={{ border: 'none', background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>
-              {limitesSubmitting ? 'Salvando...' : 'Salvar'}
+              {limitesSubmitting ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>
@@ -2169,20 +2169,20 @@ export default function MasterPanel() {
       }} title={(() => {
         const request = items.find(r => r._id === pendingApproveRequestId) || allRequests.find(r => r._id === pendingApproveRequestId);
         return request && request.action === 'associar_funcionario' 
-          ? 'Aprovar Associação de Funcionário' 
-          : 'Aprovar Cadastro de Funcionário';
+          ? 'Approve Employee Link' 
+          : 'Approve Employee Registration';
       })()}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
-              Selecionar Fazenda: <span style={{ color: '#ef4444' }}>*</span>
+              Select Farm: <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <select 
               value={selectedFazendaId} 
               onChange={(e) => setSelectedFazendaId(e.target.value)} 
               style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6 }}
             >
-              <option value="">-- Selecione uma fazenda --</option>
+              <option value="">-- Select a farm --</option>
               {fazendas.map(f => (
                 <option key={f._id} value={f._id}>
                   {getFazendaName(f._id)}
@@ -2193,8 +2193,8 @@ export default function MasterPanel() {
               {(() => {
                 const request = items.find(r => r._id === pendingApproveRequestId) || allRequests.find(r => r._id === pendingApproveRequestId);
                 return request && request.action === 'associar_funcionario'
-                  ? 'O funcionário será associado a esta fazenda e terá acesso aos cativeiros dela.'
-                  : 'O funcionário será relacionado a esta fazenda e terá acesso aos cativeiros dela.';
+                  ? 'The employee will be linked to this farm and will have access to its ponds.'
+                  : 'The employee will be assigned to this farm and will have access to its ponds.';
               })()}
             </p>
           </div>
@@ -2214,7 +2214,7 @@ export default function MasterPanel() {
                 cursor: 'pointer'
               }}
             >
-              Cancelar
+              Cancel
             </button>
             <button
               onClick={handleApproveFuncionario}
@@ -2228,21 +2228,21 @@ export default function MasterPanel() {
                 cursor: selectedFazendaId ? 'pointer' : 'not-allowed'
               }}
             >
-              Confirmar Aprovação
+              Confirm Approval
             </button>
           </div>
         </div>
       </Modal>
 
       {/* Flash notification */}
-      <Modal isOpen={showDeleteConvModal} onClose={() => setShowDeleteConvModal(false)} title="Excluir conversa?" showCloseButton>
+      <Modal isOpen={showDeleteConvModal} onClose={() => setShowDeleteConvModal(false)} title="Delete conversation?" showCloseButton>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
-            Tem certeza que deseja excluir esta conversa com <strong>{getConversationTitle(chatConversations.find(c => c._id === chatSelectedId) || {})}</strong>?
-            A conversa será apagada só para você. A outra pessoa continua vendo as mensagens.
+            Are you sure you want to delete this conversation with <strong>{getConversationTitle(chatConversations.find(c => c._id === chatSelectedId) || {})}</strong>?
+            The conversation will be deleted only for you. The other person will still see the messages.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteConvModal(false)}>Cancelar</button>
+            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteConvModal(false)}>Cancel</button>
             <button
               className={`${styles.btn}`}
               style={{ background: '#ef4444', color: '#fff', border: 'none' }}
@@ -2254,26 +2254,26 @@ export default function MasterPanel() {
                   setChatSelectedId('');
                   setChatMessages([]);
                   setShowDeleteConvModal(false);
-                  setMasterNotification({ show: true, message: 'Conversa excluída com sucesso!', type: 'success' });
+                  setMasterNotification({ show: true, message: 'Conversation deleted successfully!', type: 'success' });
                 } catch (e) {
                   setShowDeleteConvModal(false);
-                  setMasterNotification({ show: true, message: 'Erro ao excluir conversa: ' + (e?.response?.data?.error || e.message), type: 'error' });
+                  setMasterNotification({ show: true, message: 'Error deleting conversation: ' + (e?.response?.data?.error || e.message), type: 'error' });
                 }
               }}
-            >Excluir</button>
+            >Delete</button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={showDeleteSensorModal} onClose={() => setShowDeleteSensorModal(false)} title="Excluir sensor?" showCloseButton>
+      <Modal isOpen={showDeleteSensorModal} onClose={() => setShowDeleteSensorModal(false)} title="Delete sensor?" showCloseButton>
         {deleteSensorData && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', lineHeight: 1.5 }}>
-              Tem certeza que deseja excluir o sensor <strong>&quot;{deleteSensorData.apelido}&quot;</strong> ({deleteSensorData.tipo})?
-              Esta ação não pode ser desfeita.
+              Are you sure you want to delete the sensor <strong>&quot;{deleteSensorData.apelido}&quot;</strong> ({deleteSensorData.tipo})?
+              This action cannot be undone.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteSensorModal(false)}>Cancelar</button>
+              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeleteSensorModal(false)}>Cancel</button>
               <button
                 className={`${styles.btn}`}
                 style={{ background: '#ef4444', color: '#fff', border: 'none' }}
@@ -2284,10 +2284,10 @@ export default function MasterPanel() {
                     setShowDeleteSensorModal(false);
                     setDeleteSensorData(null);
                     await load();
-                    setMasterNotification({ show: true, message: 'Sensor excluído com sucesso!', type: 'success' });
-                  } catch (e) { setMasterNotification({ show: true, message: 'Erro ao excluir sensor: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
+                    setMasterNotification({ show: true, message: 'Sensor deleted successfully!', type: 'success' });
+                  } catch (e) { setMasterNotification({ show: true, message: 'Error deleting sensor: ' + (e?.response?.data?.error || e.message), type: 'error' }); }
                 }}
-              >Excluir</button>
+              >Delete</button>
             </div>
           </div>
         )}
@@ -2310,9 +2310,9 @@ export default function MasterPanel() {
         onClose={() => setMasterNotification({ show: false, message: '', type: 'success' })}
       />
 
-      <Modal isOpen={showLogoutModal} onClose={() => !isLoggingOut && setShowLogoutModal(false)} title="Sair da conta" closeOnBackdropClick={!isLoggingOut}>
+      <Modal isOpen={showLogoutModal} onClose={() => !isLoggingOut && setShowLogoutModal(false)} title="Log out" closeOnBackdropClick={!isLoggingOut}>
         <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', fontFamily: 'Poppins, sans-serif', lineHeight: 1.5 }}>
-          Tem certeza que deseja sair? Você precisará fazer login novamente para acessar o sistema.
+          Are you sure you want to log out? You will need to log in again to access the system.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
           <button
@@ -2320,14 +2320,14 @@ export default function MasterPanel() {
             disabled={isLoggingOut}
             style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontSize: '0.9rem', fontFamily: 'Poppins, sans-serif', fontWeight: 500, cursor: isLoggingOut ? 'not-allowed' : 'pointer', opacity: isLoggingOut ? 0.5 : 1 }}
           >
-            Cancelar
+            Cancel
           </button>
           <button
             onClick={confirmLogout}
             disabled={isLoggingOut}
             style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#ef4444', color: '#fff', fontSize: '0.9rem', fontFamily: 'Poppins, sans-serif', fontWeight: 500, cursor: isLoggingOut ? 'not-allowed' : 'pointer', opacity: isLoggingOut ? 0.7 : 1, minWidth: 80 }}
           >
-            {isLoggingOut ? 'Saindo...' : 'Sair'}
+            {isLoggingOut ? 'Logging out...' : 'Log out'}
           </button>
         </div>
       </Modal>

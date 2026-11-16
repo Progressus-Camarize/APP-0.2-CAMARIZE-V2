@@ -30,10 +30,10 @@ export default function AuthError({ error, onRetry }) {
           <span>⚠️</span>
         </div>
         <h2 className={styles.errorTitle}>
-          Acesso Restrito
+          Restricted Access
         </h2>
         <p className={styles.errorMessage}>
-          {error || 'Você precisa estar logado para acessar esta página'}
+          {error || 'You need to be signed in to access this page'}
         </p>
       </div>
       
@@ -42,14 +42,14 @@ export default function AuthError({ error, onRetry }) {
           onClick={handleLogin}
           className={styles.loginBtn}
         >
-          Fazer Login
+          Sign in
         </button>
         {onRetry && (
           <button 
             onClick={handleRetry}
             className={styles.retryBtn}
           >
-            Tentar Novamente
+            Try Again
           </button>
         )}
       </div>

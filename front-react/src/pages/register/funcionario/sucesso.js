@@ -9,10 +9,10 @@ export default function RegisterFuncionarioSucessoPage() {
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <span style={{ fontSize: '64px' }}>✅</span>
         </div>
-        <h2 className={styles.loginTitle}>Cadastro Solicitado!</h2>
+        <h2 className={styles.loginTitle}>Sign-up Requested!</h2>
         <p style={{ textAlign: 'center', marginBottom: '24px', color: '#666', fontSize: '14px', lineHeight: '1.6' }}>
-          Sua solicitação de cadastro foi enviada com sucesso!<br />
-          O Master irá revisar e aprovar seu cadastro. Em breve você receberá mais informações.
+          Your sign-up request was sent successfully!<br />
+          The Master will review and approve your sign-up. You will receive more information soon.
         </p>
 
         <div style={{ marginBottom: '24px' }}>
@@ -39,7 +39,7 @@ export default function RegisterFuncionarioSucessoPage() {
             e.currentTarget.style.boxShadow = 'none';
           }}
           >
-            Ir para Login
+            Go to Sign in
           </Link>
         </div>
       </div>

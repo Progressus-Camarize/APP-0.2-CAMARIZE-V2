@@ -1,7 +1,7 @@
 {
-  "name": "Camarize - Monitoramento Inteligente",
+  "name": "Camarize - Smart Monitoring",
   "short_name": "Camarize",
-  "description": "Sistema inteligente de monitoramento para cativeiros de camarão",
+  "description": "Smart monitoring system for shrimp ponds",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -28,7 +28,7 @@
     }
   ],
   "categories": ["productivity", "business"],
-  "lang": "pt-BR",
+  "lang": "en",
   "dir": "ltr",
   "scope": "/",
   "prefer_related_applications": false,
@@ -37,7 +37,7 @@
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
-      "description": "Acessar dashboard principal",
+      "description": "Open main dashboard",
       "url": "/dashboard",
       "icons": [
         {
@@ -47,9 +47,9 @@
       ]
     },
     {
-      "name": "Status Cativeiros",
+      "name": "Pond Status",
       "short_name": "Status",
-      "description": "Verificar status dos cativeiros",
+      "description": "Check pond status",
       "url": "/status-cativeiros",
       "icons": [
         {

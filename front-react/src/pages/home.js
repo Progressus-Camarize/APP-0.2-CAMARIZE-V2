@@ -32,7 +32,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <MemberLayout title="Meus Cativeiros" subtitle="Monitore e gerencie seus cativeiros" navItemRefs={navItemRefs}>
+    <MemberLayout title="My Ponds" subtitle="Monitor and manage your ponds" navItemRefs={navItemRefs}>
       <HomeContent sidebarRefs={navItemRefs} />
     </MemberLayout>
   );

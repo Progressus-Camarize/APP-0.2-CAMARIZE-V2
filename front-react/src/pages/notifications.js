@@ -28,11 +28,11 @@ export default function NotificationsPage() {
       if (response.data.success) {
         setNotifications(response.data.notifications);
       } else {
-        setError('Erro ao carregar notificações');
+        setError('Error loading notifications');
       }
     } catch (err) {
       console.error('Erro ao buscar notificações:', err);
-      setError('Erro ao carregar notificações');
+      setError('Error loading notifications');
     } finally {
       setLoading(false);
     }
@@ -48,12 +48,12 @@ export default function NotificationsPage() {
       setNotifications(items => items.map(item => item.id === notification.id
         ? { ...item, avaliacao, verificadoEm: new Date().toISOString() } : item));
     } catch {
-      setError('Não foi possível registrar a conferência. Tente novamente.');
+      setError('Could not record the review. Please try again.');
     }
   };
 
   return (
-    <MemberLayout title="Notificações" subtitle="Alertas e avisos dos seus cativeiros">
+    <MemberLayout title="Notifications" subtitle="Alerts and warnings from your ponds">
       <AvisoLista
         avisos={notifications}
         loading={loading}

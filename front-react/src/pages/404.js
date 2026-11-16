@@ -13,8 +13,8 @@ export default function Custom404() {
       justifyContent: 'center',
       alignItems: 'center'
     }}>
-      <h1>404 - Página não encontrada</h1>
-      <p>A página que você está procurando não existe.</p>
+      <h1>404 - Page not found</h1>
+      <p>The page you are looking for does not exist.</p>
       <Link href="/" style={{
         padding: '10px 20px',
         backgroundColor: '#007bff',
@@ -23,7 +23,7 @@ export default function Custom404() {
         borderRadius: '5px',
         marginTop: '20px'
       }}>
-        Voltar ao início
+        Back to home
       </Link>
     </div>
   );

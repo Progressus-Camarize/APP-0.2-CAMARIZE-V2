@@ -10,16 +10,16 @@ import styles from "@/styles/cards.module.css";
 const ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
 
 const formatTime = (datahora) =>
-  new Date(datahora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  new Date(datahora).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
 const formatDate = (datahora) => {
   const date = new Date(datahora);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return "Hoje";
-  if (date.toDateString() === yesterday.toDateString()) return "Ontem";
-  return date.toLocaleDateString("pt-BR");
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-US");
 };
 
 const classeSeveridade = (aviso) => {
@@ -51,17 +51,17 @@ export function AvisoCard({ aviso, onAvaliar }) {
           </div>
           <div className={styles.badges}>
             {aviso.preditivo && (
-              <span className={`${styles.badge} ${styles.badgeTendencia}`} title="Alerta preditivo, baseado na tendência das leituras">
-                <TbTrendingUp aria-hidden="true" /> Tendência
+              <span className={`${styles.badge} ${styles.badgeTendencia}`} title="Predictive alert, based on the reading trend">
+                <TbTrendingUp aria-hidden="true" /> Trend
               </span>
             )}
             {aviso.experimental && aviso.tipo === "ph" && (
-              <span className={`${styles.badge} ${styles.badgeExperimental}`} title="Sensor sem calibração — medição experimental">
-                Sem calibração
+              <span className={`${styles.badge} ${styles.badgeExperimental}`} title="Uncalibrated sensor — experimental measurement">
+                Not calibrated
               </span>
             )}
             <span className={`${styles.badge} ${recuperado ? styles.badgeRecuperado : styles.badgeAtivo}`}>
-              {recuperado ? "Recuperado" : "Ativo"}
+              {recuperado ? "Recovered" : "Active"}
             </span>
           </div>
         </div>
@@ -69,19 +69,19 @@ export function AvisoCard({ aviso, onAvaliar }) {
         <div className={styles.meta}>
           <span className={styles.metaItem}>
             <TbClock aria-hidden="true" />
-            {formatDate(aviso.datahora)} às {formatTime(aviso.datahora)}
+            {formatDate(aviso.datahora)} at {formatTime(aviso.datahora)}
           </span>
           {aviso.frescor && (
             <span className={`${styles.metaItem} ${recente ? "" : styles.stale}`}>
               <TbActivity aria-hidden="true" />
-              Última leitura: {formatarTempoDesde(aviso.frescor.idadeMinutos) ?? "—"}
-              {recente ? "" : " · dados antigos ou ausentes"}
+              Last reading: {formatarTempoDesde(aviso.frescor.idadeMinutos) ?? "—"}
+              {recente ? "" : " · stale or missing data"}
             </span>
           )}
           {aviso.periodoInicio && aviso.periodoFim && (
             <span className={styles.metaItem}>
               <TbCalendarStats aria-hidden="true" />
-              Período: {formatDate(aviso.periodoInicio)} {formatTime(aviso.periodoInicio)} – {formatDate(aviso.periodoFim)} {formatTime(aviso.periodoFim)}
+              Period: {formatDate(aviso.periodoInicio)} {formatTime(aviso.periodoInicio)} – {formatDate(aviso.periodoFim)} {formatTime(aviso.periodoFim)}
             </span>
           )}
         </div>
@@ -90,22 +90,22 @@ export function AvisoCard({ aviso, onAvaliar }) {
           {avaliado ? (
             aviso.avaliacao === "falso_alarme" ? (
               <span className={`${styles.verified} ${styles.verifiedFalse}`}>
-                <TbCircleX aria-hidden="true" /> Marcado como falso alarme
+                <TbCircleX aria-hidden="true" /> Marked as false alarm
               </span>
             ) : (
               <span className={`${styles.verified} ${styles.verifiedOk}`}>
-                <TbCircleCheck aria-hidden="true" /> Mudança conferida
+                <TbCircleCheck aria-hidden="true" /> Change verified
               </span>
             )
           ) : (
             <>
-              <span className={styles.footerHint}>Você conferiu este alerta no viveiro?</span>
+              <span className={styles.footerHint}>Did you check this alert at the pond?</span>
               <div className={styles.actions}>
                 <button type="button" className={`${styles.btn} ${styles.btnFalse}`} onClick={() => onAvaliar(aviso, "falso_alarme")}>
-                  <TbX aria-hidden="true" /> Falso alarme
+                  <TbX aria-hidden="true" /> False alarm
                 </button>
                 <button type="button" className={`${styles.btn} ${styles.btnConfirm}`} onClick={() => onAvaliar(aviso, "confirmado")}>
-                  <TbCheck aria-hidden="true" /> Conferi a mudança
+                  <TbCheck aria-hidden="true" /> I verified the change
                 </button>
               </div>
             </>
@@ -122,7 +122,7 @@ export default function AvisoLista({ avisos, loading, error, onRetry, onAvaliar 
     return (
       <div className={styles.state}>
         <TbLoader2 className={`${styles.stateIcon} ${styles.spin}`} aria-hidden="true" />
-        <div>Carregando avisos...</div>
+        <div>Loading alerts...</div>
       </div>
     );
   }
@@ -130,11 +130,11 @@ export default function AvisoLista({ avisos, loading, error, onRetry, onAvaliar 
     return (
       <div className={`${styles.state} ${styles.stateError}`}>
         <TbAlertTriangle className={styles.stateIcon} aria-hidden="true" />
-        <div className={styles.stateTitle}>Erro ao carregar</div>
+        <div className={styles.stateTitle}>Failed to load</div>
         <div>{error}</div>
         {onRetry && (
           <button type="button" className={`${styles.btn} ${styles.btnFalse}`} onClick={onRetry}>
-            <TbRefresh aria-hidden="true" /> Tentar novamente
+            <TbRefresh aria-hidden="true" /> Try again
           </button>
         )}
       </div>
@@ -144,8 +144,8 @@ export default function AvisoLista({ avisos, loading, error, onRetry, onAvaliar 
     return (
       <div className={styles.state}>
         <TbBellOff className={styles.stateIcon} aria-hidden="true" />
-        <div className={styles.stateTitle}>Nenhum aviso</div>
-        <div>Quando algum cativeiro sair do esperado, o alerta aparece aqui.</div>
+        <div className={styles.stateTitle}>No alerts</div>
+        <div>When a pond goes out of the expected range, the alert appears here.</div>
       </div>
     );
   }

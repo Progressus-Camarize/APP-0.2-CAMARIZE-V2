@@ -55,8 +55,8 @@ const LoginContent = () => {
     } catch (err) {
       // 429: muitas tentativas erradas; a API informa quanto tempo esperar
       setError(err?.response?.status === 429
-        ? err.response.data?.error || "Muitas tentativas. Aguarde alguns minutos."
-        : "Usuário ou senha inválidos!");
+        ? err.response.data?.error || "Too many attempts. Please wait a few minutes."
+        : "Invalid email or password!");
       setLoading(false);
     } finally {
       clearTimeout(slowHintTimer.current);
@@ -67,7 +67,7 @@ const LoginContent = () => {
   return (
     <div className={styles.loginMobileWrapper}>
       <form className={styles.loginForm} onSubmit={handleLogin}>
-        <h2 className={styles.loginTitle}>Conecte-se para continuar</h2>
+        <h2 className={styles.loginTitle}>Sign in to continue</h2>
         <div className={styles.divider} />
         <div className={styles.fields}>
           <div className={styles.inputGroup}>
@@ -86,7 +86,7 @@ const LoginContent = () => {
             <input
               type={showPassword ? "text" : "password"}
               name="password"
-              placeholder="Senha"
+              placeholder="Password"
               className={styles.input}
               value={senha}
               onChange={e => setSenha(e.target.value)}
@@ -97,7 +97,7 @@ const LoginContent = () => {
               type="button"
               className={`${styles.eyeIcon} ${showPassword ? styles.eyeIconOff : ""}`}
               onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               aria-pressed={showPassword}
             >
               <img src="/images/login-olho.svg" alt="" width={16} height={16} />
@@ -114,7 +114,7 @@ const LoginContent = () => {
             <span className={styles.checkboxBox} aria-hidden="true">
               {remember && <img src="/images/login-checkbox.svg" alt="" width={14.25} height={14.25} />}
             </span>
-            <span className={styles.rememberLabel}>Lembre-me</span>
+            <span className={styles.rememberLabel}>Remember me</span>
           </label>
         </div>
         <button
@@ -125,20 +125,20 @@ const LoginContent = () => {
           {loading ? (
             <span className={styles.loginButtonContent}>
               <span className={styles.spinner} aria-hidden="true" />
-              Conectando...
+              Signing in...
             </span>
-          ) : "Conectar"}
+          ) : "Sign in"}
         </button>
         {showSlowHint && (
           <div className={styles.slowHint}>
-            O servidor está iniciando (plano gratuito) — isso pode levar até 1 minuto na primeira vez.
+            The server is starting up (free plan) — this may take up to 1 minute the first time.
           </div>
         )}
         {error && <div className={styles.errorMsg}>{error}</div>}
         <div className={styles.divider} />
         <div className={styles.registerRow}>
-          <span>Não tem uma conta?</span>
-          <Link href="/register-type" className={styles.registerLink}>Cadastre-se agora</Link>
+          <span>Don&apos;t have an account?</span>
+          <Link href="/register-type" className={styles.registerLink}>Sign up now</Link>
         </div>
       </form>
       <div className={styles.logoWrapper}>

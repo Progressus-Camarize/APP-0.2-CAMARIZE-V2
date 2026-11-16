@@ -8,15 +8,15 @@ import { carregarHistorico } from '@/lib/parametros';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const PERIODO_MAP = {
-  dia:    { label: 'Últimas 24 horas', dias: 1 },
-  semana: { label: 'Últimos 7 dias',   dias: 7 },
-  mes:    { label: 'Últimos 30 dias',  dias: 30 },
+  dia:    { label: 'Last 24 hours', dias: 1 },
+  semana: { label: 'Last 7 days',      dias: 7 },
+  mes:    { label: 'Last 30 days',     dias: 30 },
 };
 
 const PARAM_CFG = [
-  { key: 'temperatura', label: 'Temperatura', unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
+  { key: 'temperatura', label: 'Temperature', unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
   { key: 'ph',          label: 'pH',           unit: '',      decimals: 1, icon: '🧪', stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
-  { key: 'amonia',      label: 'Amônia experimental', unit: '', decimals: 3, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+  { key: 'amonia',      label: 'Experimental ammonia', unit: '', decimals: 3, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
 ];
 
 function calcStats(dados, field) {
@@ -46,7 +46,7 @@ export default function RelatorioIndividual() {
   const [geradoEm, setGeradoEm] = useState('');
 
   useEffect(() => {
-    setGeradoEm(new Date().toLocaleString('pt-BR'));
+    setGeradoEm(new Date().toLocaleString('en-US'));
   }, []);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -84,8 +84,8 @@ export default function RelatorioIndividual() {
         setDados(historico);
       } catch (err) {
         setError(err.response?.status === 401
-          ? 'Sessão expirada. Faça login novamente.'
-          : 'Erro ao carregar dados do relatório.');
+          ? 'Session expired. Please log in again.'
+          : 'Failed to load report data.');
       } finally {
         setLoading(false);
       }
@@ -107,7 +107,7 @@ export default function RelatorioIndividual() {
       const pdf = html2pdf.default || html2pdf;
       pdf().set({
         margin: 1,
-        filename: `relatorio-${cativeiro?.nome || id}-${periodo}.pdf`,
+        filename: `report-${cativeiro?.nome || id}-${periodo}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -122,24 +122,24 @@ export default function RelatorioIndividual() {
 
   return (
     <MemberLayout
-      title="Relatório Individual"
-      subtitle={cativeiro ? `${cativeiro.nome} — ${periodoInfo.label || ''}` : 'Carregando...'}
+      title="Individual Report"
+      subtitle={cativeiro ? `${cativeiro.nome} — ${periodoInfo.label || ''}` : 'Loading...'}
     >
       {/* Modal de seleção de período */}
       <Modal
         isOpen={showPeriodoModal}
         onClose={() => { if (!periodo) router.back(); else setShowPeriodoModal(false); }}
-        title="Relatório Individual"
+        title="Individual Report"
         showCloseButton
       >
         <p style={{ margin: '0 0 16px', fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>
-          Selecione o período para o relatório{cativeiro ? <> de <strong>{cativeiro.nome}</strong></> : ''}
+          Select the report period{cativeiro ? <> for <strong>{cativeiro.nome}</strong></> : ''}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { key: 'dia',    label: '📅 Relatório Diário',  sub: 'Últimas 24h' },
-            { key: 'semana', label: '📊 Relatório Semanal', sub: 'Últimos 7 dias' },
-            { key: 'mes',    label: '📈 Relatório Mensal',  sub: 'Últimos 30 dias' },
+            { key: 'dia',    label: '📅 Daily Report',    sub: 'Last 24h' },
+            { key: 'semana', label: '📊 Weekly Report',   sub: 'Last 7 days' },
+            { key: 'mes',    label: '📈 Monthly Report',  sub: 'Last 30 days' },
           ].map(({ key, label, sub }) => (
             <button
               key={key}
@@ -158,9 +158,9 @@ export default function RelatorioIndividual() {
         {/* Cabeçalho */}
         <div className={panelStyles.sectionHeader} style={{ marginBottom: 20 }}>
           <div>
-            <h2 className={panelStyles.sectionTitle}>Relatório Individual</h2>
+            <h2 className={panelStyles.sectionTitle}>Individual Report</h2>
             <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-              {periodoInfo.label} · Gerado em {geradoEm}
+              {periodoInfo.label} · Generated on {geradoEm}
             </p>
           </div>
           <div className={panelStyles.sectionActions}>
@@ -171,14 +171,14 @@ export default function RelatorioIndividual() {
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
                 <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Voltar
+              Back
             </button>
             {periodo && (
               <button
                 className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
                 onClick={() => setShowPeriodoModal(true)}
               >
-                Trocar período
+                Change period
               </button>
             )}
             {!loading && !error && dados.length > 0 && (
@@ -187,7 +187,7 @@ export default function RelatorioIndividual() {
                   className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
                   onClick={handlePrint}
                 >
-                  🖨️ Imprimir
+                  🖨️ Print
                 </button>
                 <button
                   className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
@@ -202,7 +202,7 @@ export default function RelatorioIndividual() {
 
         {loading && (
           <div className={panelStyles.loadingScreen} style={{ minHeight: 'unset', padding: '60px 0' }}>
-            Carregando dados do relatório...
+            Loading report data...
           </div>
         )}
 
@@ -230,14 +230,14 @@ export default function RelatorioIndividual() {
                     {cativeiro?.nome}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 3 }}>
-                    {cativeiro?.id_tipo_camarao?.nome || cativeiro?.id_tipo_camarao || 'Tipo não informado'}
+                    {cativeiro?.id_tipo_camarao?.nome || cativeiro?.id_tipo_camarao || 'Type not specified'}
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
                     <span style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
                       {periodoInfo.label}
                     </span>
                     <span style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
-                      {dados.length} leitura{dados.length !== 1 ? 's' : ''}
+                      {dados.length} reading{dados.length !== 1 ? 's' : ''}
                     </span>
                   </div>
                 </div>
@@ -250,13 +250,13 @@ export default function RelatorioIndividual() {
                 <div style={{ height: 4, background: 'linear-gradient(90deg, #f97316 0%, #3b82f6 50%, #a855f7 100%)' }} />
                 <div style={{ padding: '14px 18px' }}>
                   <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                    Condições Ideais
+                    Ideal Conditions
                   </div>
                   <div className={panelStyles.paramGrid}>
                     {[
-                      { icon: '🌡️', label: 'Temperatura', value: cativeiro.condicoes_ideais.temp_ideal,   unit: '°C',    bg: '#fff7ed', badgeColor: '#c2410c' },
+                      { icon: '🌡️', label: 'Temperature', value: cativeiro.condicoes_ideais.temp_ideal,   unit: '°C',    bg: '#fff7ed', badgeColor: '#c2410c' },
                       { icon: '🧪', label: 'pH',           value: cativeiro.condicoes_ideais.ph_ideal,     unit: '',      bg: '#eff6ff', badgeColor: '#1d4ed8' },
-                      { icon: '⚗️', label: 'Meta de amônia (experimental)', value: cativeiro.condicoes_ideais.amonia_ideal, unit: '', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+                      { icon: '⚗️', label: 'Ammonia target (experimental)', value: cativeiro.condicoes_ideais.amonia_ideal, unit: '', bg: '#fdf4ff', badgeColor: '#7e22ce' },
                     ].map((p) => (
                       <div
                         key={p.label}
@@ -283,7 +283,7 @@ export default function RelatorioIndividual() {
 
             {dados.length === 0 ? (
               <div className={panelStyles.infoPanel}>
-                📭 Nenhuma leitura registrada no período selecionado. Os dados aparecem assim que os sensores enviarem leituras.
+                📭 No readings recorded in the selected period. Data appears as soon as the sensors send readings.
               </div>
             ) : (
               <>
@@ -292,7 +292,7 @@ export default function RelatorioIndividual() {
                   <div style={{ height: 4, background: 'linear-gradient(90deg, #f97316 0%, #3b82f6 50%, #a855f7 100%)' }} />
                   <div style={{ padding: '14px 18px' }}>
                     <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                      Estatísticas do Período
+                      Period Statistics
                     </div>
                     <div className={panelStyles.paramGrid}>
                       {PARAM_CFG.map((cfg) => {
@@ -314,7 +314,7 @@ export default function RelatorioIndividual() {
                                 {fmt(stats.avg, cfg.decimals, cfg.unit)}
                               </div>
                               <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 3 }}>
-                                Mín {fmt(stats.min, cfg.decimals, cfg.unit)} · Máx {fmt(stats.max, cfg.decimals, cfg.unit)}
+                                Min {fmt(stats.min, cfg.decimals, cfg.unit)} · Max {fmt(stats.max, cfg.decimals, cfg.unit)}
                               </div>
                             </div>
                           </div>
@@ -327,26 +327,26 @@ export default function RelatorioIndividual() {
                 {/* Tabela de leituras */}
                 <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>Leituras do período</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>Period readings</div>
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                      {dados.length} registro{dados.length !== 1 ? 's' : ''}
+                      {dados.length} record{dados.length !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                       <thead>
                         <tr style={{ background: '#f8fafc' }}>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>Data / Hora</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>Date / Time</th>
                           <th style={{ padding: '8px 16px', textAlign: 'right', color: '#f97316', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>🌡️ </span>Temp.</th>
                           <th style={{ padding: '8px 16px', textAlign: 'right', color: '#3b82f6', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>🧪 </span>pH</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#a855f7', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>⚗️ </span>Amônia experimental</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#a855f7', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>⚗️ </span>Experimental ammonia</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[...dados].reverse().slice(0, 50).map((d, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
                             <td style={{ padding: '7px 16px', color: '#475569', whiteSpace: 'nowrap' }}>
-                              {new Date(d.datahora).toLocaleString('pt-BR', {
+                              {new Date(d.datahora).toLocaleString('en-US', {
                                 day: '2-digit', month: '2-digit', year: '2-digit',
                                 hour: '2-digit', minute: '2-digit',
                               })}
@@ -366,7 +366,7 @@ export default function RelatorioIndividual() {
                     </table>
                     {dados.length > 50 && (
                       <div style={{ padding: '8px 16px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
-                        Exibindo as 50 leituras mais recentes de {dados.length} registros totais
+                        Showing the 50 most recent readings out of {dados.length} total records
                       </div>
                     )}
                   </div>

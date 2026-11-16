@@ -21,11 +21,11 @@ export default function EmailSettingsPage() {
   }, [usuario, router]);
 
   if (loading) {
-    return <Loading message="Carregando..." />;
+    return <Loading message="Loading..." />;
   }
 
   if (!usuario) {
-    return <AuthError error="Faça login para acessar as configurações de email." />;
+    return <AuthError error="Sign in to access email settings." />;
   }
 
   return (
@@ -74,14 +74,14 @@ export default function EmailSettingsPage() {
             fontWeight: '600',
             color: '#1f2937'
           }}>
-            Configurações de Email
+            Email Settings
           </h1>
           <p style={{
             margin: '4px 0 0 0',
             fontSize: '14px',
             color: '#6b7280'
           }}>
-            Gerencie suas notificações por email
+            Manage your email notifications
           </p>
         </div>
       </div>

@@ -26,7 +26,7 @@ self.addEventListener('push', (event) => {
   const payload = event.data ? event.data.json() : {};
 
   const options = {
-    body: payload.body || 'Nova notificação do Camarize!',
+    body: payload.body || 'New notification from Camarize!',
     icon: payload.icon || '/images/logo_camarize1.png',
     badge: payload.badge || '/images/logo_camarize2.png',
     vibrate: [100, 50, 100],

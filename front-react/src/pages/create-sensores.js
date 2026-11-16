@@ -6,9 +6,9 @@ import RequestButton from '../components/RequestButton';
 import NavBottom from '../components/NavBottom';
 
 const TIPOS_SENSORES = [
-  { value: 'Temperatura', label: 'Temperatura' },
+  { value: 'Temperatura', label: 'Temperature' },
   { value: 'pH', label: 'pH' },
-  { value: 'Amônia', label: 'Amônia' }
+  { value: 'Amônia', label: 'Ammonia' }
 ];
 
 export default function CreateSensoresPage() {
@@ -31,11 +31,11 @@ export default function CreateSensoresPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tipoSelecionado) {
-      showNotification('Selecione o tipo de sensor!', 'warning');
+      showNotification('Select the sensor type!', 'warning');
       return;
     }
     if (!apelido.trim()) {
-      showNotification('Digite um apelido para o sensor!', 'warning');
+      showNotification('Enter a nickname for the sensor!', 'warning');
       return;
     }
     setLoading(true);
@@ -52,14 +52,14 @@ export default function CreateSensoresPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
-      showNotification('Sensor cadastrado com sucesso!');
+      showNotification('Sensor registered successfully!');
       // Aguardar 2 segundos antes de redirecionar para a notificação aparecer
       setTimeout(() => {
         router.push('/sensores');
       }, 2000);
     } catch (err) {
       console.error('Erro ao cadastrar sensor:', err);
-      const apiMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Erro ao cadastrar sensor.';
+      const apiMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Error registering sensor.';
       showNotification(apiMsg, 'error');
     } finally {
       setLoading(false);
@@ -92,42 +92,42 @@ export default function CreateSensoresPage() {
         onMouseOut={(e) => {
           e.target.style.backgroundColor = 'transparent';
         }}
-        title="Voltar"
+        title="Back"
       >
         &larr;
       </button>
-      <h2 style={{ fontWeight: 700, fontSize: '1.35rem', marginBottom: 8 }}>Cadastro de sensores</h2>
+      <h2 style={{ fontWeight: 700, fontSize: '1.35rem', marginBottom: 8 }}>Sensor registration</h2>
       <hr style={{ border: 'none', borderTop: '1.5px solid #eee', margin: '12px 0 24px 0' }} />
       <form onSubmit={handleSubmit}>
-        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Tipo do sensor</div>
+        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Sensor type</div>
         <select
           style={{ width: '100%', padding: '12px', borderRadius: 6, background: '#f5f5f5', border: 'none', fontSize: '1rem', marginBottom: 16 }}
           value={tipoSelecionado}
           onChange={e => setTipoSelecionado(e.target.value)}
         >
-          <option value="">Selecione o sensor</option>
+          <option value="">Select the sensor</option>
           {TIPOS_SENSORES.map(t => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Apelido</div>
+        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Nickname</div>
         <input
           type="text"
           value={apelido}
           onChange={e => setApelido(e.target.value)}
-          placeholder="Ex: Sensor Temp 1"
+          placeholder="E.g.: Temp Sensor 1"
           style={{ width: '100%', padding: '12px', borderRadius: 6, background: '#f5f5f5', border: 'none', fontSize: '1rem', marginBottom: 24 }}
         />
         <div style={{ display: 'flex', alignItems: 'center', background: '#f5f5f5', borderRadius: 8, padding: '12px 16px', marginBottom: 24 }}>
           <button type="button" style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontWeight: 500, marginRight: 16 }} onClick={() => fileInputRef.current.click()}>
-            &#128228; Selecionar foto
+            &#128228; Select photo
           </button>
           <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={e => setArquivo(e.target.files[0])} />
-          <span style={{ color: '#888', fontSize: '0.98rem' }}>{arquivo ? arquivo.name : 'Nenhum arquivo inserido'}</span>
+          <span style={{ color: '#888', fontSize: '0.98rem' }}>{arquivo ? arquivo.name : 'No file selected'}</span>
         </div>
         <RequestButton
-          labelWhenAllowed="Cadastrar"
-          labelWhenRequest="Solicitar"
+          labelWhenAllowed="Register"
+          labelWhenRequest="Request"
           action="cadastrar_sensor"
           buildPayload={() => ({ tipo: tipoSelecionado, apelido })}
           onSuccess={handleSubmit}

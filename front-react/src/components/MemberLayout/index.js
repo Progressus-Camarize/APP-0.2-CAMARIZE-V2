@@ -10,7 +10,7 @@ import { useSolicitacoesPendentes } from '@/hooks/useSolicitacoesPendentes';
 
 const NAV_ITEMS = [
   {
-    label: 'Início',
+    label: 'Home',
     href: '/home',
     icon: (
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
@@ -30,12 +30,12 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Sensores',
+    label: 'Sensors',
     href: '/sensores',
     icon: <HiOutlineChip size={18} />,
   },
   {
-    label: 'Solicitações',
+    label: 'Requests',
     href: '/requests',
     icon: (
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
@@ -46,7 +46,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Notificações',
+    label: 'Notifications',
     href: '/notifications',
     icon: (
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Configurações',
+    label: 'Settings',
     href: '/settings',
     icon: (
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
@@ -66,12 +66,12 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Calibrações',
+    label: 'Calibrations',
     href: '/calibracoes',
     icon: <HiOutlineAdjustments size={18} />,
   },
   {
-    label: 'Perfil',
+    label: 'Profile',
     href: '/profile',
     icon: (
       <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
@@ -82,7 +82,7 @@ const NAV_ITEMS = [
   },
 ];
 
-const ROLE_LABELS = { membro: 'Membro', admin: 'Admin', master: 'Master' };
+const ROLE_LABELS = { membro: 'Member', admin: 'Admin', master: 'Master' };
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -167,7 +167,7 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
       <Sidebar
         open={mobileMenuOpen}
         userName={user?.nome}
-        roleLabel={ROLE_LABELS[role] || 'Membro'}
+        roleLabel={ROLE_LABELS[role] || 'Member'}
         onLogout={() => { setMobileMenuOpen(false); setShowLogoutModal(true); }}
         items={sidebarItems}
       />
@@ -175,7 +175,7 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
       <main className={styles.main}>
         {(title || subtitle) && (
           <div className={styles.topBar}>
-            <button className={styles.hamburgerBtn} onClick={() => setMobileMenuOpen(true)} aria-label="Abrir menu">
+            <button className={styles.hamburgerBtn} onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
               <HamburgerIcon />
             </button>
             <div>
@@ -189,9 +189,9 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
         </div>
       </main>
 
-      <Modal isOpen={showLogoutModal} onClose={() => !isLoggingOut && setShowLogoutModal(false)} title="Sair da conta" closeOnBackdropClick={!isLoggingOut}>
+      <Modal isOpen={showLogoutModal} onClose={() => !isLoggingOut && setShowLogoutModal(false)} title="Log out" closeOnBackdropClick={!isLoggingOut}>
         <p style={{ margin: 0, fontSize: '0.95rem', color: '#4b5563', fontFamily: 'Poppins, sans-serif', lineHeight: 1.5 }}>
-          Tem certeza que deseja sair? Você precisará fazer login novamente para acessar o sistema.
+          Are you sure you want to log out? You will need to log in again to access the system.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
           <button
@@ -199,14 +199,14 @@ export default function MemberLayout({ children, title, subtitle, navItemRefs })
             disabled={isLoggingOut}
             style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', fontSize: '0.9rem', fontFamily: 'Poppins, sans-serif', fontWeight: 500, cursor: isLoggingOut ? 'not-allowed' : 'pointer', opacity: isLoggingOut ? 0.5 : 1 }}
           >
-            Cancelar
+            Cancel
           </button>
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
             style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#ef4444', color: '#fff', fontSize: '0.9rem', fontFamily: 'Poppins, sans-serif', fontWeight: 500, cursor: isLoggingOut ? 'not-allowed' : 'pointer', opacity: isLoggingOut ? 0.7 : 1, minWidth: 80 }}
           >
-            {isLoggingOut ? 'Saindo...' : 'Sair'}
+            {isLoggingOut ? 'Logging out...' : 'Log out'}
           </button>
         </div>
       </Modal>

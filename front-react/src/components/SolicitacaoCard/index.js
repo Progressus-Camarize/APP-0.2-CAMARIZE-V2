@@ -23,9 +23,9 @@ const ICONES = {
 };
 
 const STATUS = {
-  pendente: { classe: styles.stPendente, rotulo: "Pendente", Icone: TbHourglass },
-  aprovado: { classe: styles.stAprovado, rotulo: "Aprovado", Icone: TbCircleCheck },
-  recusado: { classe: styles.stRecusado, rotulo: "Recusado", Icone: TbCircleX },
+  pendente: { classe: styles.stPendente, rotulo: "Pending", Icone: TbHourglass },
+  aprovado: { classe: styles.stAprovado, rotulo: "Approved", Icone: TbCircleCheck },
+  recusado: { classe: styles.stRecusado, rotulo: "Rejected", Icone: TbCircleX },
 };
 
 const BOTOES = {
@@ -57,7 +57,7 @@ export function SolicitacaoCard({ item, titulo, mostrarSolicitante = false, deta
             <h3 className={styles.title}>{titulo}</h3>
             {mostrarSolicitante && (
               <div className={styles.solicitante}>
-                {solicitante?.nome || "Solicitante desconhecido"}
+                {solicitante?.nome || "Unknown requester"}
                 {solicitante?.email && <span> · {solicitante.email}</span>}
               </div>
             )}
@@ -72,7 +72,7 @@ export function SolicitacaoCard({ item, titulo, mostrarSolicitante = false, deta
         <div className={styles.meta}>
           <span className={styles.metaItem}>
             <TbClock aria-hidden="true" />
-            {new Date(item.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+            {new Date(item.createdAt).toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" })}
           </span>
         </div>
 
@@ -80,7 +80,7 @@ export function SolicitacaoCard({ item, titulo, mostrarSolicitante = false, deta
 
         {acoes.length > 0 && (
           <div className={styles.footer}>
-            <span className={styles.footerHint}>Aguardando sua decisão</span>
+            <span className={styles.footerHint}>Awaiting your decision</span>
             <div className={styles.actions}>
               {acoes.map(({ rotulo, tipo, onClick, desabilitado = false }) => {
                 const b = BOTOES[tipo] || BOTOES.aprovar;
@@ -100,45 +100,45 @@ export function SolicitacaoCard({ item, titulo, mostrarSolicitante = false, deta
 
 /** Barra de filtros; cada campo só aparece se o respectivo onChange for passado. */
 export function SolicitacoesFiltros({
-  solicitante, onSolicitante, acao, onAcao, data, onData, onLimpar, filtrados, total, rotulo = "registros",
+  solicitante, onSolicitante, acao, onAcao, data, onData, onLimpar, filtrados, total, rotulo = "records",
 }) {
   return (
     <div className={styles.toolbar}>
       {onSolicitante && (
         <label className={styles.field}>
           <TbUser aria-hidden="true" />
-          <input className={styles.input} type="text" placeholder="Solicitante (nome ou email)" aria-label="Filtrar por solicitante"
+          <input className={styles.input} type="text" placeholder="Requester (name or email)" aria-label="Filter by requester"
             value={solicitante} onChange={(e) => onSolicitante(e.target.value)} />
         </label>
       )}
       {onAcao && (
         <label className={styles.field}>
           <TbSearch aria-hidden="true" />
-          <input className={styles.input} type="text" placeholder="Buscar ação" aria-label="Filtrar por ação"
+          <input className={styles.input} type="text" placeholder="Search action" aria-label="Filter by action"
             value={acao} onChange={(e) => onAcao(e.target.value)} />
         </label>
       )}
       {onData && (
         <label className={`${styles.field} ${styles.fieldDate}`}>
           <TbCalendar aria-hidden="true" />
-          <input className={styles.input} type="date" aria-label="Filtrar por data"
+          <input className={styles.input} type="date" aria-label="Filter by date"
             value={data} onChange={(e) => onData(e.target.value)} />
         </label>
       )}
       {onData && (
         <button type="button" className={`${styles.btn} ${styles.btnFalse}`}
           onClick={() => onData(new Date().toISOString().split("T")[0])}>
-          <TbCalendarEvent aria-hidden="true" /> Hoje
+          <TbCalendarEvent aria-hidden="true" /> Today
         </button>
       )}
       {onLimpar && (
         <button type="button" className={`${styles.btn} ${styles.btnGhost}`} onClick={onLimpar}>
-          <TbFilterOff aria-hidden="true" /> Limpar filtros
+          <TbFilterOff aria-hidden="true" /> Clear filters
         </button>
       )}
       <div className={styles.contador}>
         {typeof total === "number" && filtrados !== total
-          ? <><strong>{filtrados}</strong> de {total} {rotulo}</>
+          ? <><strong>{filtrados}</strong> of {total} {rotulo}</>
           : <><strong>{filtrados}</strong> {rotulo}</>}
       </div>
     </div>

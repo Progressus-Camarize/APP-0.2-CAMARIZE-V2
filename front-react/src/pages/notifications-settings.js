@@ -4,13 +4,13 @@ import Notification from '../components/Notification';
 import { useNotifications } from '../hooks/useNotifications';
 
 const STATUS_BADGE = {
-  supported:   { text: 'Suportado',     color: '#10b981', bg: '#f0fdf4' },
-  unsupported: { text: 'Não suportado', color: '#ef4444', bg: '#fef2f2' },
-  granted:     { text: 'Concedida',     color: '#10b981', bg: '#f0fdf4' },
-  denied:      { text: 'Negada',        color: '#ef4444', bg: '#fef2f2' },
-  default:     { text: 'Pendente',      color: '#f59e0b', bg: '#fefce8' },
-  active:      { text: 'Ativas',        color: '#10b981', bg: '#f0fdf4' },
-  inactive:    { text: 'Inativas',      color: '#64748b', bg: '#f8fafc' },
+  supported:   { text: 'Supported',     color: '#10b981', bg: '#f0fdf4' },
+  unsupported: { text: 'Not supported', color: '#ef4444', bg: '#fef2f2' },
+  granted:     { text: 'Granted',       color: '#10b981', bg: '#f0fdf4' },
+  denied:      { text: 'Denied',        color: '#ef4444', bg: '#fef2f2' },
+  default:     { text: 'Pending',       color: '#f59e0b', bg: '#fefce8' },
+  active:      { text: 'Active',        color: '#10b981', bg: '#f0fdf4' },
+  inactive:    { text: 'Inactive',      color: '#64748b', bg: '#f8fafc' },
 };
 
 function Badge({ variant }) {
@@ -49,9 +49,9 @@ function StatusItem({ label, badge, last }) {
 }
 
 const ALERT_ITEMS = [
-  { icon: '🌡️', text: 'Temperatura fora do intervalo ideal' },
-  { icon: '🧪', text: 'pH fora do intervalo ideal' },
-  { icon: '⚗️', text: 'Nível de amônia fora do intervalo ideal' },
+  { icon: '🌡️', text: 'Temperature outside the ideal range' },
+  { icon: '🧪', text: 'pH outside the ideal range' },
+  { icon: '⚗️', text: 'Ammonia level outside the ideal range' },
 ];
 
 export default function NotificationsSettings() {
@@ -86,30 +86,30 @@ export default function NotificationsSettings() {
     try {
       const success = await subscribeToPush();
       if (success) {
-        showToast('Notificações push ativadas com sucesso!');
+        showToast('Push notifications enabled successfully!');
       } else {
-        showToast(hookError || 'Não foi possível ativar as notificações.', 'error');
+        showToast(hookError || 'Could not enable notifications.', 'error');
       }
     } catch (err) {
-      showToast(err.message || 'Erro ao ativar notificações', 'error');
+      showToast(err.message || 'Error enabling notifications', 'error');
     }
   };
 
   const handleUnsubscribe = async () => {
     try {
       await unsubscribeFromPush();
-      showToast('Notificações push desativadas.');
+      showToast('Push notifications disabled.');
     } catch (err) {
-      showToast(err.message || 'Erro ao desativar notificações', 'error');
+      showToast(err.message || 'Error disabling notifications', 'error');
     }
   };
 
   const handleTest = async () => {
     try {
       await testNotification();
-      showToast('Notificação de teste enviada!');
+      showToast('Test notification sent!');
     } catch (err) {
-      showToast(err.message || 'Erro ao enviar notificação de teste', 'error');
+      showToast(err.message || 'Error sending test notification', 'error');
     }
   };
 
@@ -143,7 +143,7 @@ export default function NotificationsSettings() {
   const actionable = isSupported && permission !== 'denied';
 
   return (
-    <MemberLayout title="Notificações Push" subtitle="Gerencie alertas no navegador">
+    <MemberLayout title="Push Notifications" subtitle="Manage browser alerts">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* ── Status bar ── */}
@@ -152,9 +152,9 @@ export default function NotificationsSettings() {
             <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>Status</h2>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            <StatusItem label="Suporte do navegador" badge={isSupported ? 'supported' : 'unsupported'} />
-            <StatusItem label="Permissão"            badge={permBadge} />
-            <StatusItem label="Notificações"         badge={isSubscribed ? 'active' : 'inactive'} last />
+            <StatusItem label="Browser support"      badge={isSupported ? 'supported' : 'unsupported'} />
+            <StatusItem label="Permission"           badge={permBadge} />
+            <StatusItem label="Notifications"        badge={isSubscribed ? 'active' : 'inactive'} last />
           </div>
         </div>
 
@@ -162,19 +162,19 @@ export default function NotificationsSettings() {
         {!isSupported && (
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 16, padding: '20px 24px' }}>
             <p style={{ margin: '0 0 6px', fontSize: '0.875rem', fontWeight: 600, color: '#b91c1c' }}>
-              API de push não detectada
+              Push API not detected
             </p>
             <p style={{ margin: '0 0 12px', fontSize: '0.875rem', color: '#b91c1c', lineHeight: 1.6 }}>
-              Notificações push requerem HTTPS (ou localhost) e um navegador compatível.
-              Use <strong>Chrome 90+</strong>, <strong>Edge 90+</strong> ou <strong>Firefox 44+</strong>.
-              No macOS, Safari só suporta push a partir da versão 16.4 (macOS Ventura).
+              Push notifications require HTTPS (or localhost) and a compatible browser.
+              Use <strong>Chrome 90+</strong>, <strong>Edge 90+</strong> or <strong>Firefox 44+</strong>.
+              On macOS, Safari only supports push from version 16.4 (macOS Ventura) onwards.
             </p>
             {diag && (
               <div style={{ background: '#fff', borderRadius: 10, padding: '12px 16px', fontSize: '0.8rem', fontFamily: 'monospace', color: '#7f1d1d', lineHeight: 1.8 }}>
-                <div>Service Worker API: <strong>{diag.hasSW ? '✓ presente' : '✗ ausente'}</strong></div>
-                <div>Push Manager API: <strong>{diag.hasPush ? '✓ presente' : '✗ ausente'}</strong></div>
-                <div>Protocolo: <strong>{diag.protocol}</strong></div>
-                <div>Endereço: <strong>{diag.host}</strong></div>
+                <div>Service Worker API: <strong>{diag.hasSW ? '✓ present' : '✗ missing'}</strong></div>
+                <div>Push Manager API: <strong>{diag.hasPush ? '✓ present' : '✗ missing'}</strong></div>
+                <div>Protocol: <strong>{diag.protocol}</strong></div>
+                <div>Address: <strong>{diag.host}</strong></div>
               </div>
             )}
           </div>
@@ -184,10 +184,10 @@ export default function NotificationsSettings() {
         {isSupported && permission === 'denied' && (
           <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 16, padding: '20px 24px' }}>
             <p style={{ margin: '0 0 6px', fontSize: '0.875rem', fontWeight: 600, color: '#c2410c' }}>
-              Permissão bloqueada
+              Permission blocked
             </p>
             <p style={{ margin: 0, fontSize: '0.875rem', color: '#c2410c', lineHeight: 1.6 }}>
-              Clique no <strong>cadeado</strong> na barra de endereços, vá em <strong>Notificações</strong> e altere para <strong>Permitir</strong>. Em seguida, recarregue a página.
+              Click the <strong>lock</strong> icon in the address bar, go to <strong>Notifications</strong> and change it to <strong>Allow</strong>. Then reload the page.
             </p>
           </div>
         )}
@@ -203,12 +203,12 @@ export default function NotificationsSettings() {
             {/* Action card */}
             <div style={card}>
               <h2 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>
-                {isSubscribed ? 'Notificações ativas' : 'Ativar notificações'}
+                {isSubscribed ? 'Notifications active' : 'Enable notifications'}
               </h2>
               <p style={{ margin: '0 0 20px', fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
                 {isSubscribed
-                  ? 'Você receberá alertas quando os parâmetros dos cativeiros saírem do ideal.'
-                  : 'Ative para receber alertas no navegador mesmo com a aba fechada.'}
+                  ? 'You will receive alerts when pond parameters go outside the ideal range.'
+                  : 'Enable to receive browser alerts even with the tab closed.'}
               </p>
 
               {!isSubscribed ? (
@@ -217,7 +217,7 @@ export default function NotificationsSettings() {
                   disabled={isLoading}
                   style={{ ...btnBase, background: '#14b8a6', color: '#fff' }}
                 >
-                  {isLoading ? 'Ativando...' : 'Ativar Notificações'}
+                  {isLoading ? 'Enabling...' : 'Enable Notifications'}
                 </button>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -226,14 +226,14 @@ export default function NotificationsSettings() {
                     disabled={isLoading}
                     style={{ ...btnBase, background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0' }}
                   >
-                    Enviar notificação de teste
+                    Send test notification
                   </button>
                   <button
                     onClick={handleUnsubscribe}
                     disabled={isLoading}
                     style={{ ...btnBase, background: '#fff', color: '#ef4444', border: '1px solid #fecaca' }}
                   >
-                    {isLoading ? 'Aguarde...' : 'Desativar Notificações'}
+                    {isLoading ? 'Please wait...' : 'Disable Notifications'}
                   </button>
                 </div>
               )}
@@ -242,7 +242,7 @@ export default function NotificationsSettings() {
             {/* Info card */}
             <div style={infoCard}>
               <p style={{ margin: '0 0 14px', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Quando você será alertado
+                When you will be alerted
               </p>
               {ALERT_ITEMS.map(({ icon, text }) => (
                 <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -256,7 +256,7 @@ export default function NotificationsSettings() {
           /* Info card sozinho quando push não está disponível */
           <div style={infoCard}>
             <p style={{ margin: '0 0 14px', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Quando você seria alertado
+              When you would be alerted
             </p>
             {ALERT_ITEMS.map(({ icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>

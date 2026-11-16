@@ -26,7 +26,7 @@ function BotaoCopiar({ texto }) {
   };
   return (
     <button type="button" className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSm}`} onClick={copiar}>
-      {copiado ? 'Copiado!' : 'Copiar'}
+      {copiado ? 'Copied!' : 'Copy'}
     </button>
   );
 }
@@ -78,61 +78,61 @@ export default function ChaveDispositivo({ cativeiro, onClose }) {
       setConfirmando(false);
       await carregarHistorico();
     } catch (e) {
-      setErro(e?.response?.data?.error || 'Não foi possível gerar a chave. Tente novamente.');
+      setErro(e?.response?.data?.error || 'Could not generate the key. Please try again.');
     } finally {
       setGerando(false);
     }
   };
 
   return createPortal(
-    <Modal isOpen onClose={onClose} title={`Chave do dispositivo — ${cativeiro.nome || ''}`} closeOnBackdropClick={!chave}>
+    <Modal isOpen onClose={onClose} title={`Device key — ${cativeiro.nome || ''}`} closeOnBackdropClick={!chave}>
       <div className={styles.chaveModal}>
         {chave ? (
           <>
             <div className={styles.calibAviso}>
-              Copie a chave agora: ela <strong>não aparece de novo</strong>. Se perder, gere outra.
-              {temChave && historico.length > 1 && ' A chave anterior já deixou de funcionar.'}
+              Copy the key now: it <strong>will not be shown again</strong>. If you lose it, generate a new one.
+              {temChave && historico.length > 1 && ' The previous key has already stopped working.'}
             </div>
-            <Comando titulo="Chave gerada" valor={chave} />
+            <Comando titulo="Generated key" valor={chave} />
 
             <div className={styles.calibCampo}>
-              <span className={styles.calibCampoTitulo}>Como configurar na placa</span>
+              <span className={styles.calibCampoTitulo}>How to set up the board</span>
               <ol className={styles.chavePassos}>
-                <li>Ligue o ESP32 no computador pelo cabo USB.</li>
-                <li>No Arduino IDE, abra o Monitor Serial em <strong>9600 baud</strong>, com o final de linha em &quot;Nova linha&quot;.</li>
-                <li>Aperte o botão de reiniciar da placa (EN/RST). Ela aceita comandos durante os primeiros 15 segundos.</li>
-                <li>Envie os comandos abaixo, um de cada vez. A placa responde &quot;Chave do dispositivo salva.&quot;</li>
+                <li>Connect the ESP32 to your computer with the USB cable.</li>
+                <li>In the Arduino IDE, open the Serial Monitor at <strong>9600 baud</strong>, with line ending set to &quot;Newline&quot;.</li>
+                <li>Press the board&apos;s reset button (EN/RST). It accepts commands during the first 15 seconds.</li>
+                <li>Send the commands below, one at a time. The board replies &quot;Chave do dispositivo salva.&quot; (device key saved).</li>
               </ol>
             </div>
-            <Comando titulo="1. Chave" valor={`SET DEVICEKEY ${chave}`} />
-            <Comando titulo="2. Cativeiro (se a placa ainda não estiver configurada)" valor={`SET CATIVEIRO ${cativeiro._id}`} />
+            <Comando titulo="1. Key" valor={`SET DEVICEKEY ${chave}`} />
+            <Comando titulo="2. Pond (if the board is not configured yet)" valor={`SET CATIVEIRO ${cativeiro._id}`} />
 
             <div className={styles.calibAcoes}>
-              <button type="button" className={`${styles.btn} ${styles.btnSuccess}`} onClick={onClose}>Concluir</button>
+              <button type="button" className={`${styles.btn} ${styles.btnSuccess}`} onClick={onClose}>Done</button>
             </div>
           </>
         ) : (
           <>
             <div className={styles.calibCampoTexto}>
-              A chave identifica a placa deste viveiro: com ela, a API sabe que as leituras vieram mesmo do seu ESP32.
+              The key identifies this pond&apos;s board: with it, the API knows the readings really came from your ESP32.
               {temChave
-                ? ' Este viveiro já tem uma chave. Gere uma nova se a placa foi trocada ou se a chave pode ter vazado.'
-                : ' Este viveiro ainda não tem chave.'}
+                ? ' This pond already has a key. Generate a new one if the board was replaced or the key may have leaked.'
+                : ' This pond does not have a key yet.'}
             </div>
 
             {confirmando ? (
               <div className={styles.calibAviso}>
                 {temChave ? (
-                  <>Ao gerar uma nova chave, <strong>a atual para de funcionar na hora</strong>: a placa deixa de enviar leituras
-                  até você configurar a nova chave nela. Deseja continuar?</>
+                  <>Generating a new key <strong>immediately disables the current one</strong>: the board stops sending readings
+                  until you configure the new key on it. Do you want to continue?</>
                 ) : (
-                  <>Depois de gerada, <strong>a API só aceita leituras deste viveiro que venham com a chave</strong>: se a placa já
-                  está enviando dados sem chave, ela para até você configurar a chave nela. Deseja continuar?</>
+                  <>Once generated, <strong>the API only accepts readings for this pond that include the key</strong>: if the board is
+                  already sending data without a key, it stops until you configure the key on it. Do you want to continue?</>
                 )}
                 <div className={styles.calibAcoes} style={{ marginTop: 10 }}>
-                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setConfirmando(false)} disabled={gerando}>Voltar</button>
+                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setConfirmando(false)} disabled={gerando}>Back</button>
                   <button type="button" className={`${styles.btn} ${styles.btnSuccess}`} onClick={gerar} disabled={gerando}>
-                    {gerando ? 'Gerando...' : temChave ? 'Sim, gerar nova chave' : 'Sim, gerar chave'}
+                    {gerando ? 'Generating...' : temChave ? 'Yes, generate new key' : 'Yes, generate key'}
                   </button>
                 </div>
               </div>
@@ -144,7 +144,7 @@ export default function ChaveDispositivo({ cativeiro, onClose }) {
                   onClick={() => setConfirmando(true)}
                   disabled={gerando || carregando}
                 >
-                  {gerando ? 'Gerando...' : temChave ? 'Gerar nova chave' : 'Gerar chave'}
+                  {gerando ? 'Generating...' : temChave ? 'Generate new key' : 'Generate key'}
                 </button>
               </div>
             )}
@@ -153,15 +153,15 @@ export default function ChaveDispositivo({ cativeiro, onClose }) {
         )}
 
         <div className={styles.chaveTrilha}>
-          <div className={styles.calibLabel}>Histórico de chaves</div>
+          <div className={styles.calibLabel}>Key history</div>
           <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 12 }}>
-            Quem gerou cada chave e quando (a chave em si nunca fica guardada). Útil para investigar se um aviso de
-            sensor inativo coincide com uma troca de chave.
+            Who generated each key and when (the key itself is never stored). Useful to check whether an inactive
+            sensor alert coincides with a key change.
           </div>
           {carregando ? (
-            <div style={{ color: '#64748b' }}>Carregando...</div>
+            <div style={{ color: '#64748b' }}>Loading...</div>
           ) : historico.length === 0 ? (
-            <div style={{ color: '#64748b' }}>Nenhuma chave foi gerada para este viveiro ainda.</div>
+            <div style={{ color: '#64748b' }}>No key has been generated for this pond yet.</div>
           ) : (
             <div style={{ position: 'relative', paddingLeft: 20 }}>
               <div style={{ position: 'absolute', left: 5, top: 6, bottom: 6, width: 2, background: '#e2e8f0' }} />
@@ -172,14 +172,14 @@ export default function ChaveDispositivo({ cativeiro, onClose }) {
                     background: index === 0 ? '#3b82f6' : '#cbd5e1', border: '2px solid #fff', boxShadow: '0 0 0 1px #e2e8f0',
                   }} />
                   <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1e293b' }}>
-                    {new Date(item.geradoEm).toLocaleString('pt-BR')}
-                    {index === 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#3b82f6' }}>CHAVE ATUAL</span>}
+                    {new Date(item.geradoEm).toLocaleString('en-US')}
+                    {index === 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#3b82f6' }}>CURRENT KEY</span>}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: 2 }}>
                     {item.geradoPor ? (
-                      <>Gerada por <strong>{item.geradoPor.nome}</strong> ({item.geradoPor.email}) — {item.geradoPor.role}</>
+                      <>Generated by <strong>{item.geradoPor.nome}</strong> ({item.geradoPor.email}) — {item.geradoPor.role}</>
                     ) : (
-                      <em>Usuário não encontrado (pode ter sido removido depois)</em>
+                      <em>User not found (may have been removed since)</em>
                     )}
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export default function ChaveDispositivo({ cativeiro, onClose }) {
 
         {!chave && (
           <div className={styles.calibAcoes}>
-            <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={onClose}>Fechar</button>
+            <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={onClose}>Close</button>
           </div>
         )}
       </div>

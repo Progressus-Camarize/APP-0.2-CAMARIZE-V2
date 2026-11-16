@@ -12,8 +12,8 @@ export default function Custom500() {
       justifyContent: 'center',
       alignItems: 'center'
     }}>
-      <h1>500 - Erro interno do servidor</h1>
-      <p>Algo deu errado no servidor. Tente novamente mais tarde.</p>
+      <h1>500 - Internal server error</h1>
+      <p>Something went wrong on the server. Please try again later.</p>
       <Link href="/" style={{
         padding: '10px 20px',
         backgroundColor: '#007bff',
@@ -22,7 +22,7 @@ export default function Custom500() {
         borderRadius: '5px',
         marginTop: '20px'
       }}>
-        Voltar ao início
+        Back to home
       </Link>
     </div>
   );

@@ -2,7 +2,7 @@ import { forwardRef, useState } from 'react';
 import axios from 'axios';
 
 const RequestButton = forwardRef(function RequestButton(
-  { labelWhenAllowed = 'Executar', labelWhenRequest = 'Solicitar', action, payload = {}, buildPayload, forceRequest = false, fazenda = null, className = '', onSuccess, children, ...restProps },
+  { labelWhenAllowed = 'Run', labelWhenRequest = 'Request', action, payload = {}, buildPayload, forceRequest = false, fazenda = null, className = '', onSuccess, children, ...restProps },
   ref
 ) {
   const [submitting, setSubmitting] = useState(false);
@@ -33,16 +33,16 @@ const RequestButton = forwardRef(function RequestButton(
       }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      alert('Solicitação enviada ao Admin.');
+      alert('Request sent to the Admin.');
     } catch (err) {
       console.error('Erro ao enviar solicitação:', err);
-      alert('Falha ao enviar solicitação.');
+      alert('Failed to send request.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const content = children && !submitting ? children : (submitting ? 'Enviando...' : (isMember ? labelWhenRequest : labelWhenAllowed));
+  const content = children && !submitting ? children : (submitting ? 'Sending...' : (isMember ? labelWhenRequest : labelWhenAllowed));
 
   return (
     <button ref={ref} className={className} onClick={handleClick} disabled={submitting} {...restProps}>

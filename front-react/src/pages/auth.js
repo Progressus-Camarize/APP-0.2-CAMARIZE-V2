@@ -44,25 +44,25 @@ export default function AuthPage() {
 
     // Validar campos obrigatórios
     if (!nome || !nome.trim()) {
-      setError("Por favor, preencha seu nome completo.");
+      setError("Please enter your full name.");
       setLoading(false);
       return;
     }
 
     if (!email || !email.trim()) {
-      setError("Por favor, preencha seu email.");
+      setError("Please enter your email.");
       setLoading(false);
       return;
     }
 
     if (!senha || senha.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
+      setError("Password must be at least 6 characters.");
       setLoading(false);
       return;
     }
 
     if (senha !== confirmarSenha) {
-      setError("As senhas não coincidem.");
+      setError("Passwords do not match.");
       setLoading(false);
       return;
     }
@@ -102,9 +102,9 @@ export default function AuthPage() {
         } catch (registerError) {
           const errorMessage = registerError?.response?.data?.error || registerError?.response?.data?.message;
           if (errorMessage?.toLowerCase().includes('já existe') || errorMessage?.toLowerCase().includes('already exists')) {
-            setError("Este email já está cadastrado. Faça login na página de login.");
+            setError("This email is already registered. Please sign in on the login page.");
           } else {
-            setError(errorMessage || "Erro ao criar conta. Verifique os dados e tente novamente.");
+            setError(errorMessage || "Error creating account. Check your details and try again.");
           }
           setLoading(false);
         }
@@ -129,19 +129,19 @@ export default function AuthPage() {
           // Redireciona para página de cadastro de fazenda
           router.push('/register/proprietario');
         } catch (error) {
-          setError(error?.response?.data?.error || "Erro ao processar cadastro. Tente novamente.");
+          setError(error?.response?.data?.error || "Error processing sign-up. Please try again.");
           setLoading(false);
         }
       }
     } catch (error) {
       console.error('Erro:', error);
-      setError(error?.response?.data?.error || "Erro ao processar sua solicitação. Tente novamente.");
+      setError(error?.response?.data?.error || "Error processing your request. Please try again.");
       setLoading(false);
     }
   };
 
   if (!tipo) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Carregando...</div>;
+    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
   }
 
   const isFormValid = nome && email && senha && confirmarSenha;
@@ -150,14 +150,14 @@ export default function AuthPage() {
   return (
     <div className={styles.loginMobileWrapper}>
       <form className={styles.loginForm} onSubmit={handleSubmit}>
-        <h2 className={styles.loginTitle}>Cadastre-se para continuar</h2>
+        <h2 className={styles.loginTitle}>Sign up to continue</h2>
         <div className={styles.divider} />
         <div className={styles.fields}>
           <div className={styles.inputGroup}>
             <input
               type="text"
               name="nome"
-              placeholder="Nome"
+              placeholder="Name"
               className={styles.input}
               value={nome}
               onChange={e => {
@@ -187,7 +187,7 @@ export default function AuthPage() {
             <input
               type={showPassword ? "text" : "password"}
               name="password"
-              placeholder="Senha"
+              placeholder="Password"
               className={styles.input}
               value={senha}
               onChange={e => {
@@ -201,7 +201,7 @@ export default function AuthPage() {
               type="button"
               className={`${styles.eyeIcon} ${showPassword ? styles.eyeIconOff : ""}`}
               onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               aria-pressed={showPassword}
             >
               <img src="/images/login-olho.svg" alt="" width={16} height={16} />
@@ -211,7 +211,7 @@ export default function AuthPage() {
             <input
               type={showConfirm ? "text" : "password"}
               name="confirmPassword"
-              placeholder="Confirmar senha"
+              placeholder="Confirm password"
               className={styles.input}
               value={confirmarSenha}
               onChange={e => {
@@ -225,7 +225,7 @@ export default function AuthPage() {
               type="button"
               className={`${styles.eyeIcon} ${showConfirm ? styles.eyeIconOff : ""}`}
               onClick={() => setShowConfirm((v) => !v)}
-              aria-label={showConfirm ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}
+              aria-label={showConfirm ? "Hide password confirmation" : "Show password confirmation"}
               aria-pressed={showConfirm}
             >
               <img src="/images/login-olho.svg" alt="" width={16} height={16} />
@@ -241,21 +241,21 @@ export default function AuthPage() {
           {loading ? (
             <span className={styles.loginButtonContent}>
               <span className={styles.spinner} aria-hidden="true" />
-              {tipo === 'funcionario' ? "Criando conta..." : "Verificando..."}
+              {tipo === 'funcionario' ? "Creating account..." : "Verifying..."}
             </span>
-          ) : "Prosseguir"}
+          ) : "Continue"}
         </button>
 
         {error && <div className={styles.errorMsg}>{error}</div>}
 
         <div className={styles.divider} />
         <div className={styles.registerRow}>
-          <span>Deseja escolher outro tipo?</span>
-          <Link href="/register-type" className={styles.registerLink}>Voltar</Link>
+          <span>Want to choose another type?</span>
+          <Link href="/register-type" className={styles.registerLink}>Back</Link>
         </div>
         <div className={styles.registerRow}>
-          <span>Já tem uma conta?</span>
-          <Link href="/login" className={styles.registerLink}>Fazer login</Link>
+          <span>Already have an account?</span>
+          <Link href="/login" className={styles.registerLink}>Sign in</Link>
         </div>
       </form>
       <div className={styles.logoWrapper}>

@@ -59,7 +59,7 @@ export default function SolicitarVinculo({ fallback = null }) {
       setEstado('pendente');
     } catch (e) {
       if (e?.response?.status === 409) setEstado('pendente');
-      else setErro(e?.response?.data?.error || 'Não foi possível enviar o pedido. Tente novamente.');
+      else setErro(e?.response?.data?.error || 'Could not send the request. Please try again.');
     } finally {
       setEnviando(false);
     }
@@ -70,25 +70,25 @@ export default function SolicitarVinculo({ fallback = null }) {
 
   return (
     <div className={panelStyles.infoPanel} style={{ maxWidth: 480, width: '100%' }}>
-      <div style={{ fontWeight: 700, marginBottom: 6 }}>Você ainda não está vinculado a uma fazenda</div>
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>You are not linked to a farm yet</div>
       {estado === 'pendente' ? (
         <div style={{ fontSize: 13 }}>
-          Pedido de vínculo enviado. Assim que o administrador do sistema aprovar, os cativeiros da fazenda aparecerão aqui.
+          Link request sent. As soon as the system administrator approves it, the farm&apos;s ponds will appear here.
         </div>
       ) : (
         <>
           <div style={{ fontSize: 13, marginBottom: 12 }}>
             {estado === 'recusado'
-              ? 'Seu último pedido de vínculo foi recusado. Confira com o proprietário da fazenda e envie um novo pedido.'
-              : 'Peça para ser vinculado à fazenda onde você trabalha. O administrador do sistema vai analisar o pedido.'}
+              ? 'Your last link request was declined. Check with the farm owner and send a new request.'
+              : 'Ask to be linked to the farm where you work. The system administrator will review the request.'}
           </div>
           <input
             type="text"
             value={fazendaInformada}
             onChange={e => setFazendaInformada(e.target.value)}
-            placeholder="Nome da fazenda ou do proprietário (opcional)"
+            placeholder="Farm or owner name (optional)"
             maxLength={120}
-            aria-label="Nome da fazenda ou do proprietário"
+            aria-label="Farm or owner name"
             style={{ width: '100%', margin: '0 0 10px', padding: '8px 10px', border: '1px solid #bae6fd', borderRadius: 6, fontSize: 13, background: '#fff' }}
           />
           {erro && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 8 }}>{erro}</div>}
@@ -98,7 +98,7 @@ export default function SolicitarVinculo({ fallback = null }) {
             onClick={solicitar}
             disabled={enviando}
           >
-            {enviando ? 'Enviando...' : 'Solicitar vínculo a uma fazenda'}
+            {enviando ? 'Sending...' : 'Request link to a farm'}
           </button>
         </>
       )}

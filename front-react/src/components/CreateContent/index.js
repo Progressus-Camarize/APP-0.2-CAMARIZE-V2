@@ -51,7 +51,7 @@ export default function CreateContent() {
         const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
         
         if (!token) {
-          setError('Você precisa estar logado para acessar esta página');
+          setError('You need to be logged in to access this page');
           setLoading(false);
           return;
         }
@@ -76,9 +76,9 @@ export default function CreateContent() {
       } catch (err) {
         console.error('Erro ao buscar dados:', err);
         if (err.response?.status === 401) {
-          setError('Sessão expirada. Faça login novamente para continuar.');
+          setError('Session expired. Log in again to continue.');
         } else {
-          setError('Erro ao carregar os dados. Tente novamente.');
+          setError('Failed to load data. Please try again.');
         }
         setFazendas([]);
         setTiposCamarao([]);
@@ -102,7 +102,7 @@ export default function CreateContent() {
 
   // Se está carregando, mostrar loading
   if (loading) {
-    return <Loading message="Carregando formulário..." />;
+    return <Loading message="Loading form..." />;
   }
 
   const handleSensorChange = (idx, value) => {
@@ -162,8 +162,8 @@ export default function CreateContent() {
       // Verifica se sensores foram relacionados
       const sensoresSelecionados = isMember ? [] : sensores.filter(sensor => sensor && sensor !== "");
       const message = sensoresSelecionados.length > 0 
-        ? `Cativeiro cadastrado com sucesso! ${sensoresSelecionados.length} sensor(es) relacionado(s) automaticamente.`
-        : "Cativeiro cadastrado com sucesso!";
+        ? `Pond created successfully! ${sensoresSelecionados.length} sensor(s) linked automatically.`
+        : "Pond created successfully!";
       
       showNotification(message);
       // Aguardar 2 segundos antes de redirecionar para a notificação aparecer
@@ -171,7 +171,7 @@ export default function CreateContent() {
         router.push(rotaListaDeCativeiros());
       }, 2000);
     } catch {
-      showNotification("Erro ao cadastrar cativeiro.", 'error');
+      showNotification("Failed to create pond.", 'error');
     }
   };
 
@@ -180,21 +180,21 @@ export default function CreateContent() {
       <button 
         className={styles.backBtn} 
         onClick={() => router.back()}
-        aria-label="Voltar"
+        aria-label="Back"
         type="button"
       >
         <span style={{ fontSize: 24, lineHeight: 1 }}>&larr;</span>
       </button>
       <form className={styles.formBox} onSubmit={handleSubmit}>
-        <h2 className={styles.title}>Cadastre seu cativeiro</h2>
+        <h2 className={styles.title}>Register your pond</h2>
         <select
           className={`${styles.input} ${styles.inputSelect}`}
           value={fazendaSelecionada}
           onChange={e => setFazendaSelecionada(e.target.value)}
           required
-          aria-label="Selecione o sítio"
+          aria-label="Select the farm"
         >
-          <option value="">Selecione o sítio</option>
+          <option value="">Select the farm</option>
           {fazendas.map(f => (
             <option key={f._id} value={f._id}>
               {f.nome}
@@ -203,22 +203,22 @@ export default function CreateContent() {
         </select>
         <input
           className={styles.input}
-          placeholder="Nome do cativeiro"
+          placeholder="Pond name"
           type="text"
           value={nomeCativeiro}
           onChange={e => setNomeCativeiro(e.target.value)}
           required
-          aria-label="Nome do cativeiro"
+          aria-label="Pond name"
         />
         <div className={styles.inputIconBox}>
           <input
             className={styles.input}
-            placeholder="Data da instalação"
+            placeholder="Installation date"
             type="date"
             value={dataInstalacao}
             onChange={e => setDataInstalacao(e.target.value)}
             required
-            aria-label="Data da instalação"
+            aria-label="Installation date"
           />
         </div>
         {/* Troca o select de tipo de camarão por um autocomplete com criação */}
@@ -229,18 +229,18 @@ export default function CreateContent() {
           />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <h4 style={{ margin: '0 0 8px 0', fontWeight: 600, fontSize: '1.08rem' }}>Condições Ideais</h4>
+          <h4 style={{ margin: '0 0 8px 0', fontWeight: 600, fontSize: '1.08rem' }}>Ideal Conditions</h4>
         </div>
         <div className={styles.mediaInputs}>
           <input
             className={styles.input}
-            placeholder="Temperatura"
+            placeholder="Temperature"
             type="number"
             step="0.1"
             min="0"
             value={tempMedia}
             onChange={e => setTempMedia(e.target.value)}
-            aria-label="Temperatura média"
+            aria-label="Average temperature"
           />
           <input
             className={styles.input}
@@ -251,17 +251,17 @@ export default function CreateContent() {
             max="14"
             value={phMedio}
             onChange={e => setPhMedio(e.target.value)}
-            aria-label="pH médio"
+            aria-label="Average pH"
           />
           <input
             className={styles.input}
-            placeholder="Amônia"
+            placeholder="Ammonia"
             type="number"
             step="0.01"
             min="0"
             value={amoniaMedia}
             onChange={e => setAmoniaMedia(e.target.value)}
-            aria-label="Amônia média"
+            aria-label="Average ammonia"
           />
         </div>
         <div className={styles.uploadBox}>
@@ -269,9 +269,9 @@ export default function CreateContent() {
             type="button" 
             className={styles.uploadBtn} 
             onClick={() => fileInputRef.current.click()}
-            aria-label="Selecionar foto do cativeiro"
+            aria-label="Select pond photo"
           >
-            &#128206; Selecionar foto
+            &#128206; Select photo
           </button>
           <input
             type="file"
@@ -279,16 +279,16 @@ export default function CreateContent() {
             style={{ display: "none" }}
             onChange={e => setArquivo(e.target.files[0])}
             accept="image/*"
-            aria-label="Upload de foto"
+            aria-label="Photo upload"
           />
-          <span className={styles.uploadFileName}>{arquivo ? arquivo.name : "Nenhum arquivo inserido"}</span>
+          <span className={styles.uploadFileName}>{arquivo ? arquivo.name : "No file selected"}</span>
         </div>
         {!isMember && (
           <>
             <hr className={styles.hr} />
-            <h3 className={styles.subtitle}>Relacione os sensores</h3>
+            <h3 className={styles.subtitle}>Link the sensors</h3>
             <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px', gridColumn: '1 / -1' }}>
-              Todos os sensores selecionados serão relacionados ao cativeiro automaticamente (máximo 3 sensores).
+              All selected sensors will be linked to the pond automatically (maximum 3 sensors).
             </p>
             {sensores.map((sensor, idx) => (
               <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -296,10 +296,10 @@ export default function CreateContent() {
                   className={`${styles.input} ${styles.inputSelect}`}
                   value={sensor}
                   onChange={e => handleSensorChange(idx, e.target.value)}
-                  aria-label={`Selecione o sensor ${idx + 1}`}
+                  aria-label={`Select sensor ${idx + 1}`}
                   style={{ flex: 1 }}
                 >
-                  <option value="">Selecione</option>
+                  <option value="">Select</option>
                   {sensoresDisponiveis
                     .filter(s => {
                       return sensor === s._id || !sensores.includes(s._id);
@@ -323,7 +323,7 @@ export default function CreateContent() {
                       cursor: 'pointer',
                       fontSize: '14px'
                     }}
-                    aria-label={`Remover sensor ${idx + 1}`}
+                    aria-label={`Remove sensor ${idx + 1}`}
                   >
                     ✕
                   </button>
@@ -345,16 +345,16 @@ export default function CreateContent() {
                   marginTop: '8px'
                 }}
               >
-                + Adicionar Sensor
+                + Add Sensor
               </button>
             )}
           </>
         )}
         <RequestButton
           className={styles.cadastrarBtn}
-          aria-label="Cadastrar cativeiro"
-          labelWhenAllowed="Cadastrar"
-          labelWhenRequest="Solicitar"
+          aria-label="Create pond"
+          labelWhenAllowed="Create"
+          labelWhenRequest="Request"
           action="cadastrar_cativeiro"
           buildPayload={() => ({
             fazendaId: fazendaSelecionada,

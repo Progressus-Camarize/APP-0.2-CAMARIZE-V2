@@ -6,9 +6,9 @@ import Notification from '../components/Notification';
 import NavBottom from '../components/NavBottom';
 
 const TIPOS_SENSORES = [
-  { value: 'Temperatura', label: 'Temperatura' },
+  { value: 'Temperatura', label: 'Temperature' },
   { value: 'pH', label: 'pH' },
-  { value: 'Amônia', label: 'Amônia' }
+  { value: 'Amônia', label: 'Ammonia' }
 ];
 
 export default function EditSensorPage() {
@@ -58,7 +58,7 @@ export default function EditSensorPage() {
       setDataLoaded(true);
     } catch (err) {
       console.error('Erro ao buscar sensor:', err);
-      const apiMsg = err?.response?.data?.error || err?.response?.data?.message || 'Erro ao carregar dados do sensor';
+      const apiMsg = err?.response?.data?.error || err?.response?.data?.message || 'Error loading sensor data';
       showNotification(apiMsg, 'error');
       router.push('/sensores');
     }
@@ -77,11 +77,11 @@ export default function EditSensorPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tipoSelecionado) {
-      showNotification('Selecione o tipo de sensor!', 'warning');
+      showNotification('Select the sensor type!', 'warning');
       return;
     }
     if (!apelido.trim()) {
-      showNotification('Digite um apelido para o sensor!', 'warning');
+      showNotification('Enter a nickname for the sensor!', 'warning');
       return;
     }
     setLoading(true);
@@ -99,14 +99,14 @@ export default function EditSensorPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
-      showNotification('Sensor atualizado com sucesso!');
+      showNotification('Sensor updated successfully!');
       // Aguardar 2 segundos antes de redirecionar para a notificação aparecer
       setTimeout(() => {
         router.push('/sensores');
       }, 2000);
     } catch (err) {
       console.error('Erro ao atualizar sensor:', err);
-      showNotification('Erro ao atualizar sensor.', 'error');
+      showNotification('Error updating sensor.', 'error');
     } finally {
       setLoading(false);
     }
@@ -115,7 +115,7 @@ export default function EditSensorPage() {
   if (!dataLoaded) {
     return (
       <div style={{ width: '100%', maxWidth: 600, margin: '0 auto', padding: '24px 32px', textAlign: 'center' }}>
-        <p>Carregando dados do sensor...</p>
+        <p>Loading sensor data...</p>
       </div>
     );
   }
@@ -146,45 +146,45 @@ export default function EditSensorPage() {
         onMouseOut={(e) => {
           e.target.style.backgroundColor = 'transparent';
         }}
-        title="Voltar"
+        title="Back"
       >
         &larr;
       </button>
-      <h2 style={{ fontWeight: 700, fontSize: '1.35rem', marginBottom: 8 }}>Editar sensor</h2>
+      <h2 style={{ fontWeight: 700, fontSize: '1.35rem', marginBottom: 8 }}>Edit sensor</h2>
       <hr style={{ border: 'none', borderTop: '1.5px solid #eee', margin: '12px 0 24px 0' }} />
       <form onSubmit={handleSubmit}>
-        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Tipo do sensor</div>
+        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Sensor type</div>
         <select
           style={{ width: '100%', padding: '12px', borderRadius: 6, background: '#f5f5f5', border: 'none', fontSize: '1rem', marginBottom: 16 }}
           value={tipoSelecionado}
           onChange={e => setTipoSelecionado(e.target.value)}
         >
-          <option value="">Selecione o sensor</option>
+          <option value="">Select the sensor</option>
           {TIPOS_SENSORES.map(t => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
-        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Apelido</div>
+        <div style={{ fontWeight: 600, fontSize: '1.08rem', marginBottom: 8 }}>Nickname</div>
         <input
           type="text"
           value={apelido}
           onChange={e => setApelido(e.target.value)}
-          placeholder="Ex: Sensor Temp 1"
+          placeholder="E.g.: Temp Sensor 1"
           style={{ width: '100%', padding: '12px', borderRadius: 6, background: '#f5f5f5', border: 'none', fontSize: '1rem', marginBottom: 24 }}
         />
         <div style={{ display: 'flex', alignItems: 'center', background: '#f5f5f5', borderRadius: 8, padding: '12px 16px', marginBottom: 24 }}>
           <button type="button" style={{ background: '#222', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontWeight: 500, marginRight: 16 }} onClick={() => fileInputRef.current.click()}>
-            &#128228; Selecionar foto
+            &#128228; Select photo
           </button>
           <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={e => setArquivo(e.target.files[0])} />
           <span style={{ color: '#888', fontSize: '0.98rem' }}>
-            {arquivo ? arquivo.name : (currentImageUrl ? "Foto atual" : 'Nenhum arquivo inserido')}
+            {arquivo ? arquivo.name : (currentImageUrl ? "Current photo" : 'No file selected')}
           </span>
           {currentImageUrl && !arquivo && (
             <div style={{ marginLeft: '12px' }}>
               <img 
                 src={currentImageUrl} 
-                alt="Foto atual do sensor" 
+                alt="Current sensor photo" 
                 style={{ 
                   width: '40px', 
                   height: '40px', 
@@ -197,8 +197,8 @@ export default function EditSensorPage() {
           )}
         </div>
         <RequestButton
-          labelWhenAllowed="Atualizar"
-          labelWhenRequest="Solicitar"
+          labelWhenAllowed="Update"
+          labelWhenRequest="Request"
           action="editar_sensor"
           buildPayload={() => ({ id, tipo: tipoSelecionado, apelido })}
           onSuccess={handleSubmit}

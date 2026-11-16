@@ -34,12 +34,12 @@ export default function Profile() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      showNotification("Por favor, selecione apenas arquivos de imagem.", 'error');
+      showNotification("Please select image files only.", 'error');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      showNotification("A imagem deve ter menos de 5MB.", 'error');
+      showNotification("The image must be smaller than 5MB.", 'error');
       return;
     }
 
@@ -65,9 +65,9 @@ export default function Profile() {
 
       setUser(prev => ({ ...prev, foto_perfil: previewFoto }));
       setPreviewFoto(null);
-      showNotification("Foto atualizada com sucesso!", 'success');
+      showNotification("Photo updated successfully!", 'success');
     } catch {
-      showNotification("Erro ao salvar foto.", 'error');
+      showNotification("Error saving photo.", 'error');
     } finally {
       setSalvandoFoto(false);
     }
@@ -80,7 +80,7 @@ export default function Profile() {
       const userId = u?._id || u?.id || u?.userId || null;
       const tourKey = userId ? `camarize_home_tour_done_${userId}` : 'camarize_home_tour_done';
       localStorage.removeItem(tourKey);
-      showNotification('Tutorial reativado. Abrindo tela inicial...', 'success');
+      showNotification('Tutorial re-enabled. Opening home screen...', 'success');
       setTimeout(() => router.push('/home'), 600);
     } catch {
       router.push('/home');
@@ -117,32 +117,32 @@ export default function Profile() {
   }, []);
 
   if (loading) return (
-    <MemberLayout title="Perfil" subtitle="Gerencie seus dados pessoais">
-      <Loading message="Carregando perfil..." />
+    <MemberLayout title="Profile" subtitle="Manage your personal details">
+      <Loading message="Loading profile..." />
     </MemberLayout>
   );
   if (!user) return (
-    <MemberLayout title="Perfil" subtitle="Gerencie seus dados pessoais">
-      <AuthError error="Não foi possível carregar o perfil." onRetry={() => window.location.reload()} />
+    <MemberLayout title="Profile" subtitle="Manage your personal details">
+      <AuthError error="Could not load profile." onRetry={() => window.location.reload()} />
     </MemberLayout>
   );
 
   return (
-    <MemberLayout title="Perfil" subtitle="Gerencie seus dados pessoais">
+    <MemberLayout title="Profile" subtitle="Manage your personal details">
       <div style={{ maxWidth: 480, margin: '0 auto' }}>
         <div className={styles.profileBox} style={{ position: 'relative', boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 16 }}>
           <div className={styles.avatarBox}>
-            <img src={previewFoto || user.foto_perfil} alt="Foto do usuário" className={styles.avatar} />
-            <button className={styles.editPhotoBtn} title="Editar foto" onClick={handleEditPhoto} type="button">
+            <img src={previewFoto || user.foto_perfil} alt="User photo" className={styles.avatar} />
+            <button className={styles.editPhotoBtn} title="Edit photo" onClick={handleEditPhoto} type="button">
               <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
                 <path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
           </div>
           <div className={styles.userName}>{user.nome}</div>
-          <div className={styles.userRole}>Membro</div>
+          <div className={styles.userRole}>Member</div>
           <form className={styles.formBox}>
-            <label className={styles.label}>Nome Completo</label>
+            <label className={styles.label}>Full Name</label>
             <input className={styles.input} value={user.nome} disabled />
             <label className={styles.label}>E-mail</label>
             <input className={styles.input} value={user.email} disabled />
@@ -154,13 +154,13 @@ export default function Profile() {
                 disabled={salvandoFoto}
                 style={{ background: '#10b981', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: salvandoFoto ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: salvandoFoto ? 0.7 : 1 }}
               >
-                {salvandoFoto ? 'Salvando...' : 'Salvar Foto'}
+                {salvandoFoto ? 'Saving...' : 'Save Photo'}
               </button>
               <button
                 onClick={() => setPreviewFoto(null)}
                 style={{ background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}
               >
-                Cancelar
+                Cancel
               </button>
             </div>
           )}
@@ -172,7 +172,7 @@ export default function Profile() {
             onClick={handleShowTourAgain}
             style={{ background: '#6366f1', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: '0.855rem', fontWeight: 600 }}
           >
-            Mostrar tutorial novamente
+            Show tutorial again
           </button>
         </div>
       </div>

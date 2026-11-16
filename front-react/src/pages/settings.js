@@ -194,21 +194,21 @@ export default function Settings() {
       await axios.patch(`${apiUrl}/fazendas/${fazenda._id}/foto`, { foto_sitio: previewFoto }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      showNotification("Foto atualizada com sucesso!", 'success');
+      showNotification("Photo updated successfully!", 'success');
       setPreviewFoto(null);
       setFazenda({ ...fazenda, foto_sitio: true });
       setFotoFazenda(previewFoto);
     } catch {
-      showNotification("Erro ao salvar foto.", 'error');
+      showNotification("Error saving photo.", 'error');
     }
     setSalvandoFoto(false);
   };
 
   if (loading) {
     return (
-      <MemberLayout title="Configurações" subtitle="Gerencie a fazenda e preferências do sistema">
+      <MemberLayout title="Settings" subtitle="Manage your farm and system preferences">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 24px', color: '#94a3b8', fontSize: '0.9rem' }}>
-          Carregando configurações...
+          Loading settings...
         </div>
       </MemberLayout>
     );
@@ -216,12 +216,12 @@ export default function Settings() {
 
   if (!usuario || !fazenda) {
     return (
-      <MemberLayout title="Configurações" subtitle="Gerencie a fazenda e preferências do sistema">
+      <MemberLayout title="Settings" subtitle="Manage your farm and system preferences">
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '48px 32px', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
           <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.35 }}>🏡</div>
-          <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>Nenhuma fazenda encontrada</h3>
+          <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>No farm found</h3>
           <p style={{ margin: '0 0 16px', fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
-            Este usuário ainda não está associado a nenhuma fazenda.
+            This user is not linked to any farm yet.
           </p>
           {usuario?.role === 'membro' && (
             <div style={{ display: 'flex', justifyContent: 'center', textAlign: 'left' }}>
@@ -234,15 +234,15 @@ export default function Settings() {
   }
 
   return (
-    <MemberLayout title="Configurações" subtitle="Gerencie a fazenda e preferências do sistema">
+    <MemberLayout title="Settings" subtitle="Manage your farm and system preferences">
       <div style={{ maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ position: 'relative', marginBottom: 10, marginTop: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <img
           src={fotoFazenda}
-          alt="Foto da fazenda"
+          alt="Farm photo"
           style={{ width: 110, height: 110, borderRadius: '50%', objectFit: 'cover', aspectRatio: '1/1', border: '3px solid #e6d6f7', background: '#f5f5f5', display: 'block', margin: '0 auto' }}
         />
-        <button type="button" title="Editar foto" onClick={handleEditPhoto} style={{ position: 'absolute', bottom: 8, right: 'calc(50% - 55px)', background: '#fff', border: '1.5px solid #e6d6f7', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px #0001' }}>
+        <button type="button" title="Edit photo" onClick={handleEditPhoto} style={{ position: 'absolute', bottom: 8, right: 'calc(50% - 55px)', background: '#fff', border: '1.5px solid #e6d6f7', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px #0001' }}>
           <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M15.232 5.232a3 3 0 1 1 4.243 4.243L7.5 21H3v-4.5L15.232 5.232Z" stroke="#222" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
         <input
@@ -254,15 +254,15 @@ export default function Settings() {
         />
       </div>
       <div style={customStyles.userName}>{fazenda.nome || ""}</div>
-      <div style={customStyles.userRole}>Sítio/Fazenda</div>
+      <div style={customStyles.userRole}>Farm</div>
       <form style={customStyles.formBox}>
-        <label style={customStyles.label}>Cidade</label>
+        <label style={customStyles.label}>City</label>
         <input style={customStyles.input} value={fazenda.cidade || ""} disabled />
-        <label style={customStyles.label}>Bairro</label>
+        <label style={customStyles.label}>Neighborhood</label>
         <input style={customStyles.input} value={fazenda.bairro || ""} disabled />
-        <label style={customStyles.label}>Rua</label>
+        <label style={customStyles.label}>Street</label>
         <input style={customStyles.input} value={fazenda.rua || ""} disabled />
-        <label style={customStyles.label}>Número</label>
+        <label style={customStyles.label}>Number</label>
         <input style={customStyles.input} value={fazenda.numero || ""} disabled />
         {previewFoto && (
           <button
@@ -282,7 +282,7 @@ export default function Settings() {
               width: '100%'
             }}
           >
-            {salvandoFoto ? 'Salvando...' : 'Salvar foto'}
+            {salvandoFoto ? 'Saving...' : 'Save photo'}
           </button>
         )}
       </form>
@@ -306,7 +306,7 @@ export default function Settings() {
           alignItems: 'center',
           gap: '12px'
         }}>
-          ⚙️ Configurações Avançadas
+          ⚙️ Advanced Settings
         </h3>
         
         <div style={{
@@ -362,13 +362,13 @@ export default function Settings() {
                   color: '#1f2937',
                   marginBottom: '4px'
                 }}>
-                  Notificações Push
+                  Push Notifications
                 </div>
                 <div style={{
                   fontSize: '14px',
                   color: '#6b7280'
                 }}>
-                  Configure alertas no celular
+                  Set up alerts on your phone
                 </div>
               </div>
             </div>
@@ -425,13 +425,13 @@ export default function Settings() {
                   color: '#1f2937',
                   marginBottom: '4px'
                 }}>
-                  Configurações de Email
+                  Email Settings
                 </div>
                 <div style={{
                   fontSize: '14px',
                   color: '#6b7280'
                 }}>
-                  Quantidade de emails e modo silêncio
+                  Email volume and quiet mode
                 </div>
               </div>
             </div>

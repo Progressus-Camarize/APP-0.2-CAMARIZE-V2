@@ -7,18 +7,18 @@ import Modal from '../Modal';
 // que a calibração atual (aplicá-la substituiria um valor mais recente).
 
 const numeroBr = (n, casas = 1) => (typeof n === 'number' && Number.isFinite(n)
-  ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: Math.max(casas, 4) })
+  ? n.toLocaleString('en-US', { minimumFractionDigits: casas, maximumFractionDigits: Math.max(casas, 4) })
   : null);
 
-const dataBr = (d) => (d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : null);
+const dataBr = (d) => (d ? new Date(d).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }) : null);
 
-const NOME_TIPO = { motor: 'alimentador', ph: 'sensor de pH' };
+const NOME_TIPO = { motor: 'feeder', ph: 'pH sensor' };
 
 // Valor legível de uma calibração (do payload da solicitação ou dos campos do cativeiro)
 export function descreverCalibracao(tipo, valores = {}) {
   if (tipo === 'motor') {
     const g = numeroBr(valores.gramas_por_rotacao);
-    return g ? `${g} g por volta` : null;
+    return g ? `${g} g per turn` : null;
   }
   const ph7 = numeroBr(valores.tensao_ph7, 2);
   const ph4 = numeroBr(valores.tensao_ph4, 2);
@@ -28,7 +28,7 @@ export function descreverCalibracao(tipo, valores = {}) {
 // Mensagem de sucesso depois de aplicar
 export function mensagemCalibracaoAplicada(payload = {}) {
   const valor = descreverCalibracao(payload.tipo, payload);
-  return `Calibração do ${NOME_TIPO[payload.tipo] || 'dispositivo'} aplicada${valor ? `: ${valor}` : ''}.`;
+  return `${(NOME_TIPO[payload.tipo] || 'device').replace(/^./, c => c.toUpperCase())} calibration applied${valor ? `: ${valor}` : ''}.`;
 }
 
 export default function ConfirmarCalibracao({ item, cativeiro, enviando = false, onCancelar, onConfirmar }) {
@@ -44,47 +44,47 @@ export default function ConfirmarCalibracao({ item, cativeiro, enviando = false,
     <Modal
       isOpen
       onClose={enviando ? () => {} : onCancelar}
-      title={`Aplicar calibração do ${NOME_TIPO[tipo] || 'dispositivo'}`}
+      title={`Apply ${NOME_TIPO[tipo] || 'device'} calibration`}
       closeOnBackdropClick={!enviando}
     >
       <div className={styles.calibModal}>
         <div className={styles.calibCampoTexto}>
-          Cativeiro <strong>{cativeiro?.nome || payload.cativeiroId}</strong>. Confira os valores antes de aplicar:
-          a calibração nova substitui a que está em uso.
+          Pond <strong>{cativeiro?.nome || payload.cativeiroId}</strong>. Check the values before applying:
+          the new calibration replaces the one in use.
         </div>
 
         <div className={styles.calibComparacao}>
           <div className={styles.calibComparacaoItem}>
-            <span className={styles.calibComparacaoRotulo}>Em uso agora</span>
-            <strong className={styles.calibComparacaoValor}>{valorAtual || 'Não calibrado'}</strong>
+            <span className={styles.calibComparacaoRotulo}>Currently in use</span>
+            <strong className={styles.calibComparacaoValor}>{valorAtual || 'Not calibrated'}</strong>
             <span className={styles.calibComparacaoData}>
               {valorAtual
-                ? (dataAtual ? `Calibração de ${dataBr(dataAtual)}` : 'Data da calibração não registrada')
-                : 'Nenhuma calibração aplicada'}
+                ? (dataAtual ? `Calibrated on ${dataBr(dataAtual)}` : 'Calibration date not recorded')
+                : 'No calibration applied'}
             </span>
           </div>
           <div className={`${styles.calibComparacaoItem} ${styles.calibComparacaoNova}`}>
-            <span className={styles.calibComparacaoRotulo}>Nova calibração</span>
-            <strong className={styles.calibComparacaoValor}>{valorNovo || 'Valor inválido'}</strong>
+            <span className={styles.calibComparacaoRotulo}>New calibration</span>
+            <strong className={styles.calibComparacaoValor}>{valorNovo || 'Invalid value'}</strong>
             <span className={styles.calibComparacaoData}>
-              {`Calibração de ${dataBr(item?.createdAt)}`}{solicitante ? ` por ${solicitante}` : ''}
+              {`Calibrated on ${dataBr(item?.createdAt)}`}{solicitante ? ` by ${solicitante}` : ''}
             </span>
           </div>
         </div>
 
         {maisAntiga && (
           <div className={styles.calibAviso}>
-            <strong>Esta calibração é anterior à que está em uso.</strong> Aplicá-la vai substituir um valor
-            mais recente. Prefira recusar esta solicitação, a menos que a calibração atual esteja errada.
+            <strong>This calibration is older than the one in use.</strong> Applying it will replace a more
+            recent value. Consider rejecting this request unless the current calibration is wrong.
           </div>
         )}
 
         <div className={styles.calibAcoes}>
           <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={onCancelar} disabled={enviando}>
-            Cancelar
+            Cancel
           </button>
           <button type="button" className={`${styles.btn} ${styles.btnSuccess}`} onClick={onConfirmar} disabled={enviando || !valorNovo}>
-            {enviando ? 'Aplicando...' : 'Aplicar calibração'}
+            {enviando ? 'Applying...' : 'Apply calibration'}
           </button>
         </div>
       </div>

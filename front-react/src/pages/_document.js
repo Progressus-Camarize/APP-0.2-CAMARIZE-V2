@@ -2,7 +2,7 @@ import { Html, Head, Main, NextScript } from "next/document";
 
 export default function Document() {
   return (
-    <Html lang="pt-br">
+    <Html lang="en">
       <Head>
         {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.json" />
@@ -24,7 +24,7 @@ export default function Document() {
         <meta name="mobile-web-app-capable" content="yes" />
         
         {/* PWA Description */}
-        <meta name="description" content="Sistema inteligente de monitoramento para cativeiros de camarão" />
+        <meta name="description" content="Smart monitoring system for shrimp ponds" />
       </Head>
       <body>
         <Main />

@@ -37,7 +37,7 @@ export default function RegisterFazendaPage() {
     setError("");
     const token = getToken();
     if (!token) {
-      setError("Você precisa estar logado para cadastrar uma fazenda.");
+      setError("You need to be signed in to register a farm.");
       return;
     }
     setLoading(true);
@@ -58,10 +58,10 @@ export default function RegisterFazendaPage() {
         router.back();
       } else {
         const data = await response.json();
-        setError(data.error || "Erro ao cadastrar fazenda.");
+        setError(data.error || "Error registering farm.");
       }
     } catch (err) {
-      setError(`Erro de conexão com o servidor: ${err.message}`);
+      setError(`Server connection error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -73,18 +73,18 @@ export default function RegisterFazendaPage() {
         className={styles.backBtn}
         onClick={() => router.back()}
         type="button"
-        aria-label="Voltar"
+        aria-label="Back"
       >
         <span style={{ fontSize: 24, lineHeight: 1 }}>&larr;</span>
       </button>
 
       <form className={styles.formBox} onSubmit={handleSubmit}>
-        <h2 className={styles.title}>Cadastrar fazenda</h2>
+        <h2 className={styles.title}>Register farm</h2>
 
         <input
           className={styles.input}
           type="text"
-          placeholder="Nome da fazenda"
+          placeholder="Farm name"
           value={nome}
           onChange={e => setNome(e.target.value)}
           autoComplete="off"
@@ -93,12 +93,12 @@ export default function RegisterFazendaPage() {
         />
 
         <hr className={styles.hr} />
-        <h3 className={styles.subtitle}>Endereço</h3>
+        <h3 className={styles.subtitle}>Address</h3>
 
         <input
           className={styles.input}
           type="text"
-          placeholder="Rua"
+          placeholder="Street"
           value={rua}
           onChange={e => setRua(e.target.value)}
           autoComplete="off"
@@ -109,7 +109,7 @@ export default function RegisterFazendaPage() {
         <input
           className={styles.input}
           type="text"
-          placeholder="Bairro"
+          placeholder="Neighborhood"
           value={bairro}
           onChange={e => setBairro(e.target.value)}
           autoComplete="off"
@@ -121,7 +121,7 @@ export default function RegisterFazendaPage() {
           <input
             className={styles.input}
             type="text"
-            placeholder="Cidade"
+            placeholder="City"
             value={cidade}
             onChange={e => setCidade(e.target.value)}
             autoComplete="off"
@@ -131,7 +131,7 @@ export default function RegisterFazendaPage() {
           <input
             className={styles.input}
             type="text"
-            placeholder="Número"
+            placeholder="Number"
             value={numero}
             onChange={e => setNumero(e.target.value)}
             autoComplete="off"
@@ -141,7 +141,7 @@ export default function RegisterFazendaPage() {
         </div>
 
         <hr className={styles.hr} />
-        <h3 className={styles.subtitle}>Responsável</h3>
+        <h3 className={styles.subtitle}>Manager</h3>
 
         <select
           className={`${styles.input} ${styles.inputSelect}`}
@@ -149,7 +149,7 @@ export default function RegisterFazendaPage() {
           onChange={e => setAdminId(e.target.value)}
           style={{ gridColumn: "1 / -1" }}
         >
-          <option value="">Sem admin responsável (opcional)</option>
+          <option value="">No managing admin (optional)</option>
           {admins.map(a => (
             <option key={a.id || a._id} value={a.id || a._id}>
               {a.nome} — {a.email}
@@ -168,7 +168,7 @@ export default function RegisterFazendaPage() {
           className={styles.cadastrarBtn}
           disabled={!isFormValid || loading}
         >
-          {loading ? "Cadastrando..." : "Cadastrar"}
+          {loading ? "Registering..." : "Register"}
         </button>
       </form>
 

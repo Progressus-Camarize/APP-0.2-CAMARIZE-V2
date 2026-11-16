@@ -19,7 +19,7 @@ const authHeaders = () => {
 };
 
 const INTERVALO_CONSULTA_MS = 2000;
-const NOME_TIPO = { motor: 'alimentador', ph: 'sensor de pH' };
+const NOME_TIPO = { motor: 'feeder', ph: 'pH sensor' };
 
 // Etapa da API -> passo da tela (para retomar uma calibração em andamento)
 const PASSO_DA_ETAPA = {
@@ -35,17 +35,17 @@ const PASSO_DA_ETAPA = {
 const PASSOS_AGUARDANDO = ['executando', 'lendo_ph7', 'lendo_ph4'];
 
 const numeroBr = (n, casas = 1) =>
-  Number(n).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: Math.max(casas, 4) });
+  Number(n).toLocaleString('en-US', { minimumFractionDigits: casas, maximumFractionDigits: Math.max(casas, 4) });
 
 const positivo = (n) => n != null && Number(n) > 0;
 
 // Situação de cada calibração a partir dos valores gravados no cativeiro
 const statusAlimentador = (c) => (positivo(c.gramas_por_rotacao)
-  ? { ok: true, texto: `${numeroBr(c.gramas_por_rotacao)} g por volta` }
-  : { ok: false, texto: 'Não calibrado' });
+  ? { ok: true, texto: `${numeroBr(c.gramas_por_rotacao)} g per turn` }
+  : { ok: false, texto: 'Not calibrated' });
 const statusPh = (c) => (positivo(c.tensao_ph7) && positivo(c.tensao_ph4)
-  ? { ok: true, texto: 'Calibrado' }
-  : { ok: false, texto: 'Não calibrado' });
+  ? { ok: true, texto: 'Calibrated' }
+  : { ok: false, texto: 'Not calibrated' });
 
 export default function Calibracoes() {
   const [fazendas, setFazendas] = useState([]);
@@ -69,7 +69,7 @@ export default function Calibracoes() {
         if (lista.length === 1) setAberta({ [String(lista[0]._id)]: true });
         setCativeiros(Array.isArray(cats.data) ? cats.data : []);
       } catch (e) {
-        setErroLista(e?.response?.data?.error || 'Não foi possível carregar as fazendas e cativeiros.');
+        setErroLista(e?.response?.data?.error || 'Could not load farms and ponds.');
       } finally {
         setCarregando(false);
       }
@@ -110,7 +110,7 @@ export default function Calibracoes() {
     try {
       await acao();
     } catch (e) {
-      atualizarFluxo({ erro: e?.response?.data?.error || 'Não foi possível concluir a ação. Tente novamente.' });
+      atualizarFluxo({ erro: e?.response?.data?.error || 'Could not complete the action. Please try again.' });
     } finally {
       atualizarFluxo({ enviando: false });
     }
@@ -128,7 +128,7 @@ export default function Calibracoes() {
   const iniciarMotor = () => {
     const rotacoes = Number(fluxo.voltas);
     if (!Number.isInteger(rotacoes) || rotacoes < 1 || rotacoes > 500) {
-      atualizarFluxo({ erro: 'Informe um número inteiro de voltas entre 1 e 500.' });
+      atualizarFluxo({ erro: 'Enter a whole number of turns between 1 and 500.' });
       return;
     }
     enviar(async () => {
@@ -140,7 +140,7 @@ export default function Calibracoes() {
   const enviarPeso = () => {
     const gramas = Number(String(fluxo.peso).replace(',', '.'));
     if (!Number.isFinite(gramas) || gramas <= 0) {
-      atualizarFluxo({ erro: 'Informe o peso da ração em gramas (maior que zero).' });
+      atualizarFluxo({ erro: 'Enter the feed weight in grams (greater than zero).' });
       return;
     }
     enviar(async () => {
@@ -206,17 +206,17 @@ export default function Calibracoes() {
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
         <div>
-          <h2 className={styles.sectionTitle}>Fazendas e Cativeiros</h2>
+          <h2 className={styles.sectionTitle}>Farms and Ponds</h2>
           <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#94a3b8' }}>
-            {fazendas.length} fazenda{fazendas.length !== 1 ? 's' : ''} · {totalCativeiros} cativeiro{totalCativeiros !== 1 ? 's' : ''}
+            {fazendas.length} farm{fazendas.length !== 1 ? 's' : ''} · {totalCativeiros} pond{totalCativeiros !== 1 ? 's' : ''}
           </p>
         </div>
       </div>
 
-      {carregando && <div style={{ color: '#64748b', padding: 20 }}>Carregando...</div>}
+      {carregando && <div style={{ color: '#64748b', padding: 20 }}>Loading...</div>}
       {erroLista && <div className={styles.calibErro} style={{ padding: 20 }}>{erroLista}</div>}
       {!carregando && !erroLista && fazendas.length === 0 && (
-        <div style={{ color: '#64748b', padding: 20 }}>Nenhuma fazenda vinculada à sua conta.</div>
+        <div style={{ color: '#64748b', padding: 20 }}>No farm linked to your account.</div>
       )}
 
       {fazendas.map(f => {
@@ -235,12 +235,12 @@ export default function Calibracoes() {
               <span className={styles.calibFazendaIcone}><HiOutlineLocationMarker size={18} /></span>
               <span className={styles.calibFazendaInfo}>
                 <span className={styles.calibFazendaNome}>
-                  {f.nome || 'Fazenda'}
+                  {f.nome || 'Farm'}
                   {f.codigo && <span className={styles.calibFazendaCodigo}>{f.codigo}</span>}
                 </span>
                 <span className={styles.calibFazendaSub}>
-                  {lista.length} cativeiro{lista.length !== 1 ? 's' : ''}
-                  {admins && ` · ${admins.length > 0 ? `Admin: ${admins.map(a => a.nome).join(', ')}` : 'Sem admin responsável'}`}
+                  {lista.length} pond{lista.length !== 1 ? 's' : ''}
+                  {admins && ` · ${admins.length > 0 ? `Admin: ${admins.map(a => a.nome).join(', ')}` : 'No admin assigned'}`}
                 </span>
               </span>
               <HiChevronDown size={20} className={`${styles.calibFazendaSeta} ${estaAberta ? styles.calibFazendaSetaAberta : ''}`} />
@@ -248,7 +248,7 @@ export default function Calibracoes() {
 
             {estaAberta && (
               lista.length === 0 ? (
-                <p className={styles.calibVazio}>Nenhum cativeiro nesta fazenda.</p>
+                <p className={styles.calibVazio}>No ponds on this farm.</p>
               ) : (
                 <div className={styles.calibGrade}>
                   {lista.map(c => (
@@ -312,18 +312,18 @@ function CardCativeiro({ cativeiro: c, onCalibrar }) {
       </header>
 
       <div className={styles.calibCardStatus}>
-        <LinhaStatus rotulo="Alimentador" status={statusAlimentador(c)} />
-        <LinhaStatus rotulo="Sensor de pH" status={statusPh(c)} />
+        <LinhaStatus rotulo="Feeder" status={statusAlimentador(c)} />
+        <LinhaStatus rotulo="pH sensor" status={statusPh(c)} />
       </div>
 
       <div className={styles.calibCardAcoes}>
         <button type="button" className={styles.calibBotao} onClick={() => onCalibrar(c, 'ph')}>
           <HiOutlineBeaker size={18} aria-hidden="true" />
-          Calibrar pH
+          Calibrate pH
         </button>
         <button type="button" className={`${styles.calibBotao} ${styles.calibBotaoAlimentador}`} onClick={() => onCalibrar(c, 'motor')}>
           <HiOutlineRefresh size={18} aria-hidden="true" />
-          Calibrar alimentador
+          Calibrate feeder
         </button>
       </div>
     </article>
@@ -331,24 +331,24 @@ function CardCativeiro({ cativeiro: c, onCalibrar }) {
 }
 
 const TITULOS = {
-  config_motor: () => 'Configurar calibração do alimentador',
-  executando: () => 'Calibração em andamento...',
-  peso: () => 'Retornando peso da ração',
-  sucesso_motor: (f) => (f.pendente ? 'Calibração enviada para aprovação' : 'Calibração realizada com sucesso!'),
-  intro_ph: () => 'Calibrar sensor de pH',
-  preparar_ph7: () => 'Definição da tensão do pH7',
-  lendo_ph7: () => 'Lendo o sensor de pH...',
-  preparar_ph4: () => 'Definição da tensão do pH4',
-  lendo_ph4: () => 'Lendo o sensor de pH...',
-  sucesso_ph: (f) => (f.pendente ? 'Calibração enviada para aprovação' : 'Calibração realizada com sucesso!'),
-  ocupado: () => 'Calibração em andamento',
-  interrompida: () => 'Calibração interrompida',
+  config_motor: () => 'Set up feeder calibration',
+  executando: () => 'Calibration in progress...',
+  peso: () => 'Entering feed weight',
+  sucesso_motor: (f) => (f.pendente ? 'Calibration sent for approval' : 'Calibration completed successfully!'),
+  intro_ph: () => 'Calibrate pH sensor',
+  preparar_ph7: () => 'Setting the pH 7 voltage',
+  lendo_ph7: () => 'Reading the pH sensor...',
+  preparar_ph4: () => 'Setting the pH 4 voltage',
+  lendo_ph4: () => 'Reading the pH sensor...',
+  sucesso_ph: (f) => (f.pendente ? 'Calibration sent for approval' : 'Calibration completed successfully!'),
+  ocupado: () => 'Calibration in progress',
+  interrompida: () => 'Calibration interrupted',
 };
 
 function Descricao({ children }) {
   return (
     <div className={styles.calibCampo}>
-      <span className={styles.calibCampoTitulo}>Descrição</span>
+      <span className={styles.calibCampoTitulo}>Description</span>
       <span className={styles.calibCampoTexto}>{children}</span>
     </div>
   );
@@ -361,12 +361,12 @@ function Botoes({ fluxo, cancelar, principal }) {
       <div className={styles.calibAcoes}>
         {cancelar && (
           <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={cancelar.onClick} disabled={fluxo.enviando}>
-            {cancelar.label || 'Cancelar'}
+            {cancelar.label || 'Cancel'}
           </button>
         )}
         {principal && (
           <button type="button" className={`${styles.btn} ${styles.btnSuccess}`} onClick={principal.onClick} disabled={fluxo.enviando}>
-            {fluxo.enviando ? 'Enviando...' : principal.label}
+            {fluxo.enviando ? 'Sending...' : principal.label}
           </button>
         )}
       </div>
@@ -377,7 +377,7 @@ function Botoes({ fluxo, cancelar, principal }) {
 function AvisoAprovacao() {
   return (
     <div className={styles.calibAviso}>
-      O resultado será aplicado ao cativeiro depois que o administrador da fazenda aprovar a solicitação.
+      The result will be applied to the pond once the farm admin approves the request.
     </div>
   );
 }
@@ -388,95 +388,95 @@ function ConteudoDoPasso({ fluxo, onChange, onFechar, onCancelar, onIniciarMotor
 
   if (passo === 'config_motor') return (
     <div className={styles.calibModal}>
-      <Descricao>O motor irá girar a quantidade de voltas que você definir. Deixe um recipiente embaixo do alimentador para recolher a ração.</Descricao>
+      <Descricao>The motor will spin the number of turns you set. Place a container under the feeder to collect the feed.</Descricao>
       <label className={styles.calibCampo}>
-        <span className={styles.calibCampoTitulo}>Voltas</span>
+        <span className={styles.calibCampoTitulo}>Turns</span>
         <input className={styles.filterInput} type="number" min="1" max="500" step="1" inputMode="numeric"
           value={fluxo.voltas} onChange={e => onChange({ voltas: e.target.value, erro: '' })} />
       </label>
-      <Botoes fluxo={fluxo} cancelar={{ onClick: onFechar }} principal={{ label: 'Calibrar', onClick: onIniciarMotor }} />
+      <Botoes fluxo={fluxo} cancelar={{ onClick: onFechar }} principal={{ label: 'Calibrate', onClick: onIniciarMotor }} />
     </div>
   );
 
   if (passo === 'executando') return (
     <div className={styles.calibModal}>
-      <Descricao>Aguardando o alimentador efetuar as rotações...</Descricao>
-      <div className={styles.calibResultado}><strong>Voltas solicitadas:</strong> {fluxo.rotacoes}</div>
+      <Descricao>Waiting for the feeder to complete the turns...</Descricao>
+      <div className={styles.calibResultado}><strong>Requested turns:</strong> {fluxo.rotacoes}</div>
       <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} />
     </div>
   );
 
   if (passo === 'peso') return (
     <div className={styles.calibModal}>
-      <Descricao>O alimentador precisa saber a quantidade em gramas de ração que foi liberada. Pese a ração recolhida e informe abaixo.</Descricao>
+      <Descricao>The feeder needs to know how many grams of feed were dispensed. Weigh the collected feed and enter it below.</Descricao>
       <label className={styles.calibCampo}>
-        <span className={styles.calibCampoTitulo}>Peso(g)</span>
-        <input className={styles.filterInput} type="text" inputMode="decimal" placeholder="40,0"
+        <span className={styles.calibCampoTitulo}>Weight (g)</span>
+        <input className={styles.filterInput} type="text" inputMode="decimal" placeholder="40.0"
           value={fluxo.peso} onChange={e => onChange({ peso: e.target.value, erro: '' })} />
       </label>
-      <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} principal={{ label: 'Finalizar', onClick: onEnviarPeso }} />
+      <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} principal={{ label: 'Finish', onClick: onEnviarPeso }} />
     </div>
   );
 
   if (passo === 'sucesso_motor') return (
     <div className={styles.calibModal}>
-      <div className={styles.calibResultado}><strong>Rotações:</strong> {r.rotacoes}</div>
-      <div className={styles.calibResultado}><strong>Peso(g):</strong> {numeroBr(r.gramas)}g</div>
-      <div className={styles.calibResultado}><strong>Resultado:</strong> {numeroBr(r.gramas_por_rotacao)}g/rotação</div>
+      <div className={styles.calibResultado}><strong>Turns:</strong> {r.rotacoes}</div>
+      <div className={styles.calibResultado}><strong>Weight (g):</strong> {numeroBr(r.gramas)}g</div>
+      <div className={styles.calibResultado}><strong>Result:</strong> {numeroBr(r.gramas_por_rotacao)}g/turn</div>
       {fluxo.pendente && <AvisoAprovacao />}
-      <Botoes fluxo={fluxo} principal={{ label: 'Fechar', onClick: onFechar }} />
+      <Botoes fluxo={fluxo} principal={{ label: 'Close', onClick: onFechar }} />
     </div>
   );
 
   if (passo === 'intro_ph') return (
     <div className={styles.calibModal}>
-      <Descricao>Você precisa de duas soluções para calibrar: uma com pH 7 e outra com pH 4.</Descricao>
-      <Botoes fluxo={fluxo} cancelar={{ onClick: onFechar }} principal={{ label: 'Iniciar', onClick: onIniciarPh }} />
+      <Descricao>You need two solutions to calibrate: one at pH 7 and another at pH 4.</Descricao>
+      <Botoes fluxo={fluxo} cancelar={{ onClick: onFechar }} principal={{ label: 'Start', onClick: onIniciarPh }} />
     </div>
   );
 
   if (passo === 'preparar_ph7') return (
     <div className={styles.calibModal}>
-      <Descricao>Insira o eletrodo do sensor de pH na solução de pH 7, aguarde 1 minuto e clique em calibrar.</Descricao>
-      <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} principal={{ label: 'Calibrar pH7', onClick: () => onConfirmarPh('lendo_ph7') }} />
+      <Descricao>Place the pH sensor electrode in the pH 7 solution, wait 1 minute and click calibrate.</Descricao>
+      <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} principal={{ label: 'Calibrate pH 7', onClick: () => onConfirmarPh('lendo_ph7') }} />
     </div>
   );
 
   if (passo === 'preparar_ph4') return (
     <div className={styles.calibModal}>
-      <Descricao>Enxágue o eletrodo do sensor de pH, insira na solução de pH 4, aguarde 1 minuto e clique em calibrar.</Descricao>
-      <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} principal={{ label: 'Calibrar pH4', onClick: () => onConfirmarPh('lendo_ph4') }} />
+      <Descricao>Rinse the pH sensor electrode, place it in the pH 4 solution, wait 1 minute and click calibrate.</Descricao>
+      <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} principal={{ label: 'Calibrate pH 4', onClick: () => onConfirmarPh('lendo_ph4') }} />
     </div>
   );
 
   if (passo === 'lendo_ph7' || passo === 'lendo_ph4') return (
     <div className={styles.calibModal}>
-      <Descricao>Aguardando o sensor registrar a tensão na solução de {passo === 'lendo_ph7' ? 'pH 7' : 'pH 4'}... Mantenha o eletrodo na solução.</Descricao>
+      <Descricao>Waiting for the sensor to record the voltage in the {passo === 'lendo_ph7' ? 'pH 7' : 'pH 4'} solution... Keep the electrode in the solution.</Descricao>
       <Botoes fluxo={fluxo} cancelar={{ onClick: onCancelar }} />
     </div>
   );
 
   if (passo === 'sucesso_ph') return (
     <div className={styles.calibModal}>
-      <div className={styles.calibResultado}><strong>Tensão no pH 7:</strong> {numeroBr(r.tensao_ph7, 2)} V</div>
-      <div className={styles.calibResultado}><strong>Tensão no pH 4:</strong> {numeroBr(r.tensao_ph4, 2)} V</div>
+      <div className={styles.calibResultado}><strong>Voltage at pH 7:</strong> {numeroBr(r.tensao_ph7, 2)} V</div>
+      <div className={styles.calibResultado}><strong>Voltage at pH 4:</strong> {numeroBr(r.tensao_ph4, 2)} V</div>
       {fluxo.pendente && <AvisoAprovacao />}
-      <Botoes fluxo={fluxo} principal={{ label: 'Fechar', onClick: onFechar }} />
+      <Botoes fluxo={fluxo} principal={{ label: 'Close', onClick: onFechar }} />
     </div>
   );
 
   if (passo === 'ocupado') return (
     <div className={styles.calibModal}>
-      <Descricao>Já existe uma calibração do {NOME_TIPO[fluxo.tipoEmAndamento]} em andamento neste cativeiro. Conclua-a ou cancele antes de iniciar outra.</Descricao>
-      <Botoes fluxo={fluxo} cancelar={{ label: 'Cancelar a em andamento', onClick: onCancelar }} principal={{ label: 'Fechar', onClick: onFechar }} />
+      <Descricao>A {NOME_TIPO[fluxo.tipoEmAndamento]} calibration is already in progress on this pond. Finish or cancel it before starting another.</Descricao>
+      <Botoes fluxo={fluxo} cancelar={{ label: 'Cancel the one in progress', onClick: onCancelar }} principal={{ label: 'Close', onClick: onFechar }} />
     </div>
   );
 
   // interrompida: alguém cancelou a calibração enquanto a tela esperava
   return (
     <div className={styles.calibModal}>
-      <Descricao>Esta calibração foi cancelada antes de terminar. Nenhum valor foi alterado no cativeiro.</Descricao>
-      <Botoes fluxo={fluxo} principal={{ label: 'Fechar', onClick: onFechar }} />
+      <Descricao>This calibration was cancelled before it finished. No values were changed on the pond.</Descricao>
+      <Botoes fluxo={fluxo} principal={{ label: 'Close', onClick: onFechar }} />
     </div>
   );
 }

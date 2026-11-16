@@ -66,11 +66,11 @@ export default function TimePicker({ value, onChange, disabled = false }) {
             {/* Header */}
             <div className={styles.modalHeader}>
               <button onClick={handleCancel} className={styles.cancelButton}>
-                Cancelar
+                Cancel
               </button>
-              <h3>Selecionar Horário</h3>
+              <h3>Select Time</h3>
               <button onClick={handleConfirm} className={styles.confirmButton}>
-                Confirmar
+                Confirm
               </button>
             </div>
 
@@ -85,7 +85,7 @@ export default function TimePicker({ value, onChange, disabled = false }) {
               <div className={styles.selectorsContainer}>
                 {/* Coluna de Horas */}
                 <div className={styles.column}>
-                  <div className={styles.columnLabel}>Hora</div>
+                  <div className={styles.columnLabel}>Hour</div>
                   <div className={styles.optionsContainer}>
                     {hoursArray.map((hour) => (
                       <button
@@ -104,7 +104,7 @@ export default function TimePicker({ value, onChange, disabled = false }) {
 
                 {/* Coluna de Minutos */}
                 <div className={styles.column}>
-                  <div className={styles.columnLabel}>Minuto</div>
+                  <div className={styles.columnLabel}>Minute</div>
                   <div className={styles.optionsContainer}>
                     {minutesArray.map((minute) => (
                       <button

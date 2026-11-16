@@ -9,14 +9,14 @@ export function formatarTempoDesde(minutos) {
   if (minutos === null || minutos === undefined || !Number.isFinite(Number(minutos))) return null;
   const total = Math.max(0, Math.floor(Number(minutos)));
 
-  if (total < 1) return 'agora há pouco';
-  if (total < MINUTOS_POR_HORA) return `há ${total} min`;
+  if (total < 1) return 'just now';
+  if (total < MINUTOS_POR_HORA) return `${total} min ago`;
   if (total < 48 * MINUTOS_POR_HORA) {
     // Arredonda para a hora mais próxima, sem passar para "48 horas" (a partir daí vira dias)
-    return `há ${plural(Math.min(47, Math.max(1, Math.round(total / MINUTOS_POR_HORA))), 'hora', 'horas')}`;
+    return `${plural(Math.min(47, Math.max(1, Math.round(total / MINUTOS_POR_HORA))), 'hour', 'hours')} ago`;
   }
   if (total <= 30 * MINUTOS_POR_DIA) {
-    return `há ${plural(Math.round(total / MINUTOS_POR_DIA), 'dia', 'dias')}`;
+    return `${plural(Math.round(total / MINUTOS_POR_DIA), 'day', 'days')} ago`;
   }
-  return 'há mais de 1 mês';
+  return 'over 1 month ago';
 }

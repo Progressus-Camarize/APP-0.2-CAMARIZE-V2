@@ -52,15 +52,15 @@ export default function SelectTipoCamarao({ value, onChange }) {
         isDisabled={loading}
         onChange={onChange}
         onCreateOption={handleCreate}
-        placeholder="Selecione ou crie o tipo de camarão"
+        placeholder="Select or create a shrimp type"
         menuPortalTarget={typeof window !== "undefined" ? document.body : null}
         // menuPosition="fixed"
         styles={{
           menuPortal: base => ({ ...base, zIndex: 9999 }),
           menu: base => ({ ...base, zIndex: 9999 }),
         }}
-        formatCreateLabel={inputValue => `Criar novo tipo: "${inputValue}"`}
-        noOptionsMessage={() => "Nenhum tipo encontrado"}
+        formatCreateLabel={inputValue => `Create new type: "${inputValue}"`}
+        noOptionsMessage={() => "No type found"}
       />
     </>
   );

@@ -8,10 +8,10 @@ function Error({ statusCode }) {
     }}>
       <h1>
         {statusCode
-          ? `Erro ${statusCode} no servidor`
-          : 'Erro no cliente'}
+          ? `Server error ${statusCode}`
+          : 'Client error'}
       </h1>
-      <p>Se o problema persistir, tente acessar novamente.</p>
+      <p>If the problem persists, try again.</p>
       <button 
         onClick={() => window.location.reload()} 
         style={{
@@ -24,7 +24,7 @@ function Error({ statusCode }) {
           marginTop: '10px'
         }}
       >
-        Recarregar Página
+        Reload Page
       </button>
     </div>
   );

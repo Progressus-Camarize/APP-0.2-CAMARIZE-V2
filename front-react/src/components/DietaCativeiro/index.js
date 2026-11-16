@@ -5,14 +5,14 @@ import styles from "@/styles/dieta.module.css";
 // Como a dieta de um cativeiro aparece em qualquer tela (master e admin):
 // card da dieta, alimentações de hoje e o pedido que aguarda o master.
 
-const numero = (n) => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+const numero = (n) => Number(n).toLocaleString("en-US", { maximumFractionDigits: 1 });
 const ordenar = (hs) => [...(Array.isArray(hs) ? hs : [])].filter(Boolean).map(String).sort((a, b) => a.localeCompare(b));
 
 function AlimentacoesHoje({ linhas, solto }) {
   if (!linhas.length) return null;
   return (
     <div className={`${styles.hoje} ${solto ? styles.hojeSolto : ""}`}>
-      <div className={styles.hojeRotulo}>Alimentações de hoje</div>
+      <div className={styles.hojeRotulo}>Today&apos;s feedings</div>
       {linhas.map(l => (
         <div key={l.horario} className={styles.alimentacao}>
           <strong>{l.horario}</strong>
@@ -33,21 +33,21 @@ function CardDieta({ dieta, linhas }) {
       <div className={styles.topo}>
         <div className={styles.icone}><TbToolsKitchen2 aria-hidden="true" /></div>
         <div className={styles.titulos}>
-          <span className={styles.rotulo}>Dieta ativa</span>
+          <span className={styles.rotulo}>Active diet</span>
           <span className={styles.nome}>
-            {dieta.descricao || <span className={styles.semNome}>Sem descrição</span>}
+            {dieta.descricao || <span className={styles.semNome}>No description</span>}
           </span>
         </div>
         {temGramas && refeicoes > 0 && (
           <div className={styles.total}>
             <strong>{numero(gramas * refeicoes)} g</strong>
-            <small>por dia</small>
+            <small>per day</small>
           </div>
         )}
       </div>
       <p className={styles.linha}>
-        {temGramas ? <><strong>{numero(gramas)} g</strong> por refeição</> : "Quantidade não informada"}
-        {refeicoes > 0 && <> · <strong>{refeicoes}×</strong> ao dia</>}
+        {temGramas ? <><strong>{numero(gramas)} g</strong> per meal</> : "Amount not specified"}
+        {refeicoes > 0 && <> · <strong>{refeicoes}×</strong> a day</>}
       </p>
       {horarios.length > 0 && (
         <div className={styles.chips}>
@@ -64,7 +64,7 @@ function PedidoDieta({ pedido, titulo, acoes }) {
   const horarios = ordenar(p.horarios);
   const refeicoes = horarios.length || Number(p.quantidadeRefeicoes) || 1;
   const gramas = Number(p.quantidade);
-  const enviado = pedido.createdAt ? new Date(pedido.createdAt).toLocaleDateString("pt-BR") : null;
+  const enviado = pedido.createdAt ? new Date(pedido.createdAt).toLocaleDateString("en-US") : null;
   return (
     <div className={styles.pedido}>
       <div className={styles.pedidoTexto}>
@@ -73,9 +73,9 @@ function PedidoDieta({ pedido, titulo, acoes }) {
         </span>
         <span>
           {p.descricao ? `"${p.descricao}" · ` : ""}
-          {Number.isFinite(gramas) ? `${numero(gramas)} g por refeição · ` : ""}
-          {refeicoes}× ao dia
-          {Number.isFinite(gramas) ? ` (${numero(gramas * refeicoes)} g por dia)` : ""}
+          {Number.isFinite(gramas) ? `${numero(gramas)} g per meal · ` : ""}
+          {refeicoes}× a day
+          {Number.isFinite(gramas) ? ` (${numero(gramas * refeicoes)} g per day)` : ""}
           {horarios.length ? ` · ${horarios.join(", ")}` : ""}
         </span>
       </div>
@@ -90,21 +90,21 @@ function PedidoDieta({ pedido, titulo, acoes }) {
  * pedido: solicitação editar_dieta pendente (opcional); pedidoTitulo e pedidoAcoes ajustam o texto e os botões
  */
 export default function DietaCativeiro({
-  dieta, alimentacoes, pedido, pedidoTitulo = "Aguardando aprovação do master", pedidoAcoes,
-  textoSemDieta = "Nenhuma dieta definida para este cativeiro.",
-  textoErro = "Não foi possível carregar a dieta.",
+  dieta, alimentacoes, pedido, pedidoTitulo = "Awaiting master approval", pedidoAcoes,
+  textoSemDieta = "No diet set for this pond.",
+  textoErro = "Could not load the diet.",
 }) {
   const temDieta = dieta && !dieta.erro;
   const linhas = Array.isArray(alimentacoes) ? linhasAlimentacaoDoDia(temDieta ? dieta.horarios || [] : [], alimentacoes) : [];
 
   return (
     <div className={styles.bloco}>
-      {dieta === undefined && <p className={styles.carregando}>Carregando dieta...</p>}
+      {dieta === undefined && <p className={styles.carregando}>Loading diet...</p>}
       {dieta === null && <p className={styles.vazio}>{textoSemDieta}</p>}
       {dieta?.erro && <p className={styles.erro}>{textoErro}</p>}
       {temDieta && <CardDieta dieta={dieta} linhas={linhas} />}
       {!temDieta && <AlimentacoesHoje linhas={linhas} solto />}
-      {alimentacoes?.erro && <p className={styles.erroLinha}>Não foi possível carregar as alimentações de hoje.</p>}
+      {alimentacoes?.erro && <p className={styles.erroLinha}>Could not load today&apos;s feedings.</p>}
       {pedido && <PedidoDieta pedido={pedido} titulo={pedidoTitulo} acoes={pedidoAcoes} />}
     </div>
   );

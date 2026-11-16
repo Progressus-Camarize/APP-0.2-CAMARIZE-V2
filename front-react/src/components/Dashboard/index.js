@@ -16,9 +16,9 @@ const AvisoBannerIcone = ({ tipo }) => {
 };
 
 const SENSOR_CFG = [
-  { key: 'temperatura',  label: 'Temperatura',  unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
+  { key: 'temperatura',  label: 'Temperature',  unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
   { key: 'ph',           label: 'pH',            unit: '',      decimals: 1, icon: '🧪', stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
-  { key: 'amonia',       label: 'Amônia (experimental)', unit: '', decimals: 2, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+  { key: 'amonia',       label: 'Ammonia (experimental)', unit: '', decimals: 2, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
 ];
 
 // Default ranges for typical aquaculture values.
@@ -99,7 +99,7 @@ export default function Dashboard() {
     if (!id) return;
     carregarAlimentacao();
     const token = getToken();
-    if (!token) { setError('Token não encontrado. Faça login novamente.'); return; }
+    if (!token) { setError('Token not found. Please sign in again.'); return; }
     try {
       const { data } = await axios.get(`${apiUrl}/parametros/dashboard/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -113,8 +113,8 @@ export default function Dashboard() {
       setError(null);
     } catch (err) {
       setError(err.response?.status === 401
-        ? 'Sessão expirada. Faça login novamente.'
-        : 'Erro ao carregar dados do dashboard.');
+        ? 'Session expired. Please sign in again.'
+        : 'Error loading dashboard data.');
     }
   };
 
@@ -129,7 +129,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!id) return;
     const token = getToken();
-    if (!token) { setError('Token não encontrado. Faça login novamente.'); setLoading(false); return; }
+    if (!token) { setError('Token not found. Please sign in again.'); setLoading(false); return; }
 
     setLoading(true);
     const es = new EventSource(`${sseUrl}/parametros/stream/${id}?token=${encodeURIComponent(token)}`);
@@ -147,7 +147,7 @@ export default function Dashboard() {
     };
 
     es.onerror = () => {
-      setError('Conexão em tempo real perdida. Os dados exibidos podem estar desatualizados.');
+      setError('Real-time connection lost. The data shown may be out of date.');
       setLoading(false);
       es.close();
     };
@@ -192,7 +192,7 @@ export default function Dashboard() {
   const labels = dadosSemanais.map(d => {
     if (!d?.data) return '—';
     const [, month, day] = d.data.split('-');
-    return `${day}/${month}`;
+    return `${month}/${day}`;
   });
 
   // Chart helpers
@@ -258,9 +258,9 @@ export default function Dashboard() {
   // Tela de loading: apenas na carga inicial sem dados
   if (loading && !temDados) {
     return (
-      <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Dados em tempo real">
+      <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Real-time data">
         <div className={panelStyles.loadingScreen} style={{ minHeight: 'unset', padding: '60px 0' }}>
-          Carregando dados do cativeiro...
+          Loading pond data...
         </div>
       </MemberLayout>
     );
@@ -269,7 +269,7 @@ export default function Dashboard() {
   // Tela de erro completa: apenas quando falhou e não há nenhum dado para mostrar
   if (error && !temDados) {
     return (
-      <MemberLayout title="Dashboard" subtitle="Dados em tempo real">
+      <MemberLayout title="Dashboard" subtitle="Real-time data">
         <div className={panelStyles.emptyState}>
           <div className={panelStyles.emptyStateIcon}>⚠️</div>
           <p className={panelStyles.emptyStateText}>{error}</p>
@@ -279,13 +279,13 @@ export default function Dashboard() {
               style={{ minWidth: 160 }}
               onClick={reconectar}
             >
-              Reconectar
+              Reconnect
             </button>
             <button
               onClick={() => router.push(rotaListaDeCativeiros())}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.82rem', color: '#94a3b8', padding: '2px 8px' }}
             >
-              ← Voltar para cativeiros
+              ← Back to ponds
             </button>
           </div>
         </div>
@@ -294,18 +294,18 @@ export default function Dashboard() {
   }
 
   return (
-    <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Parâmetros monitorados em tempo real">
+    <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Parameters monitored in real time">
       <div className={panelStyles.section}>
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#1e3a8a', fontSize: '0.82rem' }}>
-          Última leitura: {idadeLeitura !== null ? formatarTempoDesde(idadeLeitura) : 'sem dados'} · {dadosRecentes ? 'dados recentes' : 'dados antigos'}
-          {frescor?.origem === 'legado' && ' · origem não autenticada'}
-          <div style={{ marginTop: 4 }}>Análise: {dadosRecentes && analise?.suficiente ? 'leituras suficientes' : ({ lacuna: 'insuficiente: lacuna entre leituras', leitura_antiga: 'insuficiente: última leitura autenticada antiga', leituras_insuficientes: 'insuficiente: menos de seis leituras autenticadas' }[analise?.razao] || 'insuficiente para o momento')}</div>
-          <div style={{ marginTop: 4 }}>pH e amônia: sensor sem calibração; medições experimentais. A fração de NH₃ livre depende de pH e temperatura e não é estimada aqui.</div>
+          Last reading: {idadeLeitura !== null ? formatarTempoDesde(idadeLeitura) : 'no data'} · {dadosRecentes ? 'recent data' : 'stale data'}
+          {frescor?.origem === 'legado' && ' · unauthenticated source'}
+          <div style={{ marginTop: 4 }}>Analysis: {dadosRecentes && analise?.suficiente ? 'enough readings' : ({ lacuna: 'insufficient: gap between readings', leitura_antiga: 'insufficient: last authenticated reading is old', leituras_insuficientes: 'insufficient: fewer than six authenticated readings' }[analise?.razao] || 'insufficient for now')}</div>
+          <div style={{ marginTop: 4 }}>pH and ammonia: uncalibrated sensor; experimental measurements. The free NH₃ fraction depends on pH and temperature and is not estimated here.</div>
         </div>
         {avisosAtivos.map(aviso => (
           <div key={aviso._id} style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: '#78350f' }}>
-            <strong><AvisoBannerIcone tipo={aviso.tipo} /> Aviso ativo</strong> · {aviso.mensagem}
-            <div style={{ fontSize: '0.74rem', marginTop: 4 }}>Período analisado: {new Date(aviso.periodoInicio).toLocaleString('pt-BR')} a {new Date(aviso.periodoFim).toLocaleString('pt-BR')}{aviso.experimental && aviso.tipo === 'ph' ? ' · sensor sem calibração' : ''}</div>
+            <strong><AvisoBannerIcone tipo={aviso.tipo} /> Active alert</strong> · {aviso.mensagem}
+            <div style={{ fontSize: '0.74rem', marginTop: 4 }}>Period analyzed: {new Date(aviso.periodoInicio).toLocaleString('en-US')} to {new Date(aviso.periodoFim).toLocaleString('en-US')}{aviso.experimental && aviso.tipo === 'ph' ? ' · uncalibrated sensor' : ''}</div>
           </div>
         ))}
 
@@ -325,13 +325,13 @@ export default function Dashboard() {
                 className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
                 onClick={reconectar}
               >
-                Reconectar
+                Reconnect
               </button>
               <button
                 className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
                 onClick={buscar}
               >
-                Atualizar dados
+                Refresh data
               </button>
             </div>
           </div>
@@ -340,10 +340,10 @@ export default function Dashboard() {
         {/* Cabeçalho da seção */}
         <div className={panelStyles.sectionHeader} style={{ marginBottom: 20 }}>
           <div>
-            <h2 className={panelStyles.sectionTitle}>Leituras Atuais</h2>
+            <h2 className={panelStyles.sectionTitle}>Current Readings</h2>
             {!dadosAtuais && (
               <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                Sem leituras recentes dos sensores
+                No recent sensor readings
               </p>
             )}
           </div>
@@ -351,23 +351,23 @@ export default function Dashboard() {
             <button
               className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
               onClick={() => router.push(rotaListaDeCativeiros())}
-              title="Voltar para cativeiros"
+              title="Back to ponds"
             >
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
                 <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Voltar
+              Back
             </button>
             <button
               className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
               onClick={buscar}
-              title="Atualizar dados"
+              title="Refresh data"
             >
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
                 <path d="M1 4v6h6M23 20v-6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Atualizar
+              Refresh
             </button>
             <button
               className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
@@ -377,7 +377,7 @@ export default function Dashboard() {
                 <path d="M12 4v12m0 0l-4-4m4 4l4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 <rect x="4" y="18" width="16" height="2" rx="1" fill="currentColor"/>
               </svg>
-              Relatório
+              Report
             </button>
           </div>
         </div>
@@ -416,11 +416,11 @@ export default function Dashboard() {
 
         {/* Alimentação */}
         <div style={{ marginBottom: 24 }}>
-          <h2 className={panelStyles.sectionTitle} style={{ marginBottom: 10 }}>Alimentação</h2>
+          <h2 className={panelStyles.sectionTitle} style={{ marginBottom: 10 }}>Feeding</h2>
           <DietaCativeiro
             dieta={dieta}
             alimentacoes={alimentacoes}
-            textoSemDieta="Este cativeiro ainda não tem dieta: o alimentador não serve ração."
+            textoSemDieta="This pond has no diet yet: the feeder will not dispense feed."
           />
         </div>
 
@@ -428,15 +428,15 @@ export default function Dashboard() {
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '18px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>Tendência Semanal</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>Weekly Trend</div>
               <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
-                Médias diárias dos últimos 7 dias
+                Daily averages for the last 7 days
               </div>
             </div>
             <div style={{ display: 'flex', gap: 14, fontSize: '0.72rem', fontWeight: 600 }}>
               <span style={{ color: '#f97316' }}>▬ Temp.</span>
               <span style={{ color: '#3b82f6' }}>▬ pH</span>
-              <span style={{ color: '#a855f7' }}>▬ Amônia (experimental)</span>
+              <span style={{ color: '#a855f7' }}>▬ Ammonia (experimental)</span>
             </div>
           </div>
 
@@ -512,8 +512,8 @@ export default function Dashboard() {
           ) : (
             <div style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8' }}>
               <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>📊</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>Nenhuma leitura registrada nos últimos 7 dias</div>
-              <div style={{ fontSize: '0.75rem', marginTop: 4 }}>Os dados aparecem assim que o sensor enviar leituras</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>No readings recorded in the last 7 days</div>
+              <div style={{ fontSize: '0.75rem', marginTop: 4 }}>Data will appear as soon as the sensor sends readings</div>
             </div>
           )}
         </div>
@@ -529,7 +529,7 @@ export default function Dashboard() {
         const params = [
           { key: 'temperatura', icon: '🌡️', label: 'Temp.',  value: tooltip.temp,   dec: 1, unit: ' °C',   color: '#fb923c' },
           { key: 'ph',          icon: '🧪', label: 'pH',     value: tooltip.ph,     dec: 2, unit: '',       color: '#60a5fa' },
-          { key: 'amonia',      icon: '⚗️', label: 'Amônia experimental', value: tooltip.amonia, dec: 3, unit: '', color: '#c084fc' },
+          { key: 'amonia',      icon: '⚗️', label: 'Ammonia (exp.)', value: tooltip.amonia, dec: 3, unit: '', color: '#c084fc' },
         ];
         return (
           <div style={{
@@ -546,7 +546,7 @@ export default function Dashboard() {
               const active = p.key === tooltip.campo;
               const display = p.value !== null
                 ? `${p.value.toFixed(p.dec)}${p.unit}`
-                : 'sem dados';
+                : 'no data';
               return (
                 <div key={p.key} style={{
                   display: 'flex', alignItems: 'center', gap: 8,
@@ -572,15 +572,15 @@ export default function Dashboard() {
       })()}
 
       {/* Modal de Relatório */}
-      <Modal isOpen={showRelatorio} onClose={() => setShowRelatorio(false)} title="Relatório Individual" showCloseButton>
+      <Modal isOpen={showRelatorio} onClose={() => setShowRelatorio(false)} title="Individual Report" showCloseButton>
         <p style={{ margin: '0 0 16px', fontSize: '0.9rem', color: '#6b7280', lineHeight: 1.5 }}>
-          Selecione o período para o relatório de <strong>{nomeCativeiro}</strong>
+          Select the period for the report on <strong>{nomeCativeiro}</strong>
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { key: 'dia',    label: '📅 Relatório Diário',   sub: 'Últimas 24h' },
-            { key: 'semana', label: '📊 Relatório Semanal',  sub: 'Últimos 7 dias' },
-            { key: 'mes',    label: '📈 Relatório Mensal',   sub: 'Últimos 30 dias' },
+            { key: 'dia',    label: '📅 Daily Report',   sub: 'Last 24h' },
+            { key: 'semana', label: '📊 Weekly Report',  sub: 'Last 7 days' },
+            { key: 'mes',    label: '📈 Monthly Report',   sub: 'Last 30 days' },
           ].map(({ key, label, sub }) => (
             <button
               key={key}

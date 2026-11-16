@@ -47,7 +47,7 @@ export default function RegisterProprietarioPage() {
     
     // Validar dados da fazenda
     if (!fazenda.nome || !fazenda.rua || !fazenda.bairro || !fazenda.cidade || !fazenda.numero) {
-      setError("Todos os campos da fazenda são obrigatórios.");
+      setError("All farm fields are required.");
       return;
     }
 
@@ -102,33 +102,33 @@ export default function RegisterProprietarioPage() {
         else router.push('/home');
       } catch (loginError) {
         // Se o login falhar, ainda assim redireciona para login
-        setError("Cadastro realizado com sucesso! Faça login para continuar.");
+        setError("Sign-up successful! Please sign in to continue.");
         setTimeout(() => {
           router.push('/login');
         }, 2000);
       }
     } catch (error) {
-      const errorMessage = error?.response?.data?.error || error?.message || "Erro ao criar cadastro.";
+      const errorMessage = error?.response?.data?.error || error?.message || "Error creating account.";
       setError(errorMessage);
       setLoading(false);
     }
   };
 
   if (!userData) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Carregando...</div>;
+    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
   }
 
   // Figma "Telas do sistema / Cadastro fazenda"
   return (
     <div className={styles.loginMobileWrapper}>
       <form className={styles.loginForm} onSubmit={handleRegister}>
-        <h2 className={styles.loginTitle}>Cadastre sua fazenda para continuar</h2>
+        <h2 className={styles.loginTitle}>Register your farm to continue</h2>
         <div className={styles.divider} />
         <div className={styles.fields}>
           <div className={styles.userDataBox}>
-            <span className={styles.userDataTitle}>Seus dados</span>
+            <span className={styles.userDataTitle}>Your details</span>
             <div className={styles.userDataRow}>
-              <span>Nome:</span>
+              <span>Name:</span>
               <span>{userData.nome}</span>
             </div>
             <div className={styles.userDataRow}>
@@ -137,25 +137,25 @@ export default function RegisterProprietarioPage() {
             </div>
           </div>
 
-          <label htmlFor="fazenda-nome" className={styles.fieldLabel}>Nome da fazenda:</label>
+          <label htmlFor="fazenda-nome" className={styles.fieldLabel}>Farm name:</label>
           <input
             id="fazenda-nome"
             type="text"
             className={styles.input}
             value={fazenda.nome}
             onChange={e => setFazenda({ ...fazenda, nome: e.target.value })}
-            placeholder="Nome"
+            placeholder="Name"
             required
           />
 
-          <span className={styles.fieldLabel}>Endereço:</span>
+          <span className={styles.fieldLabel}>Address:</span>
           <input
             type="text"
             className={styles.input}
             value={fazenda.rua}
             onChange={e => setFazenda({ ...fazenda, rua: e.target.value })}
-            placeholder="Rua"
-            aria-label="Rua"
+            placeholder="Street"
+            aria-label="Street"
             required
           />
           <input
@@ -163,8 +163,8 @@ export default function RegisterProprietarioPage() {
             className={styles.input}
             value={fazenda.bairro}
             onChange={e => setFazenda({ ...fazenda, bairro: e.target.value })}
-            placeholder="Bairro"
-            aria-label="Bairro"
+            placeholder="Neighborhood"
+            aria-label="Neighborhood"
             required
           />
           <div className={styles.fieldRow}>
@@ -173,8 +173,8 @@ export default function RegisterProprietarioPage() {
               className={styles.input}
               value={fazenda.cidade}
               onChange={e => setFazenda({ ...fazenda, cidade: e.target.value })}
-              placeholder="Cidade"
-              aria-label="Cidade"
+              placeholder="City"
+              aria-label="City"
               required
             />
             <input
@@ -182,8 +182,8 @@ export default function RegisterProprietarioPage() {
               className={styles.input}
               value={fazenda.numero}
               onChange={e => setFazenda({ ...fazenda, numero: e.target.value })}
-              placeholder="Número"
-              aria-label="Número"
+              placeholder="Number"
+              aria-label="Number"
               required
             />
           </div>
@@ -197,17 +197,17 @@ export default function RegisterProprietarioPage() {
           {loading ? (
             <span className={styles.loginButtonContent}>
               <span className={styles.spinner} aria-hidden="true" />
-              Cadastrando...
+              Registering...
             </span>
-          ) : "Cadastrar"}
+          ) : "Register"}
         </button>
 
         {error && <div className={styles.errorMsg}>{error}</div>}
 
         <div className={styles.divider} />
         <div className={styles.registerRow}>
-          <span>Deseja alterar as informações de login?</span>
-          <Link href="/auth?tipo=proprietario" className={styles.registerLink}>Voltar</Link>
+          <span>Want to change your login details?</span>
+          <Link href="/auth?tipo=proprietario" className={styles.registerLink}>Back</Link>
         </div>
       </form>
       <div className={styles.logoWrapper}>
