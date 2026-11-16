@@ -6,6 +6,8 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <esp_timer.h>
+#include <soc/gpio_reg.h>
 
 // ============================================================
 // CONFIGURAÇÕES / MEMÓRIA
@@ -134,6 +136,15 @@ const long PASSOS_POR_ROTACAO = 4096;
 // Aumente se o motor perder passos.
 const unsigned long INTERVALO_PASSO_US = 2000;
 
+// Os passos são dados por um timer do ESP32 (esp_timer), e não pelo
+// loop(). Assim o motor continua girando enquanto o loop() espera a
+// rede (HTTP lento em roteador de celular, reconexão do Wi-Fi etc.).
+esp_timer_handle_t timerMotor = nullptr;
+
+// Protege as variáveis do motor, que são alteradas pelo timer e
+// lidas pelo loop() ao mesmo tempo.
+portMUX_TYPE muxMotor = portMUX_INITIALIZER_UNLOCKED;
+
 const byte sequenciaMotor[8][4] = {
     {1, 0, 0, 0},
     {1, 1, 0, 0},
@@ -145,14 +156,17 @@ const byte sequenciaMotor[8][4] = {
     {1, 0, 0, 1}
 };
 
-int passoAtual = 0;
+volatile int passoAtual = 0;
 
-bool motorAtivo = false;
-long passosRestantes = 0;
-long passosMotorExecutados = 0;
+volatile bool motorAtivo = false;
+volatile long passosRestantes = 0;
+volatile long passosMotorExecutados = 0;
 
-int direcaoMotor = 1;
-unsigned long ultimoPassoUs = 0;
+volatile int direcaoMotor = 1;
+
+// O timer avisa que o motor terminou; o loop() imprime a mensagem
+// (o timer não pode usar Serial).
+volatile bool motorFinalizouAviso = false;
 
 // ============================================================
 // CALIBRAÇÃO
@@ -193,7 +207,8 @@ bool possuiCalibracaoPH = false;
 
 void desligarMotor();
 void iniciarMotorPassos(long passos, int direcao);
-void processarMotor();
+void processarMotor(void *arg);
+void criarTimerMotor();
 
 float lerTensaoPH();
 float lerPH();
@@ -248,23 +263,63 @@ void adicionarChave(HTTPClient &http)
 // MOTOR
 // ============================================================
 
+// Os 4 pinos do motor estão abaixo do GPIO 32, então dá para
+// ligar/desligar todos de uma vez escrevendo direto nos
+// registradores (rápido e seguro dentro do timer).
+const uint32_t MASCARA_PINOS_MOTOR =
+    (1UL << motorIN1) |
+    (1UL << motorIN2) |
+    (1UL << motorIN3) |
+    (1UL << motorIN4);
+
+// Chamar com muxMotor travado.
 void aplicarPasso(int indice)
 {
-    digitalWrite(motorIN1, sequenciaMotor[indice][0]);
-    digitalWrite(motorIN2, sequenciaMotor[indice][1]);
-    digitalWrite(motorIN3, sequenciaMotor[indice][2]);
-    digitalWrite(motorIN4, sequenciaMotor[indice][3]);
+    uint32_t ligar = 0;
+
+    if (sequenciaMotor[indice][0]) ligar |= (1UL << motorIN1);
+    if (sequenciaMotor[indice][1]) ligar |= (1UL << motorIN2);
+    if (sequenciaMotor[indice][2]) ligar |= (1UL << motorIN3);
+    if (sequenciaMotor[indice][3]) ligar |= (1UL << motorIN4);
+
+    REG_WRITE(GPIO_OUT_W1TC_REG, MASCARA_PINOS_MOTOR & ~ligar);
+    REG_WRITE(GPIO_OUT_W1TS_REG, ligar);
+}
+
+// Chamar com muxMotor travado.
+void desligarBobinas()
+{
+    REG_WRITE(GPIO_OUT_W1TC_REG, MASCARA_PINOS_MOTOR);
+}
+
+void criarTimerMotor()
+{
+    if (timerMotor != nullptr)
+        return;
+
+    esp_timer_create_args_t args = {};
+    args.callback = &processarMotor;
+    args.name = "motor";
+
+    if (esp_timer_create(&args, &timerMotor) != ESP_OK)
+    {
+        timerMotor = nullptr;
+        Serial.println("ERRO: nao foi possivel criar o timer do motor.");
+    }
 }
 
 void desligarMotor()
 {
-    digitalWrite(motorIN1, LOW);
-    digitalWrite(motorIN2, LOW);
-    digitalWrite(motorIN3, LOW);
-    digitalWrite(motorIN4, LOW);
+    if (timerMotor != nullptr)
+        esp_timer_stop(timerMotor);
 
+    // Mesmo que o timer esteja no meio de um passo no outro núcleo,
+    // a trava garante que as bobinas terminam desligadas.
+    portENTER_CRITICAL(&muxMotor);
     motorAtivo = false;
     passosRestantes = 0;
+    desligarBobinas();
+    portEXIT_CRITICAL(&muxMotor);
 }
 
 void iniciarMotorPassos(long passos, int direcao)
@@ -281,52 +336,71 @@ void iniciarMotorPassos(long passos, int direcao)
         return;
     }
 
+    criarTimerMotor();
+
+    if (timerMotor == nullptr)
+        return;
+
+    // Se o timer ainda estiver de pé por algum motivo, para antes.
+    esp_timer_stop(timerMotor);
+
+    portENTER_CRITICAL(&muxMotor);
     passosRestantes = passos;
     passosMotorExecutados = 0;
     direcaoMotor = (direcao >= 0) ? 1 : -1;
-
+    motorFinalizouAviso = false;
     motorAtivo = true;
-    ultimoPassoUs = micros();
+    portEXIT_CRITICAL(&muxMotor);
+
+    if (esp_timer_start_periodic(timerMotor, INTERVALO_PASSO_US) != ESP_OK)
+    {
+        Serial.println("ERRO: nao foi possivel iniciar o timer do motor.");
+        desligarMotor();
+        return;
+    }
 
     Serial.printf(
         "Motor iniciado: %ld passos | direção: %d\n",
         passos,
-        direcaoMotor);
+        (int)direcaoMotor);
 }
 
-void processarMotor()
+// Chamado pelo timer a cada INTERVALO_PASSO_US: dá um passo.
+// Não pode usar Serial, HTTP nem delay aqui dentro.
+void processarMotor(void *arg)
 {
-    if (!motorAtivo)
-        return;
+    bool terminou = false;
 
-    unsigned long agoraUs = micros();
+    portENTER_CRITICAL(&muxMotor);
 
-    if ((unsigned long)(agoraUs - ultimoPassoUs) < INTERVALO_PASSO_US)
-        return;
-
-    ultimoPassoUs = agoraUs;
-
-    passoAtual += direcaoMotor;
-
-    if (passoAtual > 7)
-        passoAtual = 0;
-
-    if (passoAtual < 0)
-        passoAtual = 7;
-
-    aplicarPasso(passoAtual);
-
-    passosRestantes--;
-    passosMotorExecutados++;
-
-    if (passosRestantes <= 0)
+    if (motorAtivo)
     {
-        desligarMotor();
+        passoAtual = (passoAtual + direcaoMotor + 8) % 8;
 
-        Serial.printf(
-            "Motor finalizado. Passos executados: %ld\n",
-            passosMotorExecutados);
+        aplicarPasso(passoAtual);
+
+        passosRestantes--;
+        passosMotorExecutados++;
+
+        if (passosRestantes <= 0)
+        {
+            passosRestantes = 0;
+            motorAtivo = false;
+            motorFinalizouAviso = true;
+            desligarBobinas();
+            terminou = true;
+        }
     }
+    else
+    {
+        // Cancelado entre um passo e outro.
+        terminou = true;
+    }
+
+    portEXIT_CRITICAL(&muxMotor);
+
+    if (terminou)
+        esp_timer_stop(timerMotor);
 }
 
 // ============================================================
@@ -1512,6 +1586,7 @@ void setup()
         motorIN4,
         OUTPUT);
 
+    criarTimerMotor();
     desligarMotor();
 
     // Memória
@@ -1935,9 +2010,17 @@ void setup()
 
 void loop()
 {
-    // O motor dá um passo por volta do loop: qualquer coisa que
-    // trave o loop (HTTP, sensores, NTP) deixa o motor parado.
-    processarMotor();
+    // Os passos do motor são dados pelo timer (processarMotor), então
+    // o loop() pode esperar a rede sem parar o motor. Aqui só
+    // avisamos no Serial quando ele termina.
+    if (motorFinalizouAviso)
+    {
+        motorFinalizouAviso = false;
+
+        Serial.printf(
+            "Motor finalizado. Passos executados: %ld\n",
+            (long)passosMotorExecutados);
+    }
 
     unsigned long agora =
         millis();
@@ -1969,10 +2052,15 @@ void loop()
             ultimoLogMotor =
                 agora;
 
+            portENTER_CRITICAL(&muxMotor);
+            long feitos = passosMotorExecutados;
+            long total = feitos + passosRestantes;
+            portEXIT_CRITICAL(&muxMotor);
+
             Serial.printf(
                 "Motor: %ld/%ld passos\n",
-                passosMotorExecutados,
-                passosMotorExecutados + passosRestantes);
+                feitos,
+                total);
         }
 
         delay(1);
