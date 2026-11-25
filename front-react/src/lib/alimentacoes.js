@@ -5,6 +5,7 @@
 export const JANELA_ATRASO_ALIMENTACAO_MIN = 15;
 export const COR_ALIMENTACAO = { servida: '#15803d', falhou: '#b91c1c', sem_registro: '#b45309', prevista: '#64748b' };
 const minutosDoHorario = (h) => { const [hh, mm] = String(h).split(':').map(Number); return hh * 60 + mm; };
+const horarioDosMinutos = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
 // Junta os horários da dieta com o que a placa informou hoje (horário de Brasília, como a placa)
 export function linhasAlimentacaoDoDia(horariosDieta, registros) {
@@ -16,7 +17,10 @@ export function linhasAlimentacaoDoDia(horariosDieta, registros) {
   return horarios.map(horario => {
     const r = porHorario.get(horario);
     if (r?.status === 'servida') {
-      const hora = new Date(r.registradoEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+      // Hora em que a placa serviu: horário programado + atraso. Não usa registradoEm (quando a API
+      // recebeu o aviso), que fica atrasado quando a placa estava sem internet e enviou depois.
+      // O firmware não serve depois da meia-noite, então a soma não passa de 23:59.
+      const hora = horarioDosMinutos(Math.min(minutosDoHorario(horario) + Math.max(0, r.atrasoMin || 0), 23 * 60 + 59));
       const gramas = r.gramas != null ? ` · ${Number(r.gramas).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} g` : '';
       const atraso = r.atrasoMin > 0 ? ` (${r.atrasoMin} min de atraso)` : '';
       return { horario, situacao: 'servida', texto: `Servida às ${hora}${gramas}${atraso}` };

@@ -93,6 +93,39 @@ test('leituras a cada 5 s: com chave e amostraId são gravadas uma vez só', asy
   assert.equal(semAmostra.status, 201);
 });
 
+test('leitura ao vivo com relógio certo leva ts (UTC) e fica no horário da medição', async () => {
+  // amostraId é a hora de Brasília em segundos (getEpochTime do NTPClient com -10800);
+  // ts é a mesma hora em UTC (epochUTC() no firmware)
+  const ts = Math.floor(Date.now() / 1000) - 3;
+  const resposta = await placa('/parametros/cadastrar', { method: 'POST',
+    body: { id_cativeiro: pond, temperatura: 26.4, ph: 7.11, amonia: 0.42, amostraId: String(ts - 10800), ts } });
+  assert.equal(resposta.status, 201);
+  assert.equal(new Date(resposta.body.data.datahora).getTime(), ts * 1000);
+});
+
+test('sem internet: a placa envia a fila em lotes de médias por minuto, sem duplicar no reenvio', async () => {
+  // Mesmo JSON montado por enviarLoteDaFila(): amostraId "m<ts>", valores com 2 casas
+  const inicio = Math.floor(Date.now() / 1000) - 3 * 60 * 60;
+  const leituras = Array.from({ length: 60 }, (_, i) => {
+    const ts = inicio + i * 60 + 2;
+    return { ts, amostraId: `m${ts}`, temperatura: 26.25, ph: 7.1, amonia: 0.4 };
+  });
+  const lote = await placa('/parametros/lote', { method: 'POST', body: { id_cativeiro: pond, leituras } });
+  assert.equal(lote.status, 200);
+  assert.equal(lote.body.inseridas, 60);
+  assert.deepEqual(lote.body.rejeitadas, []);
+
+  // A placa não recebeu o 200 e reenviou: nada duplica, e ela pode apagar o lote da fila
+  const reenvio = await placa('/parametros/lote', { method: 'POST', body: { id_cativeiro: pond, leituras } });
+  assert.equal(reenvio.status, 200);
+  assert.equal(reenvio.body.inseridas, 0);
+  assert.equal(reenvio.body.repetidas, 60);
+
+  // Sem chave: 401, e a placa mantém o lote na fila
+  const semChave = await placa('/parametros/lote', { method: 'POST', body: { id_cativeiro: pond, leituras }, deviceKey: null });
+  assert.equal(semChave.status, 401);
+});
+
 test('leitura não busca a foto do cativeiro no banco (resposta rápida para a placa)', async () => {
   // A foto fica dentro do documento do cativeiro; trazê-la a cada leitura deixava a resposta
   // lenta a ponto de a placa desistir (HTTP -11) em conexões mais lentas
@@ -228,6 +261,25 @@ test('alimentação: a placa informa a refeição e o painel vê as do dia', asy
 
   const outroDia = await painel(`/alimentacoes/${pond}?data=2020-01-01`);
   assert.deepEqual(outroDia.body.alimentacoes, []);
+});
+
+test('alimentação sem internet: avisos guardados na fila chegam depois e ficam no dia da refeição', async () => {
+  // A placa alimentou ontem sem internet e só agora, ao reconectar, envia a fila em ordem
+  const ontem = new Date(Date.now() - 24 * 60 * 60_000).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const fila = [
+    { id_cativeiro: pond, data: ontem, horario: '08:00', status: 'servida', gramas: 25, rotacoes: 10, atraso_min: 0 },
+    { id_cativeiro: pond, data: ontem, horario: '12:00', status: 'falhou', motivo: 'Motor ocupado', gramas: 25, rotacoes: 10, atraso_min: 0 },
+    { id_cativeiro: pond, data: ontem, horario: '17:00', status: 'servida', gramas: 25, rotacoes: 10, atraso_min: 2 },
+  ];
+  for (const aviso of fila) {
+    assert.equal((await placa('/alimentacoes', { method: 'POST', body: aviso })).status, 201);
+  }
+  // A placa não recebeu a resposta do último e reenviou: não duplica
+  assert.equal((await placa('/alimentacoes', { method: 'POST', body: fila[2] })).status, 200);
+
+  const dia = await painel(`/alimentacoes/${pond}?data=${ontem}`);
+  assert.deepEqual(dia.body.alimentacoes.map(a => [a.horario, a.status, a.atrasoMin]),
+    [['08:00', 'servida', 0], ['12:00', 'falhou', 0], ['17:00', 'servida', 2]]);
 });
 
 test('alimentações de um cativeiro não aparecem para quem não tem acesso', async () => {

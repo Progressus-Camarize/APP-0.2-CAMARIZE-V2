@@ -11,7 +11,9 @@ const AlimentacoesSchema = new mongoose.Schema({
   rotacoes: { type: Number, default: null },
   atrasoMin: { type: Number, default: 0 },
   motivo: { type: String, maxlength: 200, default: null }, // por que não foi servida
-  registradoEm: { type: Date, default: Date.now }, // quando a API recebeu (hora real da refeição)
+  // Quando a API recebeu o aviso. Sem internet, a placa guarda os avisos e envia depois, então
+  // esta hora pode ser bem mais tarde que a refeição (que é horario + atrasoMin).
+  registradoEm: { type: Date, default: Date.now },
 }, {
   collection: "Alimentacoes",
 });

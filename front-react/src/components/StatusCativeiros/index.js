@@ -55,6 +55,11 @@ function AlertaLinha({ alerta }) {
               <TbTrendingUp aria-hidden="true" /> Tendência
             </span>
           )}
+          {alerta.retroativo && (
+            <span className={`${cardStyles.badge} ${cardStyles.badgeQueda}`} title="Aconteceu enquanto a placa estava sem internet; as leituras chegaram depois">
+              <TbWifiOff aria-hidden="true" /> Durante a queda
+            </span>
+          )}
           {alerta.experimental && alerta.tipo === "ph" && (
             <span className={`${cardStyles.badge} ${cardStyles.badgeExperimental}`} title="Sensor sem calibração — medição experimental">
               Sem calibração
@@ -64,7 +69,7 @@ function AlertaLinha({ alerta }) {
         <p className={styles.alertaMensagem}>{alerta.mensagem}</p>
         {(atual || referencia) && (
           <div className={styles.valores}>
-            {atual && <span className={styles.valor}><span>Atual</span>{atual}</span>}
+            {atual && <span className={styles.valor}><span>{alerta.retroativo ? "Na queda" : "Atual"}</span>{atual}</span>}
             {referencia && (
               <span className={styles.valor}>
                 <span>{alerta.tipo === "temperatura" ? "Limite" : "Referência recente"}</span>{referencia}

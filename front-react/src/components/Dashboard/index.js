@@ -304,7 +304,7 @@ export default function Dashboard() {
         </div>
         {avisosAtivos.map(aviso => (
           <div key={aviso._id} style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: '#78350f' }}>
-            <strong><AvisoBannerIcone tipo={aviso.tipo} /> Aviso ativo</strong> · {aviso.mensagem}
+            <strong><AvisoBannerIcone tipo={aviso.tipo} /> {aviso.retroativo ? 'Aviso da falta de conexão' : 'Aviso ativo'}</strong> · {aviso.mensagem}
             <div style={{ fontSize: '0.74rem', marginTop: 4 }}>Período analisado: {new Date(aviso.periodoInicio).toLocaleString('pt-BR')} a {new Date(aviso.periodoFim).toLocaleString('pt-BR')}{aviso.experimental && aviso.tipo === 'ph' ? ' · sensor sem calibração' : ''}</div>
           </div>
         ))}

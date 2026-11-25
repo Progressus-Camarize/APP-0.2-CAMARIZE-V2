@@ -1,5 +1,5 @@
 import express from "express";
-import { cadastrarParametros, provisionDevice, getDeviceCredentialHistory, updateTemperatureLimits, updateSensitivityLimits, getThresholdSuggestions, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
+import { cadastrarParametros, cadastrarLoteParametros, provisionDevice, getDeviceCredentialHistory, updateTemperatureLimits, updateSensitivityLimits, getThresholdSuggestions, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
 import Auth from "../middleware/Auth.js";
 
 const router = express.Router();
@@ -88,6 +88,86 @@ const router = express.Router();
  *               $ref: '#/components/schemas/Error'
  */
 router.post("/cadastrar", cadastrarParametros);
+
+/**
+ * @swagger
+ * /parametros/lote:
+ *   post:
+ *     summary: Registrar leituras guardadas durante uma queda de internet (ESP32)
+ *     tags: [Parâmetros]
+ *     description: >
+ *       A placa guarda as leituras enquanto está sem internet e, ao reconectar, envia em lotes.
+ *       Cada leitura vai para o horário em que foi medida (`ts`). Exige X-Device-Key válida.
+ *       Leituras com `amostraId` já gravado contam como repetidas (reenviar o lote não duplica).
+ *       Leituras inválidas são listadas em `rejeitadas` sem derrubar o lote: com 200, a placa
+ *       pode apagar o lote inteiro da fila.
+ *     parameters:
+ *       - in: header
+ *         name: X-Device-Key
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id_cativeiro, leituras]
+ *             properties:
+ *               id_cativeiro: { type: string, example: 664a1b2c3d4e5f6a7b8c9d10 }
+ *               leituras:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 100
+ *                 items:
+ *                   type: object
+ *                   required: [ts, amostraId, temperatura, ph, amonia]
+ *                   properties:
+ *                     ts: { type: integer, example: 1795000000, description: 'Horário da medição em segundos desde 1970 (UTC). Até 30 dias atrás e no máximo 5 min no futuro.' }
+ *                     amostraId: { type: string, pattern: '^[A-Za-z0-9:_-]{1,80}$', example: 'm1795000000' }
+ *                     temperatura: { type: number, example: 27.3 }
+ *                     ph: { type: number, example: 7.1 }
+ *                     amonia: { type: number, example: 0.05 }
+ *     responses:
+ *       200:
+ *         description: Lote processado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 recebidas: { type: integer, example: 60 }
+ *                 inseridas: { type: integer, example: 58 }
+ *                 repetidas: { type: integer, example: 1 }
+ *                 rejeitadas:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       indice: { type: integer, example: 12 }
+ *                       erro: { type: string, example: ts com mais de 30 dias }
+ *       400:
+ *         description: Corpo inválido (sem id_cativeiro, ou leituras vazia/acima de 100 itens)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: X-Device-Key ausente ou inválida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Viveiro não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post("/lote", cadastrarLoteParametros);
 
 /**
  * @swagger

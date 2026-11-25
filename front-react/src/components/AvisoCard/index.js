@@ -55,6 +55,11 @@ export function AvisoCard({ aviso, onAvaliar }) {
                 <TbTrendingUp aria-hidden="true" /> Tendência
               </span>
             )}
+            {aviso.retroativo && (
+              <span className={`${styles.badge} ${styles.badgeQueda}`} title="Aconteceu enquanto a placa estava sem internet; as leituras chegaram depois">
+                <TbWifiOff aria-hidden="true" /> Durante a queda
+              </span>
+            )}
             {aviso.experimental && aviso.tipo === "ph" && (
               <span className={`${styles.badge} ${styles.badgeExperimental}`} title="Sensor sem calibração — medição experimental">
                 Sem calibração
@@ -99,7 +104,11 @@ export function AvisoCard({ aviso, onAvaliar }) {
             )
           ) : (
             <>
-              <span className={styles.footerHint}>Você conferiu este alerta no viveiro?</span>
+              <span className={styles.footerHint}>
+                {aviso.retroativo
+                  ? "Este aviso fica aberto até alguém conferir o viveiro. Já conferiu?"
+                  : "Você conferiu este alerta no viveiro?"}
+              </span>
               <div className={styles.actions}>
                 <button type="button" className={`${styles.btn} ${styles.btnFalse}`} onClick={() => onAvaliar(aviso, "falso_alarme")}>
                   <TbX aria-hidden="true" /> Falso alarme

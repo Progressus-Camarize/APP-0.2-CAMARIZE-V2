@@ -34,6 +34,7 @@ const serializeAviso = (aviso, reading) => ({
   limite: aviso.limite,
   experimental: aviso.experimental,
   preditivo: aviso.preditivo,
+  retroativo: !!aviso.retroativo,
   recuperadoEm: aviso.recuperadoEm,
   verificadoEm: aviso.verificadoEm,
   avaliacao: aviso.avaliacao,
@@ -94,9 +95,14 @@ const evaluateNotification = async (req, res) => {
       aviso.verificadoEm = new Date();
       aviso.verificadoPor = req.loggedUser.id;
       aviso.avaliacao = req.body.avaliacao;
+      // O aviso de um período sem conexão só fecha quando alguém verifica o cativeiro
+      if (aviso.retroativo && aviso.estado === 'ativo') {
+        aviso.estado = 'recuperado';
+        aviso.recuperadoEm = aviso.verificadoEm;
+      }
       await aviso.save();
     }
-    res.json({ success: true, verificadoEm: aviso.verificadoEm, avaliacao: aviso.avaliacao });
+    res.json({ success: true, verificadoEm: aviso.verificadoEm, avaliacao: aviso.avaliacao, estado: aviso.estado });
   } catch (error) {
     console.error('Erro ao avaliar aviso:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });

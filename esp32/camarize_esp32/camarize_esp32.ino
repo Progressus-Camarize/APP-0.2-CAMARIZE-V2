@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <LittleFS.h>
 #include <esp_timer.h>
 #include <soc/gpio_reg.h>
 
@@ -24,10 +25,83 @@ String apiBaseUrl;
 // Depois que o cativeiro tem chave, a API recusa as chamadas sem ela.
 String deviceKey;
 
+// Horário de Brasília (UTC-3). O timeClient já devolve a hora local:
+// getEpochTime() é UTC + FUSO_SEGUNDOS, não UTC.
+const long FUSO_SEGUNDOS = -10800;
+
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", -10800);
+NTPClient timeClient(ntpUDP, "pool.ntp.org", FUSO_SEGUNDOS);
 
 bool ntpSincronizado = false;
+
+// Horário UTC (segundos desde 1970), que é o que a API espera em "ts".
+uint32_t epochUTC()
+{
+    return (uint32_t)(timeClient.getEpochTime() - FUSO_SEGUNDOS);
+}
+
+// ============================================================
+// CONEXÃO
+// ============================================================
+
+// A API respondeu na última tentativa? Sem resposta, a placa para de
+// consultar calibração e dieta, guarda as leituras na fila e só testa
+// a conexão a cada 30 s (cada tentativa sem internet trava o loop até
+// o tempo limite do HTTP).
+bool apiOnline = true;
+unsigned long ultimaSondagem = 0;
+const unsigned long intervaloSondagemOffline = 30000UL;
+
+// Reconexão do Wi-Fi sem travar o loop: pede a conexão e segue; se não
+// conectar, pede de novo depois de 10 s, 20 s, 40 s... até 60 s.
+unsigned long ultimaTentativaWiFi = 0;
+unsigned long intervaloTentativaWiFi = 10000UL;
+const unsigned long INTERVALO_WIFI_MAX = 60000UL;
+
+// ============================================================
+// FILA DE LEITURAS SEM INTERNET
+// ============================================================
+
+// Sem internet, as leituras de cada minuto viram uma média, guardada
+// num arquivo (LittleFS). Ao reconectar, a placa envia a fila em lotes
+// para POST /parametros/lote, cada leitura com o horário em que foi
+// medida. Um registro tem 10 bytes: 1 dia sem internet ~ 14 KB.
+struct __attribute__((packed)) RegistroLeitura
+{
+    uint32_t ts;      // UTC, segundos (primeira leitura do minuto)
+    int16_t temp;     // °C x 100
+    uint16_t ph;      // pH x 100
+    uint16_t amonia;  // ppm x 100
+};
+
+const char *ARQUIVO_FILA = "/fila_leituras.bin";
+const char *ARQUIVO_FILA_TMP = "/fila_leituras.tmp";
+
+// A API aceita até 30 dias de atraso: 30 x 1440 minutos.
+const uint32_t MAX_PENDENTES_FILA = 43200;
+// Registros já enviados continuam no começo do arquivo até a fila
+// esvaziar; se o arquivo passar disto, é reescrito só com os pendentes.
+const uint32_t MAX_REGISTROS_ARQUIVO = 60000;
+// Leituras por lote (1 hora de médias). A API aceita até 100.
+const int LEITURAS_POR_LOTE = 60;
+
+bool filaDisponivel = false;
+// Quantos registros do início do arquivo já foram enviados (NVS).
+uint32_t filaEnviados = 0;
+uint32_t filaTotal = 0;
+
+unsigned long ultimoEnvioLote = 0;
+unsigned long intervaloEnvioLote = 0;
+const unsigned long INTERVALO_LOTE_OK = 1000UL;
+const unsigned long INTERVALO_LOTE_FALHA = 30000UL;
+
+// Média do minuto em andamento (só leituras que não foram enviadas).
+uint32_t acumMinuto = 0;
+uint32_t acumPrimeiroTs = 0;
+int acumQuantidade = 0;
+double acumTemp = 0;
+double acumPh = 0;
+double acumAmonia = 0;
 
 // ============================================================
 // PINOS
@@ -81,21 +155,32 @@ const unsigned long intervaloRetentativaAlimentacao = 60000UL;
 // Por que a última alimentação não pôde começar (vai para a API).
 String motivoFalhaAlimentacao = "";
 
-// Aviso de alimentação para a API (POST /alimentacoes). Fica
-// guardado e é enviado quando o motor para, tentando de novo a
-// cada 30 s se a rede falhar.
-bool relatorioPendente = false;
-String relatorioData = "";
-String relatorioHorario = "";
-String relatorioStatus = "";
-String relatorioMotivo = "";
-float relatorioGramas = 0;
-float relatorioRotacoes = 0;
-int relatorioAtraso = 0;
-int relatorioTentativas = 0;
+// Avisos de alimentação para a API (POST /alimentacoes). Ficam numa
+// fila, também guardada na memória (NVS), e são enviados em ordem
+// quando o motor para. Se a internet cair, a placa continua
+// alimentando e acumulando os avisos; ao voltar, envia todos, com a
+// data e o horário de cada refeição. Sem rede, tenta de novo a cada 30 s.
+struct RelatorioAlimentacao
+{
+    String data;
+    String horario;
+    String status;
+    String motivo;
+    float gramas;
+    float rotacoes;
+    int atraso;
+};
+
+// 32 avisos cobrem vários dias sem internet numa dieta comum (3 a 6
+// horários por dia). Cheia, descarta o aviso mais antigo. O limite
+// também mantém a fila dentro do tamanho de texto aceito pelo NVS.
+const int MAX_FILA_RELATORIOS = 32;
+const int MAX_BYTES_FILA_NVS = 3800;
+RelatorioAlimentacao filaRelatorios[MAX_FILA_RELATORIOS];
+int totalFilaRelatorios = 0;
+
 unsigned long ultimoEnvioRelatorio = 0;
 const unsigned long intervaloEnvioRelatorio = 30000UL;
-const int MAX_TENTATIVAS_RELATORIO = 20;
 
 // Falha já avisada (data + horário), para avisar uma vez só.
 String falhaAvisada = "";
@@ -218,7 +303,7 @@ float lerAmonia();
 void buscarDietaDaAPI();
 void buscarCalibracaoDaAPI();
 
-void enviarParametrosParaAPI(
+int enviarParametrosParaAPI(
     float temp,
     float ph,
     float amonia,
@@ -242,10 +327,20 @@ void registrarAlimentacao(String horarioAtual);
 bool iniciarAlimentacao(float gramas);
 void salvarAlimentacoesDoDia();
 void agendarRelatorioAlimentacao(const String &horario, const String &status, int atraso);
-bool enviarRelatorioAlimentacao();
+int enviarRelatorioAlimentacao(const RelatorioAlimentacao &r);
+void salvarFilaRelatorios();
+void carregarFilaRelatorios();
 void carregarAlimentacoesDoDia();
 
 void reconectarWiFi();
+bool redePronta();
+void anotarRespostaHttp(int code);
+
+void iniciarFilaLeituras();
+void acumularLeituraOffline(float temp, float ph, float amonia);
+void fecharMinutoOffline(bool forcar);
+void gravarRegistroFila(const RegistroLeitura &r);
+int enviarLoteDaFila();
 
 void mostrarConfiguracoes();
 
@@ -494,33 +589,68 @@ float lerAmonia()
 // WIFI
 // ============================================================
 
+// Não espera a conexão: só pede ao Wi-Fi para reconectar e volta. Antes
+// a placa ficava até 15 s parada aqui, várias vezes por volta do loop.
 void reconectarWiFi()
 {
     if (WiFi.status() == WL_CONNECTED)
+    {
+        intervaloTentativaWiFi = 10000UL;
+        return;
+    }
+
+    if (savedSSID.isEmpty())
         return;
 
-    Preferences p;
+    unsigned long agora = millis();
 
-    p.begin("camarize", true);
-
-    String s = p.getString("ssid", "");
-    String w = p.getString("pass", "");
-
-    p.end();
-
-    if (s.isEmpty())
+    if (ultimaTentativaWiFi != 0 &&
+        agora - ultimaTentativaWiFi < intervaloTentativaWiFi)
         return;
+
+    ultimaTentativaWiFi = agora > 0 ? agora : 1;
+
+    Serial.println("Wi-Fi desconectado: tentando reconectar...");
 
     WiFi.disconnect();
-    WiFi.begin(s.c_str(), w.c_str());
+    WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
 
-    unsigned long t = millis();
+    intervaloTentativaWiFi =
+        min(intervaloTentativaWiFi * 2, INTERVALO_WIFI_MAX);
+}
 
-    while (
-        WiFi.status() != WL_CONNECTED &&
-        millis() - t < 15000)
+// Wi-Fi conectado e pronto para uma requisição.
+bool redePronta()
+{
+    reconectarWiFi();
+
+    if (WiFi.status() != WL_CONNECTED)
     {
-        delay(500);
+        // Mesmo efeito de uma requisição sem resposta.
+        anotarRespostaHttp(-1);
+        return false;
+    }
+
+    return true;
+}
+
+// Código HTTP > 0: a API respondeu (mesmo que com erro).
+// Negativo: sem resposta (sem internet, DNS, tempo esgotado).
+void anotarRespostaHttp(int code)
+{
+    bool estavaOnline = apiOnline;
+
+    apiOnline = code > 0;
+
+    if (estavaOnline && !apiOnline)
+    {
+        ultimaSondagem = millis();
+        Serial.println(
+            "SEM CONEXAO COM A API: leituras vao para a fila.");
+    }
+    else if (!estavaOnline && apiOnline)
+    {
+        Serial.println("Conexao com a API restabelecida.");
     }
 }
 
@@ -530,9 +660,7 @@ void reconectarWiFi()
 
 void buscarDietaDaAPI()
 {
-    reconectarWiFi();
-
-    if (WiFi.status() != WL_CONNECTED)
+    if (!redePronta())
         return;
 
     if (cativeiroId.length() < 24)
@@ -553,6 +681,7 @@ void buscarDietaDaAPI()
     adicionarChave(http);
 
     int code = http.GET();
+    anotarRespostaHttp(code);
 
     if (code == 200)
     {
@@ -669,9 +798,7 @@ void buscarDietaDaAPI()
 
 void buscarCalibracaoDaAPI()
 {
-    reconectarWiFi();
-
-    if (WiFi.status() != WL_CONNECTED)
+    if (!redePronta())
         return;
 
     if (cativeiroId.length() < 24)
@@ -689,6 +816,7 @@ void buscarCalibracaoDaAPI()
     adicionarChave(http);
 
     int code = http.GET();
+    anotarRespostaHttp(code);
 
     if (code != 200)
     {
@@ -943,9 +1071,7 @@ bool enviarResultadoCalibracao(
     float valor,
     int rotacoes)
 {
-    reconectarWiFi();
-
-    if (WiFi.status() != WL_CONNECTED)
+    if (!redePronta())
         return false;
 
     if (cativeiroId.length() < 24)
@@ -1003,6 +1129,8 @@ bool enviarResultadoCalibracao(
 
     int code =
         http.POST(json);
+
+    anotarRespostaHttp(code);
 
     String resposta =
         http.getString();
@@ -1174,33 +1302,69 @@ void registrarAlimentacao(
     salvarAlimentacoesDoDia();
 }
 
-// Prepara o aviso para a API; é enviado no loop quando o motor parar.
+// Coloca o aviso na fila; é enviado no loop quando o motor parar.
+// Um aviso novo do mesmo dia e horário substitui o anterior na fila
+// (ex.: "falhou" e, minutos depois, "servida" dentro da janela).
 void agendarRelatorioAlimentacao(
     const String &horario,
     const String &status,
     int atraso)
 {
-    relatorioPendente = true;
-    relatorioData = dataHoje;
-    relatorioHorario = horario;
-    relatorioStatus = status;
-    relatorioMotivo = status == "falhou" ? motivoFalhaAlimentacao : "";
-    relatorioGramas = racaoDesejada;
-    relatorioRotacoes = gramasPorRotacao > 0 ? racaoDesejada / gramasPorRotacao : 0;
-    relatorioAtraso = atraso;
-    relatorioTentativas = 0;
+    RelatorioAlimentacao r;
+    r.data = dataHoje;
+    r.horario = horario;
+    r.status = status;
+    r.motivo = status == "falhou" ? motivoFalhaAlimentacao : "";
+    r.gramas = racaoDesejada;
+    r.rotacoes = gramasPorRotacao > 0 ? racaoDesejada / gramasPorRotacao : 0;
+    r.atraso = atraso;
+
+    int pos = -1;
+
+    for (int i = 0; i < totalFilaRelatorios; i++)
+    {
+        if (filaRelatorios[i].data == r.data &&
+            filaRelatorios[i].horario == r.horario)
+        {
+            pos = i;
+            break;
+        }
+    }
+
+    if (pos < 0)
+    {
+        if (totalFilaRelatorios >= MAX_FILA_RELATORIOS)
+        {
+            Serial.printf(
+                "Fila de avisos cheia: descartando o de %s %s.\n",
+                filaRelatorios[0].data.c_str(),
+                filaRelatorios[0].horario.c_str());
+
+            for (int i = 1; i < totalFilaRelatorios; i++)
+                filaRelatorios[i - 1] = filaRelatorios[i];
+
+            totalFilaRelatorios--;
+        }
+
+        pos = totalFilaRelatorios;
+        totalFilaRelatorios++;
+    }
+
+    filaRelatorios[pos] = r;
+    salvarFilaRelatorios();
+
+    // Tenta enviar logo na próxima volta do loop.
     ultimoEnvioRelatorio = 0;
 }
 
-bool enviarRelatorioAlimentacao()
+// Retorna o código HTTP (negativo = falha de rede, 0 = nem tentou).
+int enviarRelatorioAlimentacao(const RelatorioAlimentacao &r)
 {
-    reconectarWiFi();
-
-    if (WiFi.status() != WL_CONNECTED)
-        return false;
+    if (!redePronta())
+        return 0;
 
     if (cativeiroId.length() < 24)
-        return false;
+        return 0;
 
     HTTPClient http;
 
@@ -1212,30 +1376,127 @@ bool enviarRelatorioAlimentacao()
     StaticJsonDocument<384> doc;
 
     doc["id_cativeiro"] = cativeiroId;
-    doc["data"] = relatorioData;
-    doc["horario"] = relatorioHorario;
-    doc["status"] = relatorioStatus;
-    doc["gramas"] = relatorioGramas;
-    doc["rotacoes"] = relatorioRotacoes;
-    doc["atraso_min"] = relatorioAtraso;
+    doc["data"] = r.data;
+    doc["horario"] = r.horario;
+    doc["status"] = r.status;
+    doc["gramas"] = r.gramas;
+    doc["rotacoes"] = r.rotacoes;
+    doc["atraso_min"] = r.atraso;
 
-    if (relatorioMotivo.length() > 0)
-        doc["motivo"] = relatorioMotivo;
+    if (r.motivo.length() > 0)
+        doc["motivo"] = r.motivo;
 
     String json;
     serializeJson(doc, json);
 
     int code = http.POST(json);
     http.end();
+    anotarRespostaHttp(code);
 
     Serial.printf(
-        "HTTP alimentacao (%s %s): %d\n",
-        relatorioHorario.c_str(),
-        relatorioStatus.c_str(),
+        "HTTP alimentacao (%s %s %s): %d\n",
+        r.data.c_str(),
+        r.horario.c_str(),
+        r.status.c_str(),
         code);
 
-    // 4xx não melhora repetindo (ex.: chave errada): desiste
-    return code >= 200 && code < 500;
+    return code;
+}
+
+// Guarda a fila no NVS, um aviso por linha:
+// data|horario|status|gramas|rotacoes|atraso|motivo
+void salvarFilaRelatorios()
+{
+    String texto = "";
+
+    for (int i = 0; i < totalFilaRelatorios; i++)
+    {
+        const RelatorioAlimentacao &r = filaRelatorios[i];
+
+        texto += r.data + "|" + r.horario + "|" + r.status + "|" +
+                 String(r.gramas, 2) + "|" + String(r.rotacoes, 4) + "|" +
+                 String(r.atraso) + "|" + r.motivo + "\n";
+    }
+
+    // O NVS não aceita textos muito longos: se passar do limite,
+    // descarta os avisos mais antigos até caber.
+    while (texto.length() > MAX_BYTES_FILA_NVS && totalFilaRelatorios > 0)
+    {
+        int fimLinha = texto.indexOf('\n');
+        texto = texto.substring(fimLinha + 1);
+
+        for (int i = 1; i < totalFilaRelatorios; i++)
+            filaRelatorios[i - 1] = filaRelatorios[i];
+
+        totalFilaRelatorios--;
+
+        Serial.println("Fila de avisos grande demais: aviso mais antigo descartado.");
+    }
+
+    if (totalFilaRelatorios == 0)
+        prefs.remove("relFila");
+    else if (prefs.putString("relFila", texto) == 0)
+        Serial.println("ERRO: nao foi possivel salvar a fila de avisos.");
+}
+
+void carregarFilaRelatorios()
+{
+    String texto = prefs.getString("relFila", "");
+
+    totalFilaRelatorios = 0;
+
+    int inicio = 0;
+
+    while (inicio < (int)texto.length() &&
+           totalFilaRelatorios < MAX_FILA_RELATORIOS)
+    {
+        int fimLinha = texto.indexOf('\n', inicio);
+
+        if (fimLinha < 0)
+            fimLinha = texto.length();
+
+        String linha = texto.substring(inicio, fimLinha);
+        inicio = fimLinha + 1;
+
+        // Separa os 7 campos; o motivo é o último e pode ser vazio.
+        String campos[7];
+        int n = 0;
+        int ini = 0;
+
+        while (n < 6)
+        {
+            int sep = linha.indexOf('|', ini);
+
+            if (sep < 0)
+                break;
+
+            campos[n++] = linha.substring(ini, sep);
+            ini = sep + 1;
+        }
+
+        if (n < 6)
+            continue;
+
+        campos[6] = linha.substring(ini);
+
+        RelatorioAlimentacao &r = filaRelatorios[totalFilaRelatorios];
+        r.data = campos[0];
+        r.horario = campos[1];
+        r.status = campos[2];
+        r.gramas = campos[3].toFloat();
+        r.rotacoes = campos[4].toFloat();
+        r.atraso = campos[5].toInt();
+        r.motivo = campos[6];
+
+        totalFilaRelatorios++;
+    }
+
+    if (totalFilaRelatorios > 0)
+    {
+        Serial.printf(
+            "Avisos de alimentação pendentes: %d\n",
+            totalFilaRelatorios);
+    }
 }
 
 // Guarda na memória a data e os horários servidos nela
@@ -1305,20 +1566,19 @@ void carregarAlimentacoesDoDia()
 // ENVIO DOS PARÂMETROS
 // ============================================================
 
-void enviarParametrosParaAPI(
+// Retorna o código HTTP (negativo = sem resposta, 0 = nem tentou).
+int enviarParametrosParaAPI(
     float temp,
     float ph,
     float amonia,
     const String &idCativeiro,
     const String &dataHoraISO)
 {
-    reconectarWiFi();
-
-    if (WiFi.status() != WL_CONNECTED)
-        return;
+    if (!redePronta())
+        return 0;
 
     if (idCativeiro.length() < 24)
-        return;
+        return 0;
 
     HTTPClient http;
 
@@ -1358,6 +1618,9 @@ void enviarParametrosParaAPI(
     {
         doc["amostraId"] =
             String(timeClient.getEpochTime());
+
+        // Horário da medição (UTC): a API grava a leitura nele.
+        doc["ts"] = epochUTC();
     }
 
     String json;
@@ -1368,6 +1631,8 @@ void enviarParametrosParaAPI(
 
     int code =
         http.POST(json);
+
+    anotarRespostaHttp(code);
 
     Serial.printf(
         "HTTP parametros: %d\n",
@@ -1382,8 +1647,7 @@ void enviarParametrosParaAPI(
 
     http.end();
 
-    Serial.println(
-        "\nDADOS ENVIADOS PARA API\n");
+    return code;
 }
 
 // ============================================================
@@ -1394,8 +1658,6 @@ void fetchDeDados(
     int currentHour,
     int currentMinute)
 {
-    reconectarWiFi();
-
     // O relógio é mantido pelo timeClient.update() do loop (consulta
     // o servidor de hora a cada 60 s). Aqui só tentamos de novo se
     // ele ainda não sincronizou nenhuma vez. Sem hora certa a leitura
@@ -1470,12 +1732,315 @@ void fetchDeDados(
         ph,
         amonia);
 
-    enviarParametrosParaAPI(
-        temp,
-        ph,
-        amonia,
-        cativeiroId,
-        dataHoraISO);
+    // Sem conexão, só testa a API a cada 30 s; nas outras leituras vai
+    // direto para a fila, sem esperar o tempo limite do HTTP.
+    unsigned long agora = millis();
+
+    bool tentarEnviar =
+        apiOnline ||
+        agora - ultimaSondagem >= intervaloSondagemOffline;
+
+    int code = 0;
+
+    if (tentarEnviar)
+    {
+        if (!apiOnline)
+            ultimaSondagem = agora;
+
+        code = enviarParametrosParaAPI(
+            temp,
+            ph,
+            amonia,
+            cativeiroId,
+            dataHoraISO);
+    }
+
+    // Não chegou à API (sem rede, sem resposta, API fora do ar): guarda
+    // na fila. Recusas da API (4xx, ex.: leitura inválida) não voltam.
+    if (code <= 0 || code >= 500)
+        acumularLeituraOffline(temp, ph, amonia);
+}
+
+// ============================================================
+// FILA DE LEITURAS SEM INTERNET
+// ============================================================
+
+void salvarFilaEnviados()
+{
+    prefs.putUInt("filaEnv", filaEnviados);
+}
+
+void iniciarFilaLeituras()
+{
+    // A partição de dados do esquema padrão ("spiffs") é usada pelo
+    // LittleFS; na primeira vez ela é formatada.
+    filaDisponivel = LittleFS.begin(true);
+
+    if (!filaDisponivel)
+    {
+        Serial.println(
+            "ERRO: LittleFS indisponivel. Leituras sem internet serao perdidas.");
+        return;
+    }
+
+    filaTotal = 0;
+
+    File f = LittleFS.open(ARQUIVO_FILA, "r");
+
+    if (f)
+    {
+        filaTotal = f.size() / sizeof(RegistroLeitura);
+        f.close();
+    }
+
+    filaEnviados = prefs.getUInt("filaEnv", 0);
+
+    // Arquivo apagado sem o contador ter sido zerado (ex.: reinício no
+    // meio da limpeza): recomeça a contagem.
+    if (filaEnviados > filaTotal)
+    {
+        filaEnviados = 0;
+        salvarFilaEnviados();
+    }
+
+    if (filaTotal > filaEnviados)
+    {
+        Serial.printf(
+            "Leituras sem internet pendentes: %lu\n",
+            (unsigned long)(filaTotal - filaEnviados));
+    }
+}
+
+// Soma a leitura na média do minuto em andamento.
+void acumularLeituraOffline(float temp, float ph, float amonia)
+{
+    // Sem relógio certo não há como saber o horário da leitura.
+    if (!filaDisponivel || !ntpSincronizado || cativeiroId.length() < 24)
+        return;
+
+    // Mesmas faixas aceitas pela API: leitura com sensor com defeito
+    // (ex.: -127 °C) não entra na média.
+    if (temp < -5 || temp > 50 || ph < 0 || ph > 14 || amonia < 0 || amonia > 500)
+        return;
+
+    uint32_t ts = epochUTC();
+    uint32_t minuto = ts / 60;
+
+    if (acumQuantidade > 0 && minuto != acumMinuto)
+        fecharMinutoOffline(true);
+
+    if (acumQuantidade == 0)
+    {
+        acumMinuto = minuto;
+        acumPrimeiroTs = ts;
+        acumTemp = 0;
+        acumPh = 0;
+        acumAmonia = 0;
+    }
+
+    acumTemp += temp;
+    acumPh += ph;
+    acumAmonia += amonia;
+    acumQuantidade++;
+}
+
+// Grava a média do minuto na fila quando o minuto acaba (ou já, com
+// forcar = true).
+void fecharMinutoOffline(bool forcar)
+{
+    if (acumQuantidade == 0)
+        return;
+
+    if (!forcar && epochUTC() / 60 == acumMinuto)
+        return;
+
+    RegistroLeitura r;
+    r.ts = acumPrimeiroTs;
+    r.temp = (int16_t)lround(acumTemp / acumQuantidade * 100.0);
+    r.ph = (uint16_t)lround(acumPh / acumQuantidade * 100.0);
+    r.amonia = (uint16_t)lround(acumAmonia / acumQuantidade * 100.0);
+
+    acumQuantidade = 0;
+
+    gravarRegistroFila(r);
+}
+
+// Reescreve o arquivo só com os registros ainda não enviados.
+bool compactarFila()
+{
+    File origem = LittleFS.open(ARQUIVO_FILA, "r");
+
+    if (!origem)
+        return false;
+
+    File destino = LittleFS.open(ARQUIVO_FILA_TMP, "w");
+
+    if (!destino)
+    {
+        origem.close();
+        return false;
+    }
+
+    origem.seek((size_t)filaEnviados * sizeof(RegistroLeitura));
+
+    uint8_t buffer[512];
+    bool ok = true;
+
+    while (origem.available())
+    {
+        size_t lidos = origem.read(buffer, sizeof(buffer));
+
+        if (lidos == 0 || destino.write(buffer, lidos) != lidos)
+        {
+            ok = false;
+            break;
+        }
+    }
+
+    origem.close();
+    destino.close();
+
+    if (!ok)
+    {
+        LittleFS.remove(ARQUIVO_FILA_TMP);
+        return false;
+    }
+
+    LittleFS.remove(ARQUIVO_FILA);
+    LittleFS.rename(ARQUIVO_FILA_TMP, ARQUIVO_FILA);
+
+    filaTotal -= filaEnviados;
+    filaEnviados = 0;
+    salvarFilaEnviados();
+
+    return true;
+}
+
+void gravarRegistroFila(const RegistroLeitura &r)
+{
+    // Mais de 30 dias pendentes: a API não aceitaria o mais antigo.
+    if (filaTotal - filaEnviados >= MAX_PENDENTES_FILA)
+    {
+        filaEnviados++;
+        salvarFilaEnviados();
+    }
+
+    if (filaTotal >= MAX_REGISTROS_ARQUIVO && !compactarFila())
+    {
+        Serial.println("ERRO: nao foi possivel compactar a fila de leituras.");
+        return;
+    }
+
+    File f = LittleFS.open(ARQUIVO_FILA, "a");
+
+    if (!f)
+    {
+        Serial.println("ERRO: nao foi possivel abrir a fila de leituras.");
+        return;
+    }
+
+    size_t gravados = f.write((const uint8_t *)&r, sizeof(r));
+    f.close();
+
+    if (gravados != sizeof(r))
+    {
+        Serial.println("ERRO: nao foi possivel gravar na fila de leituras.");
+        return;
+    }
+
+    filaTotal++;
+
+    Serial.printf(
+        "Leitura guardada na fila (pendentes: %lu)\n",
+        (unsigned long)(filaTotal - filaEnviados));
+}
+
+// Envia o próximo lote da fila. Retorna o código HTTP (0 = nada a enviar
+// ou sem rede).
+int enviarLoteDaFila()
+{
+    if (!filaDisponivel || filaTotal <= filaEnviados)
+        return 0;
+
+    if (!redePronta())
+        return 0;
+
+    if (cativeiroId.length() < 24)
+        return 0;
+
+    File f = LittleFS.open(ARQUIVO_FILA, "r");
+
+    if (!f)
+        return 0;
+
+    f.seek((size_t)filaEnviados * sizeof(RegistroLeitura));
+
+    String json;
+    json.reserve(LEITURAS_POR_LOTE * 100 + 64);
+    json = "{\"id_cativeiro\":\"" + cativeiroId + "\",\"leituras\":[";
+
+    int quantidade = 0;
+    RegistroLeitura r;
+
+    while (quantidade < LEITURAS_POR_LOTE &&
+           f.read((uint8_t *)&r, sizeof(r)) == sizeof(r))
+    {
+        if (quantidade > 0)
+            json += ",";
+
+        json += "{\"ts\":" + String(r.ts) +
+                ",\"amostraId\":\"m" + String(r.ts) +
+                "\",\"temperatura\":" + String(r.temp / 100.0, 2) +
+                ",\"ph\":" + String(r.ph / 100.0, 2) +
+                ",\"amonia\":" + String(r.amonia / 100.0, 2) + "}";
+
+        quantidade++;
+    }
+
+    f.close();
+
+    json += "]}";
+
+    if (quantidade == 0)
+        return 0;
+
+    HTTPClient http;
+
+    http.begin(String(apiBaseUrl) + "/parametros/lote");
+    http.addHeader("Content-Type", "application/json");
+    adicionarChave(http);
+    http.setTimeout(15000);
+
+    int code = http.POST(json);
+    http.end();
+    anotarRespostaHttp(code);
+
+    Serial.printf(
+        "HTTP lote da fila (%d leituras): %d\n",
+        quantidade,
+        code);
+
+    // 200: a API guardou (as leituras que ela recusar nunca seriam
+    // aceitas). 400: o lote inteiro é inválido. Nos dois casos, sai da
+    // fila. Outro código (sem rede, chave errada, API fora): tenta depois.
+    if (code == 200 || code == 400)
+    {
+        filaEnviados += quantidade;
+
+        if (filaEnviados >= filaTotal)
+        {
+            // Fila vazia: apaga o arquivo e recomeça.
+            LittleFS.remove(ARQUIVO_FILA);
+            filaTotal = 0;
+            filaEnviados = 0;
+
+            Serial.println("Fila de leituras enviada por completo.");
+        }
+
+        salvarFilaEnviados();
+    }
+
+    return code;
 }
 
 // ============================================================
@@ -1642,6 +2207,8 @@ void setup()
             "");
 
     carregarAlimentacoesDoDia();
+    carregarFilaRelatorios();
+    iniciarFilaLeituras();
 
     mostrarConfiguracoes();
 
@@ -2036,6 +2603,7 @@ void loop()
     if (motorAtivo)
     {
         if (
+            apiOnline &&
             agora - ultimoFetchCalibracao >=
             intervaloCalibracao)
         {
@@ -2105,27 +2673,62 @@ void loop()
             currentMinute);
     }
 
-    // Aviso da última alimentação para a API (o loop só chega
-    // aqui com o motor parado, então não atrasa a refeição).
+    // Grava a média do minuto sem internet quando o minuto acaba.
+    fecharMinutoOffline(false);
+
+    // Fila de leituras sem internet: com a API respondendo, envia um
+    // lote por vez (1 s entre lotes; 30 s depois de uma falha).
     if (
-        relatorioPendente &&
+        apiOnline &&
+        filaTotal > filaEnviados &&
+        (ultimoEnvioLote == 0 ||
+         agora - ultimoEnvioLote >= intervaloEnvioLote))
+    {
+        int code = enviarLoteDaFila();
+
+        ultimoEnvioLote = agora > 0 ? agora : 1;
+        intervaloEnvioLote =
+            (code == 200 || code == 400)
+                ? INTERVALO_LOTE_OK
+                : INTERVALO_LOTE_FALHA;
+    }
+
+    // Avisos de alimentação para a API, um por volta do loop, do mais
+    // antigo para o mais novo (o loop só chega aqui com o motor parado,
+    // então não atrasa a refeição). Sem conexão, esperam ela voltar.
+    if (
+        apiOnline &&
+        totalFilaRelatorios > 0 &&
         (ultimoEnvioRelatorio == 0 ||
          agora - ultimoEnvioRelatorio >=
              intervaloEnvioRelatorio))
     {
-        ultimoEnvioRelatorio = agora > 0 ? agora : 1;
-        relatorioTentativas++;
+        int code = enviarRelatorioAlimentacao(filaRelatorios[0]);
 
-        if (
-            enviarRelatorioAlimentacao() ||
-            relatorioTentativas >= MAX_TENTATIVAS_RELATORIO)
+        // 2xx: a API guardou. 400: o aviso é inválido e nunca seria
+        // aceito. Qualquer outra resposta (sem rede, chave errada,
+        // API fora do ar) mantém o aviso na fila para tentar de novo.
+        if ((code >= 200 && code < 300) || code == 400)
         {
-            relatorioPendente = false;
+            for (int i = 1; i < totalFilaRelatorios; i++)
+                filaRelatorios[i - 1] = filaRelatorios[i];
+
+            totalFilaRelatorios--;
+            salvarFilaRelatorios();
+
+            // Envia o próximo da fila logo em seguida.
+            ultimoEnvioRelatorio = 0;
+        }
+        else
+        {
+            ultimoEnvioRelatorio = agora > 0 ? agora : 1;
         }
     }
 
-    // Atualiza a dieta uma vez por minuto.
+    // Atualiza a dieta uma vez por minuto. Sem conexão, a placa segue
+    // com a última dieta recebida.
     if (
+        apiOnline &&
         agora - ultimoFetchDieta >=
         intervaloFetchDieta)
     {
@@ -2140,6 +2743,7 @@ void loop()
     // --------------------------------------------------------
 
     if (
+        apiOnline &&
         agora -
             ultimoFetchCalibracao >=
         intervaloCalibracao)

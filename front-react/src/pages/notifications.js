@@ -42,11 +42,12 @@ export default function NotificationsPage() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const token = sessionStorage.getItem('token') || localStorage.getItem('token');
-      await axios.patch(`${apiUrl}/notifications/${notification.id}/avaliacao`, { avaliacao }, {
+      const { data } = await axios.patch(`${apiUrl}/notifications/${notification.id}/avaliacao`, { avaliacao }, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      // O aviso de queda de conexão fecha ao ser conferido: a API devolve o novo estado
       setNotifications(items => items.map(item => item.id === notification.id
-        ? { ...item, avaliacao, verificadoEm: new Date().toISOString() } : item));
+        ? { ...item, avaliacao, verificadoEm: new Date().toISOString(), estado: data?.estado || item.estado } : item));
     } catch {
       setError('Não foi possível registrar a conferência. Tente novamente.');
     }

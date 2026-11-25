@@ -2,6 +2,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import { createApp } from './app.js';
 import monitoringService from './services/monitoringService.js';
+import { executarMigracoes } from './services/migracoes.js';
 
 const port = Number(process.env.PORT || 4000);
 const mongoUrl = process.env.MONGO_URL;
@@ -30,6 +31,7 @@ try {
     socketTimeoutMS: 45000,
     bufferCommands: false,
   });
+  await executarMigracoes();
   server = createApp().listen(port, '0.0.0.0', () => {
     console.log(`API Camarize pronta na porta ${port}`);
     if (process.env.ENABLE_AUTO_MONITORING !== 'false') {

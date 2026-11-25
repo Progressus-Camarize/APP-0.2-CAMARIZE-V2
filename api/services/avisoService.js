@@ -231,9 +231,12 @@ export async function processReading(cativeiroId, now = new Date()) {
   const trendResult = projectTrend(trendReadings, bounds, now);
   trendResult.motivos = trendResult.motivos.filter(m => motivoConfiavel(m, cativeiro));
   if (!result.suficiente && !trendResult.suficiente) return;
+  // Avisos retroativos (queda de conexão) têm ciclo próprio: não fecham com leituras novas e não
+  // impedem o aviso ao vivo de abrir (processarPeriodoSemConexao)
   const [active, encerradosHaPouco] = await Promise.all([
-    Aviso.find({ cativeiro: cativeiroId, estado: 'ativo' }),
-    Aviso.find({ cativeiro: cativeiroId, estado: 'recuperado', recuperadoEm: { $gte: new Date(now.getTime() - INTERVALO_REABRIR_MS) } })
+    Aviso.find({ cativeiro: cativeiroId, estado: 'ativo', retroativo: { $ne: true } }),
+    Aviso.find({ cativeiro: cativeiroId, estado: 'recuperado', retroativo: { $ne: true },
+      recuperadoEm: { $gte: new Date(now.getTime() - INTERVALO_REABRIR_MS) } })
       .select('tipo preditivo').lean(),
   ]);
   const recovered = new Set();
@@ -279,7 +282,7 @@ export async function processReading(cativeiroId, now = new Date()) {
       await deliverPending({ _id: aviso._id });
       reactiveCreated.add(motivo.tipo);
       // A tendência "se cumpriu": o aviso reativo já cobre o problema, o preditivo vira ruído.
-      await Aviso.updateMany({ cativeiro: cativeiroId, tipo: motivo.tipo, preditivo: true, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
+      await Aviso.updateMany({ cativeiro: cativeiroId, tipo: motivo.tipo, preditivo: true, retroativo: { $ne: true }, estado: 'ativo' }, { $set: { estado: 'recuperado', recuperadoEm: now } });
     } catch (error) {
       if (error.code !== 11000) throw error;
     }
@@ -288,6 +291,98 @@ export async function processReading(cativeiroId, now = new Date()) {
     if (reactiveCreated.has(motivo.tipo) || active.some(a => a.tipo === motivo.tipo) || recovered.has(key(motivo.tipo, true))) continue;
     try {
       const aviso = await Aviso.create({ cativeiro: cativeiroId, ...motivo });
+      await deliverPending({ _id: aviso._id });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+    }
+  }
+}
+
+// ---------- Avisos de um período sem conexão ----------
+
+// As regras olham 6 médias de 5 min: para avaliar o começo do período é preciso ver um pouco antes dele
+export const CONTEXTO_RETROATIVO_MS = 30 * 60_000;
+const NOME_PARAMETRO = { temperatura: 'a temperatura', ph: 'o pH', amonia: 'a amônia' };
+const variacao = motivo => Math.abs(motivo.valorAtual - motivo.valorInicial);
+const formatoBrasilia = (opcoes) => (data) => new Date(data).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', ...opcoes });
+const horaBrasilia = formatoBrasilia({ hour: '2-digit', minute: '2-digit' });
+const diaBrasilia = formatoBrasilia({ day: '2-digit', month: '2-digit' });
+
+// Regra pura: aplica evaluate() a cada janela que termina dentro do período, como se a placa estivesse
+// conectada naquele momento, e junta os disparos em um motivo por parâmetro. O motivo vai do primeiro
+// ao último disparo e traz os valores do disparo de maior variação.
+export function avaliarPeriodo(readings, bounds, inicio, fim) {
+  const ordered = [...readings].sort((a, b) => new Date(a.datahora) - new Date(b.datahora));
+  const porTipo = new Map();
+  for (let i = 5; i < ordered.length; i++) {
+    const fimJanela = new Date(ordered[i].datahora);
+    if (fimJanela < inicio || fimJanela > fim) continue;
+    const { motivos } = evaluate(ordered.slice(i - 5, i + 1), bounds, fimJanela);
+    for (const motivo of motivos) {
+      const anterior = porTipo.get(motivo.tipo);
+      if (!anterior) {
+        porTipo.set(motivo.tipo, { ...motivo });
+        continue;
+      }
+      const maior = variacao(motivo) > variacao(anterior) ? motivo : anterior;
+      porTipo.set(motivo.tipo, { ...maior, periodoInicio: anterior.periodoInicio, periodoFim: motivo.periodoFim });
+    }
+  }
+  return [...porTipo.values()];
+}
+
+export function mensagemRetroativa(motivo) {
+  const { periodoInicio: ini, periodoFim: fim } = motivo;
+  const periodo = diaBrasilia(ini) === diaBrasilia(fim)
+    ? `${diaBrasilia(ini)}, ${horaBrasilia(ini)}–${horaBrasilia(fim)}`
+    : `${diaBrasilia(ini)} ${horaBrasilia(ini)} a ${diaBrasilia(fim)} ${horaBrasilia(fim)}`;
+  const valores = `${motivo.valorInicial} → ${motivo.valorAtual}`;
+  const oQue = motivo.tipo === 'temperatura'
+    ? `a temperatura chegou perto do limite de ${motivo.limite} °C (${valores} °C)`
+    : `${NOME_PARAMETRO[motivo.tipo]} teve ${motivo.direcao} persistente (${valores})${motivo.tipo === 'amonia' ? ', medição experimental' : ''}`;
+  return `Durante a falta de conexão (${periodo}), ${oQue}. Verifique o cativeiro agora para ver se normalizou.`;
+}
+
+// Chamado quando chegam leituras que a placa guardou sem internet (POST /parametros/lote).
+// Aplica as regras dos avisos ao vivo ao período delas e abre um aviso retroativo por parâmetro.
+// Esse aviso não fecha com leituras novas: fica ativo até alguém verificar o cativeiro.
+export async function processarPeriodoSemConexao(cativeiroId, inicio, fim) {
+  const cativeiro = await Cativeiros.findById(cativeiroId).select(SEM_FOTO).populate('condicoes_ideais').lean();
+  if (!cativeiro) return;
+  const readings = await leiturasAgregadas(cativeiroId, new Date(inicio.getTime() - CONTEXTO_RETROATIVO_MS), fim);
+  const bounds = temperatureBounds(cativeiro.condicoes_ideais || {});
+  const motivos = avaliarPeriodo(readings, bounds, inicio, fim).filter(m => motivoConfiavel(m, cativeiro));
+  if (!motivos.length) return;
+
+  const ativos = await Aviso.find({ cativeiro: cativeiroId, estado: 'ativo', tipo: { $in: motivos.map(m => m.tipo) } }).lean();
+  for (const motivo of motivos) {
+    // O aviso ao vivo do mesmo parâmetro já está aberto e cobre o problema
+    if (ativos.some(a => a.tipo === motivo.tipo && !a.retroativo && !a.preditivo)) continue;
+    // A janela das regras pode começar antes da queda; o aviso fala só do período sem conexão
+    const periodoInicio = new Date(Math.max(new Date(motivo.periodoInicio).getTime(), inicio.getTime()));
+    const existente = ativos.find(a => a.tipo === motivo.tipo && a.retroativo);
+
+    if (existente) {
+      // O problema continua no lote seguinte da mesma queda (ou houve outra queda antes de alguém
+      // verificar): estende o aviso aberto em vez de abrir outro, sem notificar de novo
+      const maior = variacao(motivo) > variacao(existente) ? motivo : existente;
+      const atualizado = {
+        periodoInicio: new Date(Math.min(new Date(existente.periodoInicio).getTime(), periodoInicio.getTime())),
+        periodoFim: new Date(Math.max(new Date(existente.periodoFim).getTime(), new Date(motivo.periodoFim).getTime())),
+        valorInicial: maior.valorInicial,
+        valorAtual: maior.valorAtual,
+        direcao: maior.direcao,
+        ...(Number.isFinite(maior.limite) ? { limite: maior.limite } : {}),
+      };
+      atualizado.mensagem = mensagemRetroativa({ ...motivo, ...atualizado });
+      await Aviso.updateOne({ _id: existente._id, estado: 'ativo' }, { $set: atualizado });
+      continue;
+    }
+
+    const dados = { ...motivo, periodoInicio };
+    try {
+      const aviso = await Aviso.create({ cativeiro: cativeiroId, ...dados, mensagem: mensagemRetroativa(dados),
+        preditivo: false, retroativo: true });
       await deliverPending({ _id: aviso._id });
     } catch (error) {
       if (error.code !== 11000) throw error;

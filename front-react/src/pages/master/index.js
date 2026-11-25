@@ -447,8 +447,9 @@ export default function MasterPanel() {
   const avaliarAviso = async (avisoId, avaliacao) => {
     try {
       const token = getToken();
-      await axios.patch(`${apiUrl}/notifications/${avisoId}/avaliacao`, { avaliacao }, { headers: { Authorization: `Bearer ${token}` } });
-      setAvisos(lista => lista.map(a => a.id === avisoId ? { ...a, avaliacao, verificadoEm: new Date().toISOString() } : a));
+      const { data } = await axios.patch(`${apiUrl}/notifications/${avisoId}/avaliacao`, { avaliacao }, { headers: { Authorization: `Bearer ${token}` } });
+      // O aviso de queda de conexão fecha ao ser conferido: a API devolve o novo estado
+      setAvisos(lista => lista.map(a => a.id === avisoId ? { ...a, avaliacao, verificadoEm: new Date().toISOString(), estado: data?.estado || a.estado } : a));
     } catch (e) {
       console.error('Erro ao avaliar aviso:', e);
     }

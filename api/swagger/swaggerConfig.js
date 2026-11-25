@@ -219,6 +219,11 @@ A maioria dos endpoints requer um token JWT. Para obtê-lo:
               example: 'esp32-01:1792300123',
               description: 'Opcional. Só tem efeito de idempotência em leituras autenticadas (com X-Device-Key); reenviar o mesmo amostraId não duplica a leitura.',
             },
+            ts: {
+              type: 'integer',
+              example: 1795000000,
+              description: 'Opcional. Horário da medição em segundos desde 1970 (UTC). Só vale em leituras autenticadas; sem ele, vale o horário de chegada. Até 30 dias atrás e no máximo 5 min no futuro.',
+            },
           },
         },
 
@@ -483,6 +488,7 @@ A maioria dos endpoints requer um token JWT. Para obtê-lo:
             limite: { type: 'number', nullable: true },
             experimental: { type: 'boolean', description: 'pH/amônia (e todo aviso preditivo) são medições experimentais' },
             preditivo: { type: 'boolean', description: 'true = tendência projetada (Camada 1); false = limite já cruzado de fato' },
+            retroativo: { type: 'boolean', description: 'true = aconteceu durante uma falta de conexão (leituras enviadas depois pela placa); fica ativo até ser avaliado' },
             recuperadoEm: { type: 'string', format: 'date-time', nullable: true },
             verificadoEm: { type: 'string', format: 'date-time', nullable: true },
             avaliacao: { type: 'string', enum: ['confirmado', 'falso_alarme'], nullable: true },

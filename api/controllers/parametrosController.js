@@ -9,12 +9,30 @@ import { credentialHash, verificarChaveDispositivo } from '../services/deviceAut
 import DeviceCredentialHistory from '../models/DeviceCredentialHistory.js';
 import Aviso from '../models/Aviso.js';
 import CondicoesIdeais from '../models/Condicoes_ideais.js';
-import { processReading, freshness, evaluate, temperatureBounds, leiturasAgregadas, VALID_READING_FILTER } from '../services/avisoService.js';
+import { processReading, processarPeriodoSemConexao, freshness, evaluate, temperatureBounds, leiturasAgregadas, VALID_READING_FILTER } from '../services/avisoService.js';
 import { suggestThresholdAdjustments } from '../services/calibrationService.js';
 
 const validReading = ({ temperatura, ph, amonia }) =>
   [temperatura, ph, amonia].every(Number.isFinite) &&
   temperatura >= -5 && temperatura <= 50 && ph >= 0 && ph <= 14 && amonia >= 0 && amonia <= 500;
+
+const AMOSTRA_ID_RE = /^[A-Za-z0-9:_-]{1,80}$/;
+
+// Horário em que a placa mediu a leitura ("ts": segundos desde 1970, UTC). Leituras guardadas
+// durante uma queda de internet chegam depois, mas precisam ficar no horário em que foram medidas.
+// Aceita um pequeno adiantamento do relógio da placa e recusa o que for antigo demais para a fila dela.
+export const TS_ADIANTADO_MAX_MS = 5 * 60_000;
+export const TS_ATRASO_MAX_MS = 30 * 24 * 60 * 60_000;
+export function horarioDaPlaca(ts, now = Date.now()) {
+  if (!Number.isInteger(ts)) return { erro: 'ts deve ser um número inteiro (segundos desde 1970, UTC)' };
+  const ms = ts * 1000;
+  if (ms > now + TS_ADIANTADO_MAX_MS) return { erro: 'ts no futuro (relógio da placa adiantado)' };
+  if (ms < now - TS_ATRASO_MAX_MS) return { erro: 'ts com mais de 30 dias' };
+  return { datahora: new Date(ms) };
+}
+
+// Leituras enviadas juntas pela placa depois de uma queda de internet
+export const LOTE_MAX_LEITURAS = 100;
 
 
 const provisionDevice = async (req, res) => {
@@ -132,8 +150,15 @@ const cadastrarParametros = async (req, res) => {
     if (chave === 'ausente') return res.status(401).json({ error: 'Chave do dispositivo obrigatória' });
     const authenticated = chave === 'valida';
     const amostraId = req.body.amostraId;
-    if (amostraId !== undefined && (typeof amostraId !== 'string' || !/^[A-Za-z0-9:_-]{1,80}$/.test(amostraId))) {
+    if (amostraId !== undefined && (typeof amostraId !== 'string' || !AMOSTRA_ID_RE.test(amostraId))) {
       return res.status(400).json({ error: 'amostraId inválido' });
+    }
+    // Só a placa com chave define o horário da leitura; sem chave, vale o horário de chegada
+    let datahora = new Date();
+    if (authenticated && req.body.ts !== undefined) {
+      const horario = horarioDaPlaca(req.body.ts);
+      if (horario.erro) return res.status(400).json({ error: horario.erro });
+      datahora = horario.datahora;
     }
     if (authenticated && amostraId) {
       const repeated = await ParametrosAtuais.findOne({ id_cativeiro, amostraId, autenticada: true }).lean();
@@ -150,7 +175,7 @@ const cadastrarParametros = async (req, res) => {
       temp_atual: temperatura,
       ph_atual: ph,
       amonia_atual: amonia,
-      datahora: new Date(),
+      datahora,
       origem: authenticated ? 'dispositivo' : 'legado',
       autenticada: authenticated,
       ...(authenticated && amostraId ? { amostraId } : {})
@@ -179,6 +204,112 @@ const cadastrarParametros = async (req, res) => {
   } catch (error) {
     if (error.code === 11000) return res.status(200).json({ success: true, repetida: true });
     console.error('Erro ao cadastrar parâmetros:', error);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+};
+
+function erroDaLeituraDoLote(leitura, now) {
+  if (!leitura || typeof leitura !== 'object') return 'leitura deve ser um objeto';
+  if (typeof leitura.amostraId !== 'string' || !AMOSTRA_ID_RE.test(leitura.amostraId)) return 'amostraId ausente ou inválido';
+  const { erro } = horarioDaPlaca(leitura.ts, now);
+  if (erro) return erro;
+  if (!validReading(leitura)) return 'leitura fora da faixa física aceita ou não numérica';
+  return null;
+}
+
+// POST - Leituras guardadas pela placa durante uma queda de internet, enviadas juntas ao reconectar.
+// Cada leitura traz o horário em que foi medida (ts) e um amostraId: reenviar o mesmo lote (a placa
+// não recebeu a resposta) não duplica nada. Uma leitura inválida é recusada sem derrubar o lote,
+// para a placa poder apagar o lote da fila assim que receber 200.
+const cadastrarLoteParametros = async (req, res) => {
+  try {
+    const { id_cativeiro, leituras } = req.body || {};
+
+    if (!id_cativeiro || !mongoose.isValidObjectId(id_cativeiro)) {
+      return res.status(400).json({ error: "ID do cativeiro é obrigatório" });
+    }
+    if (!Array.isArray(leituras) || leituras.length === 0 || leituras.length > LOTE_MAX_LEITURAS) {
+      return res.status(400).json({ error: `leituras deve ser uma lista com 1 a ${LOTE_MAX_LEITURAS} itens` });
+    }
+    if (!await Cativeiros.exists({ _id: id_cativeiro })) {
+      return res.status(404).json({ error: "Cativeiro não encontrado" });
+    }
+    // Leituras com horário retroativo só da placa com chave
+    if (await verificarChaveDispositivo(id_cativeiro, req.get('X-Device-Key')) !== 'valida') {
+      return res.status(401).json({ error: 'Envio em lote exige a chave do dispositivo' });
+    }
+
+    const now = Date.now();
+    const rejeitadas = [];
+    const operacoes = [];
+    let inicio = null;
+    let fim = null;
+    leituras.forEach((leitura, indice) => {
+      const erro = erroDaLeituraDoLote(leitura, now);
+      if (erro) {
+        rejeitadas.push({ indice, erro });
+        return;
+      }
+      const { datahora } = horarioDaPlaca(leitura.ts, now);
+      if (!inicio || datahora < inicio) inicio = datahora;
+      if (!fim || datahora > fim) fim = datahora;
+      operacoes.push({
+        updateOne: {
+          // O índice único (id_cativeiro, amostraId) garante que a mesma leitura entra uma vez só
+          filter: { id_cativeiro, amostraId: leitura.amostraId },
+          update: {
+            $setOnInsert: {
+              temp_atual: leitura.temperatura,
+              ph_atual: leitura.ph,
+              amonia_atual: leitura.amonia,
+              datahora,
+              origem: 'dispositivo',
+              autenticada: true,
+            },
+          },
+          upsert: true,
+        },
+      });
+    });
+
+    let inseridas = 0;
+    if (operacoes.length) {
+      let resultado;
+      try {
+        resultado = await ParametrosAtuais.bulkWrite(operacoes, { ordered: false });
+      } catch (error) {
+        // Dois envios do mesmo lote ao mesmo tempo: a leitura que perdeu a corrida já está gravada
+        const erros = error.writeErrors ? [].concat(error.writeErrors) : [];
+        if (!erros.length || !erros.every(e => e.code === 11000) || !error.result) throw error;
+        resultado = error.result;
+      }
+      inseridas = resultado.upsertedCount ?? 0;
+    }
+
+    if (inseridas > 0) parametrosEmitter.emit(`parametro:${id_cativeiro.toString()}`);
+
+    // Avisos: uma avaliação por lote, não por leitura. O período do lote também passa pelas regras
+    // dos avisos ao vivo ("durante a falta de conexão"); roda mesmo num reenvio, que só estende um
+    // aviso já aberto. Uma falha aqui não recusa o lote: as leituras já estão gravadas e a placa
+    // não deve ficar reenviando por causa de um aviso.
+    if (operacoes.length) {
+      try {
+        if (inseridas > 0) await processReading(id_cativeiro);
+        await processarPeriodoSemConexao(id_cativeiro, inicio, fim);
+      } catch (error) {
+        console.error('Erro ao avaliar avisos do lote de parâmetros:', error);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      recebidas: leituras.length,
+      inseridas,
+      repetidas: operacoes.length - inseridas,
+      rejeitadas,
+    });
+  } catch (error) {
+    console.error('Erro ao cadastrar lote de parâmetros:', error);
     res.status(500).json({ error: "Erro interno do servidor" });
   }
 };
@@ -432,6 +563,7 @@ const streamDashboard = async (req, res) => {
 
 export {
   cadastrarParametros,
+  cadastrarLoteParametros,
   provisionDevice,
   getDeviceCredentialHistory,
   updateTemperatureLimits,

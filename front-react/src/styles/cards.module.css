@@ -341,6 +341,16 @@
   font-size: 12px;
 }
 
+/* Aviso de um período sem conexão (leituras enviadas depois pela placa) */
+.badgeQueda {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.badgeQueda svg {
+  font-size: 12px;
+}
+
 /* ---------- Status de solicitação ---------- */
 .stPendente {
   --accent: #f59e0b;
