@@ -1,13 +1,14 @@
 import React from "react";
 import {
-  TbThermometer, TbFlask, TbFlask2, TbWifiOff, TbBell, TbBellOff, TbCheck, TbX,
+  TbWifiOff, TbBell, TbBellOff, TbCheck, TbX,
   TbClock, TbActivity, TbCalendarStats, TbAlertTriangle, TbLoader2, TbCircleCheck,
   TbCircleX, TbRefresh, TbTrendingUp,
 } from "react-icons/tb";
 import { formatarTempoDesde } from "@/lib/tempo";
+import { ICONES_PARAMETRO } from "../IconeParametro";
 import styles from "@/styles/cards.module.css";
 
-const ICONES = { temperatura: TbThermometer, ph: TbFlask, amonia: TbFlask2, sensor_inativo: TbWifiOff };
+const ICONES = { ...ICONES_PARAMETRO, sensor_inativo: TbWifiOff };
 
 const formatTime = (datahora) =>
   new Date(datahora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -47,7 +48,7 @@ export function AvisoCard({ aviso, onAvaliar }) {
         <div className={styles.header}>
           <div>
             <h3 className={styles.title}>{aviso.mensagem}</h3>
-            <div className={styles.cativeiro}>{aviso.cativeiroNome}</div>
+            {aviso.cativeiroNome && <div className={styles.cativeiro}>{aviso.cativeiroNome}</div>}
           </div>
           <div className={styles.badges}>
             {aviso.preditivo && (

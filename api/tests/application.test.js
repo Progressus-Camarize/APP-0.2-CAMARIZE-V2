@@ -106,8 +106,61 @@ test('histórico antigo com sensor desconectado não aparece no dashboard ou rel
   assert.equal(history.body.dados.some(d => d.temperatura === -127), false);
 });
 
+test('resumo do relatório bate com o histórico completo, com médias por dia e por hora', async () => {
+  const pond = fixtures.cativeiros[0].id;
+  await ParametrosAtuais.insertMany([[30, 27.4, 7.1, 0.12], [20, 29.9, 7.6, 0.31], [10, 28.2, 6.9, 0.2]].map(([minutosAtras, t, ph, nh3]) => ({
+    id_cativeiro: pond, datahora: new Date(Date.now() - minutosAtras * 60_000), temp_atual: t, ph_atual: ph, amonia_atual: nh3,
+  })));
+  const historico = [];
+  for (let pagina = 1; pagina; ) {
+    const r = await request(`/parametros/historicos/${pond}?dias=7&pagina=${pagina}&limite=1000`, { auth: token });
+    historico.push(...r.body.dados);
+    pagina = r.body.proximaPagina;
+  }
+  assert.ok(historico.length >= 2, 'o viveiro precisa de leituras para o teste');
+
+  const resumo = await request(`/parametros/relatorio/${pond}?dias=7`, { auth: token });
+  assert.equal(resumo.status, 200);
+  assert.equal(resumo.body.total, historico.length);
+  for (const campo of ['temperatura', 'ph', 'amonia']) {
+    const valores = historico.map(d => d[campo]);
+    const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+    assert.ok(Math.abs(resumo.body.estatisticas[campo].media - media) < 1e-9, campo);
+    assert.equal(resumo.body.estatisticas[campo].min, Math.min(...valores));
+    assert.equal(resumo.body.estatisticas[campo].max, Math.max(...valores));
+  }
+  // Leitura com sensor desconectado (-127) fica fora, como no histórico
+  assert.ok(resumo.body.estatisticas.temperatura.min > -127);
+  // Período maior que 1 dia: médias por dia de Brasília, do mais recente para o mais antigo
+  assert.equal(resumo.body.agrupamento, 'dia');
+  const diaBrasilia = d => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const porDia = new Map();
+  for (const d of historico) {
+    const dia = diaBrasilia(d.datahora);
+    porDia.set(dia, [...(porDia.get(dia) || []), d]);
+  }
+  assert.deepEqual(resumo.body.medias.map(m => m.periodo), [...porDia.keys()].sort().reverse());
+  for (const m of resumo.body.medias) {
+    const doDia = porDia.get(m.periodo);
+    assert.equal(m.leituras, doDia.length);
+    const media = doDia.reduce((soma, d) => soma + d.temperatura, 0) / doDia.length;
+    assert.ok(Math.abs(m.temperatura - media) < 1e-9);
+  }
+  // 1 dia: médias por hora, que somam todas as leituras do período
+  const diario = await request(`/parametros/relatorio/${pond}?dias=1`, { auth: token });
+  assert.equal(diario.body.agrupamento, 'hora');
+  assert.ok(diario.body.medias.every(m => /^\d{4}-\d{2}-\d{2} \d{2}:00$/.test(m.periodo)));
+  assert.equal(diario.body.medias.reduce((soma, m) => soma + m.leituras, 0), diario.body.total);
+
+  assert.equal((await request(`/parametros/relatorio/${pond}?dias=0`, { auth: token })).status, 400);
+  const vazio = await request(`/parametros/relatorio/${fixtures.cativeiros[1].id}?dias=1`, { auth: otherToken });
+  assert.equal(vazio.status, 200);
+  assert.equal(vazio.body.total, 0);
+  assert.deepEqual(vazio.body.medias, []);
+});
+
 test('leituras e SSE são isolados por fazenda e exigem autenticação', async () => {
-  for (const path of ['dashboard', 'atuais', 'historicos']) {
+  for (const path of ['dashboard', 'atuais', 'historicos', 'relatorio']) {
     assert.equal((await request(`/parametros/${path}/${fixtures.cativeiros[0].id}`, { auth: otherToken })).status, 403);
     assert.equal((await request(`/parametros/${path}/${fixtures.cativeiros[0].id}`)).status, 401);
   }

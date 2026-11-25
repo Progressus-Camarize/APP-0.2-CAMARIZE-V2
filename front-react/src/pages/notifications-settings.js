@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import MemberLayout from '../components/MemberLayout';
 import Notification from '../components/Notification';
 import { useNotifications } from '../hooks/useNotifications';
+import IconeParametro from '../components/IconeParametro';
 
 const STATUS_BADGE = {
   supported:   { text: 'Suportado',     color: '#10b981', bg: '#f0fdf4' },
@@ -49,9 +50,9 @@ function StatusItem({ label, badge, last }) {
 }
 
 const ALERT_ITEMS = [
-  { icon: '🌡️', text: 'Temperatura fora do intervalo ideal' },
-  { icon: '🧪', text: 'pH fora do intervalo ideal' },
-  { icon: '⚗️', text: 'Nível de amônia fora do intervalo ideal' },
+  { tipo: 'temperatura', cor: '#c2410c', text: 'Temperatura fora do intervalo ideal' },
+  { tipo: 'ph', cor: '#1d4ed8', text: 'pH fora do intervalo ideal' },
+  { tipo: 'amonia', cor: '#7e22ce', text: 'Nível de amônia fora do intervalo ideal' },
 ];
 
 export default function NotificationsSettings() {
@@ -244,9 +245,9 @@ export default function NotificationsSettings() {
               <p style={{ margin: '0 0 14px', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Quando você será alertado
               </p>
-              {ALERT_ITEMS.map(({ icon, text }) => (
+              {ALERT_ITEMS.map(({ tipo, cor, text }) => (
                 <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span style={{ fontSize: '1.1rem' }}>{icon}</span>
+                  <IconeParametro tipo={tipo} style={{ fontSize: '1.1rem', color: cor, flexShrink: 0 }} />
                   <span style={{ fontSize: '0.875rem', color: '#475569' }}>{text}</span>
                 </div>
               ))}
@@ -258,9 +259,9 @@ export default function NotificationsSettings() {
             <p style={{ margin: '0 0 14px', fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Quando você seria alertado
             </p>
-            {ALERT_ITEMS.map(({ icon, text }) => (
+            {ALERT_ITEMS.map(({ tipo, cor, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <span style={{ fontSize: '1.1rem' }}>{icon}</span>
+                <IconeParametro tipo={tipo} style={{ fontSize: '1.1rem', color: cor, flexShrink: 0 }} />
                 <span style={{ fontSize: '0.875rem', color: '#475569' }}>{text}</span>
               </div>
             ))}

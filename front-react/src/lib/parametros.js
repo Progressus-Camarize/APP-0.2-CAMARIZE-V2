@@ -1,14 +1,11 @@
 import axios from 'axios';
 
-export async function carregarHistorico(apiUrl, cativeiroId, dias, headers) {
-  const dados = [];
-  let pagina = 1;
-  while (pagina) {
-    const response = await axios.get(`${apiUrl}/parametros/historicos/${cativeiroId}`, {
-      headers, params: { dias, pagina, limite: 500 },
-    });
-    dados.push(...(response.data.dados || []));
-    pagina = response.data.proximaPagina;
-  }
-  return dados;
+// Resumo de um período para os relatórios: total de leituras, média/mín/máx de cada parâmetro e as
+// médias por hora (período de 1 dia) ou por dia. Calculado na API: a placa envia uma leitura a cada 5 s, e baixar o
+// período inteiro (GET /parametros/historicos, página a página) levava centenas de requisições no relatório mensal.
+export async function carregarResumoRelatorio(apiUrl, cativeiroId, dias, headers) {
+  const { data } = await axios.get(`${apiUrl}/parametros/relatorio/${cativeiroId}`, {
+    headers, params: { dias },
+  });
+  return data;
 }

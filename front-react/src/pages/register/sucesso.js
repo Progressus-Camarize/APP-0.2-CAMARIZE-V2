@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState, useEffect } from "react";
+import { TbCircleCheck, TbMail } from "react-icons/tb";
 
 export default function RegisterSucessoPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function RegisterSucessoPage() {
   return (
     <div className={styles.loginMobileWrapper}>
       <div className={styles.loginForm} style={{ maxWidth: '500px', textAlign: 'center' }}>
-        <div style={{ fontSize: '64px', marginBottom: '24px' }}>✅</div>
+        <TbCircleCheck aria-hidden="true" style={{ display: 'block', margin: '0 auto 24px', fontSize: '64px', color: '#16a34a' }} />
         <h2 className={styles.loginTitle}>Solicitação Enviada!</h2>
         
         <div style={{ 
@@ -51,7 +52,7 @@ export default function RegisterSucessoPage() {
           color: '#856404',
           textAlign: 'left'
         }}>
-          <p style={{ margin: '0 0 8px 0', fontWeight: '600' }}>📧 O que acontece agora?</p>
+          <p style={{ margin: '0 0 8px 0', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}><TbMail aria-hidden="true" /> O que acontece agora?</p>
           <ul style={{ margin: '0', paddingLeft: '20px' }}>
             <li>O Master receberá sua solicitação</li>
             <li>Você receberá um email quando seu cadastro for aprovado</li>

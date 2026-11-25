@@ -19,6 +19,8 @@ import { SolicitacaoCard, SolicitacoesFiltros, SolicitacoesVazio, cardStyles } f
 import Calibracoes from '../../components/Calibracoes';
 import DietasMaster from '../../components/DietasMaster';
 import ChaveDispositivo from '../../components/ChaveDispositivo';
+import IconeParametro from '../../components/IconeParametro';
+import { TbBroadcast } from 'react-icons/tb';
 
 export default function MasterPanel() {
   const authToken = useAuthToken();
@@ -1487,9 +1489,9 @@ export default function MasterPanel() {
 
       {tab === 'sensores' && (() => {
         const SENSOR_CFG = {
-          temperatura: { label: 'Temperatura', icon: '🌡️', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
-          ph:          { label: 'pH',          icon: '🧪', bg: '#eff6ff', stripe: '#3b82f6', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
-          amonia:      { label: 'Amônia',      icon: '⚗️', bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
+          temperatura: { label: 'Temperatura', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
+          ph:          { label: 'pH',          bg: '#eff6ff', stripe: '#3b82f6', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
+          amonia:      { label: 'Amônia',      bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
         };
         const countByType = { temperatura: 0, ph: 0, amonia: 0 };
         sensores.forEach(s => { const t = getSensorType(s); if (countByType[t] !== undefined) countByType[t]++; });
@@ -1516,7 +1518,7 @@ export default function MasterPanel() {
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
               {Object.entries(SENSOR_CFG).map(([key, cfg]) => (
                 <div key={key} style={{ flex: 1, minWidth: 120, background: cfg.bg, borderRadius: 12, padding: '12px 16px', border: `1px solid ${cfg.badgeBg}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{cfg.icon}</span>
+                  <IconeParametro tipo={key} style={{ fontSize: 22, color: cfg.badgeColor, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700, color: cfg.badgeColor, lineHeight: 1 }}>{countByType[key]}</div>
                     <div style={{ fontSize: '0.72rem', color: cfg.badgeColor, opacity: 0.8, marginTop: 2 }}>{cfg.label}</div>
@@ -1528,7 +1530,7 @@ export default function MasterPanel() {
 
           {sensores.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyStateIcon}>📡</div>
+              <div className={styles.emptyStateIcon}><TbBroadcast aria-hidden="true" /></div>
               <p className={styles.emptyStateText}>Nenhum sensor cadastrado ainda.</p>
             </div>
           ) : (
@@ -1545,8 +1547,8 @@ export default function MasterPanel() {
                     <div style={{ height: 4, background: cfg.stripe }} />
                     <div style={{ padding: '14px 16px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 12, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                          {cfg.icon}
+                        <div style={{ width: 44, height: 44, borderRadius: 12, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: cfg.badgeColor, flexShrink: 0 }}>
+                          <IconeParametro tipo={tipo} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1754,9 +1756,9 @@ export default function MasterPanel() {
               className={styles.userRowSelect}
               style={{ width: '100%' }}
             >
-              <option value="temperatura">🌡️ Temperatura</option>
-              <option value="ph">🧪 pH</option>
-              <option value="amonia">⚗️ Amônia</option>
+              <option value="temperatura">Temperatura</option>
+              <option value="ph">pH</option>
+              <option value="amonia">Amônia</option>
             </select>
           </div>
           <div>

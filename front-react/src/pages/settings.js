@@ -4,6 +4,7 @@ import axios from "axios";
 import MemberLayout from "../components/MemberLayout";
 import Notification from "../components/Notification";
 import SolicitarVinculo from "../components/SolicitarVinculo";
+import { TbBuildingWarehouse, TbSettings, TbBell, TbMail } from "react-icons/tb";
 
 
 
@@ -218,7 +219,7 @@ export default function Settings() {
     return (
       <MemberLayout title="Configurações" subtitle="Gerencie a fazenda e preferências do sistema">
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '48px 32px', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
-          <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.35 }}>🏡</div>
+          <TbBuildingWarehouse aria-hidden="true" style={{ display: 'block', margin: '0 auto 16px', fontSize: 40, color: '#94a3b8' }} />
           <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>Nenhuma fazenda encontrada</h3>
           <p style={{ margin: '0 0 16px', fontSize: '0.875rem', color: '#64748b', lineHeight: 1.6 }}>
             Este usuário ainda não está associado a nenhuma fazenda.
@@ -306,7 +307,7 @@ export default function Settings() {
           alignItems: 'center',
           gap: '12px'
         }}>
-          ⚙️ Configurações Avançadas
+          <TbSettings aria-hidden="true" style={{ color: '#64748b' }} /> Configurações Avançadas
         </h3>
         
         <div style={{
@@ -351,9 +352,10 @@ export default function Settings() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '20px'
+                fontSize: '20px',
+                color: '#1d4ed8'
               }}>
-                🔔
+                <TbBell aria-hidden="true" />
               </div>
               <div>
                 <div style={{
@@ -414,9 +416,10 @@ export default function Settings() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '20px'
+                fontSize: '20px',
+                color: '#b45309'
               }}>
-                📧
+                <TbMail aria-hidden="true" />
               </div>
               <div>
                 <div style={{

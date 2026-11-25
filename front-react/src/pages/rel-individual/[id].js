@@ -4,7 +4,10 @@ import axios from 'axios';
 import MemberLayout from '@/components/MemberLayout';
 import Modal from '@/components/Modal';
 import panelStyles from '@/styles/panel.module.css';
-import { carregarHistorico } from '@/lib/parametros';
+import IconeParametro from '@/components/IconeParametro';
+import { TbAlertTriangle, TbCalendarEvent, TbCalendarWeek, TbCalendarMonth, TbPrinter, TbDownload, TbInbox } from 'react-icons/tb';
+import { carregarResumoRelatorio } from '@/lib/parametros';
+import { formatarParametro } from '@/lib/formatar';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const PERIODO_MAP = {
@@ -14,21 +17,21 @@ const PERIODO_MAP = {
 };
 
 const PARAM_CFG = [
-  { key: 'temperatura', label: 'Temperatura', unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
-  { key: 'ph',          label: 'pH',           unit: '',      decimals: 1, icon: '🧪', stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
-  { key: 'amonia',      label: 'Amônia experimental', unit: '', decimals: 3, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+  { key: 'temperatura', label: 'Temperatura', unit: '°C',   stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
+  { key: 'ph',          label: 'pH',           unit: '',     stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
+  { key: 'amonia',      label: 'Amônia experimental', unit: 'mg/L', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
 ];
 
-function calcStats(dados, field) {
-  const vals = dados.map(d => d[field]).filter(v => typeof v === 'number');
-  if (!vals.length) return { avg: null, min: null, max: null };
-  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-  return { avg, min: Math.min(...vals), max: Math.max(...vals) };
-}
-
-function fmt(v, decimals, unit) {
-  if (v === null || v === undefined) return '—';
-  return `${v.toFixed(decimals)}${unit}`;
+// "2026-11-25 14:00" → "25/11, 14h–15h" (médias por hora) · "2026-11-25" → "ter, 25/11/2026" (por dia)
+function rotuloPeriodo(periodo, agrupamento) {
+  const [data, hora] = periodo.split(' ');
+  const [ano, mes, dia] = data.split('-');
+  if (agrupamento === 'hora') {
+    const h = Number(hora.slice(0, 2));
+    return `${dia}/${mes}, ${h}h–${(h + 1) % 24}h`;
+  }
+  const semana = new Date(Date.UTC(ano, mes - 1, dia)).toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '');
+  return `${semana}, ${dia}/${mes}/${ano}`;
 }
 
 export default function RelatorioIndividual() {
@@ -38,7 +41,11 @@ export default function RelatorioIndividual() {
   const relatorioRef = useRef();
 
   const [cativeiro, setCativeiro] = useState(null);
-  const [dados, setDados] = useState([]);
+  // Resumo calculado na API: total, estatísticas e médias por hora/dia (não o período inteiro)
+  const [resumo, setResumo] = useState(null);
+  const total = resumo?.total || 0;
+  const medias = resumo?.medias || [];
+  const porHora = resumo?.agrupamento === 'hora';
   const [periodo, setPeriodo] = useState(null);
   const [showPeriodoModal, setShowPeriodoModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -76,12 +83,12 @@ export default function RelatorioIndividual() {
       try {
         const token = getToken();
         const headers = { Authorization: `Bearer ${token}` };
-        const [cativRes, historico] = await Promise.all([
+        const [cativRes, resumoPeriodo] = await Promise.all([
           axios.get(`${apiUrl}/cativeiros/${id}`, { headers }),
-          carregarHistorico(apiUrl, id, info.dias, headers),
+          carregarResumoRelatorio(apiUrl, id, info.dias, headers),
         ]);
         setCativeiro(cativRes.data);
-        setDados(historico);
+        setResumo(resumoPeriodo);
       } catch (err) {
         setError(err.response?.status === 401
           ? 'Sessão expirada. Faça login novamente.'
@@ -137,18 +144,17 @@ export default function RelatorioIndividual() {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { key: 'dia',    label: '📅 Relatório Diário',  sub: 'Últimas 24h' },
-            { key: 'semana', label: '📊 Relatório Semanal', sub: 'Últimos 7 dias' },
-            { key: 'mes',    label: '📈 Relatório Mensal',  sub: 'Últimos 30 dias' },
-          ].map(({ key, label, sub }) => (
+            { key: 'dia',    label: 'Relatório Diário',  Icone: TbCalendarEvent, sub: 'Últimas 24h' },
+            { key: 'semana', label: 'Relatório Semanal', Icone: TbCalendarWeek,  sub: 'Últimos 7 dias' },
+            { key: 'mes',    label: 'Relatório Mensal',  Icone: TbCalendarMonth, sub: 'Últimos 30 dias' },
+          ].map(({ key, label, Icone, sub }) => (
             <button
               key={key}
               onClick={() => handlePeriodoSelect(key)}
-              className={`${panelStyles.btn} ${panelStyles.btnPrimary}`}
-              style={{ width: '100%', justifyContent: 'space-between', padding: '14px 18px', fontSize: '0.9rem' }}
+              className={`${panelStyles.btn} ${panelStyles.btnPeriodo}`}
             >
-              <span>{label}</span>
-              <span style={{ opacity: 0.75, fontSize: '0.8rem' }}>{sub}</span>
+              <span className={panelStyles.btnPeriodoTitulo}><Icone aria-hidden="true" />{label}</span>
+              <span className={panelStyles.btnPeriodoSub}>{sub}</span>
             </button>
           ))}
         </div>
@@ -181,19 +187,19 @@ export default function RelatorioIndividual() {
                 Trocar período
               </button>
             )}
-            {!loading && !error && dados.length > 0 && (
+            {!loading && !error && total > 0 && (
               <>
                 <button
                   className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
                   onClick={handlePrint}
                 >
-                  🖨️ Imprimir
+                  <TbPrinter aria-hidden="true" /> Imprimir
                 </button>
                 <button
                   className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
                   onClick={handleSavePDF}
                 >
-                  ⬇️ PDF
+                  <TbDownload aria-hidden="true" /> PDF
                 </button>
               </>
             )}
@@ -208,7 +214,7 @@ export default function RelatorioIndividual() {
 
         {!loading && error && (
           <div className={panelStyles.emptyState}>
-            <div className={panelStyles.emptyStateIcon}>⚠️</div>
+            <div className={panelStyles.emptyStateIcon}><TbAlertTriangle aria-hidden="true" /></div>
             <p className={panelStyles.emptyStateText}>{error}</p>
           </div>
         )}
@@ -237,7 +243,7 @@ export default function RelatorioIndividual() {
                       {periodoInfo.label}
                     </span>
                     <span style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
-                      {dados.length} leitura{dados.length !== 1 ? 's' : ''}
+                      {total.toLocaleString('pt-BR')} leitura{total !== 1 ? 's' : ''}
                     </span>
                   </div>
                 </div>
@@ -254,24 +260,24 @@ export default function RelatorioIndividual() {
                   </div>
                   <div className={panelStyles.paramGrid}>
                     {[
-                      { icon: '🌡️', label: 'Temperatura', value: cativeiro.condicoes_ideais.temp_ideal,   unit: '°C',    bg: '#fff7ed', badgeColor: '#c2410c' },
-                      { icon: '🧪', label: 'pH',           value: cativeiro.condicoes_ideais.ph_ideal,     unit: '',      bg: '#eff6ff', badgeColor: '#1d4ed8' },
-                      { icon: '⚗️', label: 'Meta de amônia (experimental)', value: cativeiro.condicoes_ideais.amonia_ideal, unit: '', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+                      { tipo: 'temperatura', label: 'Temperatura', value: cativeiro.condicoes_ideais.temp_ideal,   unit: '°C',    bg: '#fff7ed', badgeColor: '#c2410c' },
+                      { tipo: 'ph',          label: 'pH',           value: cativeiro.condicoes_ideais.ph_ideal,     unit: '',      bg: '#eff6ff', badgeColor: '#1d4ed8' },
+                      { tipo: 'amonia',      label: 'Meta de amônia (experimental)', value: cativeiro.condicoes_ideais.amonia_ideal, unit: 'mg/L', bg: '#fdf4ff', badgeColor: '#7e22ce' },
                     ].map((p) => (
                       <div
                         key={p.label}
                         className={panelStyles.paramItem}
                         style={{ display: 'flex', alignItems: 'center', gap: 12 }}
                       >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                          {p.icon}
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, color: p.badgeColor, flexShrink: 0 }}>
+                          <IconeParametro tipo={p.tipo} />
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             {p.label}
                           </div>
                           <div style={{ fontWeight: 700, fontSize: '1.2rem', color: p.badgeColor, lineHeight: 1.2, marginTop: 2 }}>
-                            {p.value != null ? `${p.value}${p.unit}` : '—'}
+                            {formatarParametro(p.tipo, p.value, { unidade: p.unit, casasFixas: false })}
                           </div>
                         </div>
                       </div>
@@ -281,9 +287,9 @@ export default function RelatorioIndividual() {
               </div>
             )}
 
-            {dados.length === 0 ? (
-              <div className={panelStyles.infoPanel}>
-                📭 Nenhuma leitura registrada no período selecionado. Os dados aparecem assim que os sensores enviarem leituras.
+            {total === 0 ? (
+              <div className={panelStyles.infoPanel} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <TbInbox aria-hidden="true" style={{ flexShrink: 0, fontSize: '1.1rem' }} /> Nenhuma leitura registrada no período selecionado. Os dados aparecem assim que os sensores enviarem leituras.
               </div>
             ) : (
               <>
@@ -296,25 +302,25 @@ export default function RelatorioIndividual() {
                     </div>
                     <div className={panelStyles.paramGrid}>
                       {PARAM_CFG.map((cfg) => {
-                        const stats = calcStats(dados, cfg.key);
+                        const stats = resumo.estatisticas[cfg.key];
                         return (
                           <div
                             key={cfg.key}
                             className={panelStyles.paramItem}
                             style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}
                           >
-                            <div style={{ width: 36, height: 36, borderRadius: 10, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                              {cfg.icon}
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, color: cfg.badgeColor, flexShrink: 0 }}>
+                              <IconeParametro tipo={cfg.key} />
                             </div>
                             <div>
                               <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 {cfg.label}
                               </div>
                               <div style={{ fontWeight: 700, fontSize: '1.2rem', color: cfg.badgeColor, lineHeight: 1.2, marginTop: 2 }}>
-                                {fmt(stats.avg, cfg.decimals, cfg.unit)}
+                                {formatarParametro(cfg.key, stats.media, { unidade: cfg.unit })}
                               </div>
                               <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 3 }}>
-                                Mín {fmt(stats.min, cfg.decimals, cfg.unit)} · Máx {fmt(stats.max, cfg.decimals, cfg.unit)}
+                                Mín {formatarParametro(cfg.key, stats.min, { unidade: cfg.unit })} · Máx {formatarParametro(cfg.key, stats.max, { unidade: cfg.unit })}
                               </div>
                             </div>
                           </div>
@@ -324,51 +330,50 @@ export default function RelatorioIndividual() {
                   </div>
                 </div>
 
-                {/* Tabela de leituras */}
+                {/* Médias por hora (relatório diário) ou por dia (semanal e mensal), calculadas na API */}
                 <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>Leituras do período</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{porHora ? 'Médias por hora' : 'Médias por dia'}</div>
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                      {dados.length} registro{dados.length !== 1 ? 's' : ''}
+                      {total.toLocaleString('pt-BR')} leitura{total !== 1 ? 's' : ''} no período
                     </span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                       <thead>
                         <tr style={{ background: '#f8fafc' }}>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>Data / Hora</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#f97316', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>🌡️ </span>Temp.</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#3b82f6', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>🧪 </span>pH</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#a855f7', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}>⚗️ </span>Amônia experimental</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', color: '#64748b', fontWeight: 600, borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>{porHora ? 'Hora' : 'Dia'}</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#64748b', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}>Leituras</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#f97316', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}><IconeParametro tipo="temperatura" /> </span>Temp.</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#3b82f6', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}><IconeParametro tipo="ph" /> </span>pH</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', color: '#a855f7', fontWeight: 600, borderBottom: '1px solid #f1f5f9' }}><span className={panelStyles.thIcon}><IconeParametro tipo="amonia" /> </span>Amônia experimental</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {[...dados].reverse().slice(0, 50).map((d, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                        {medias.map((m) => (
+                          <tr key={m.periodo} style={{ borderBottom: '1px solid #f8fafc' }}>
                             <td style={{ padding: '7px 16px', color: '#475569', whiteSpace: 'nowrap' }}>
-                              {new Date(d.datahora).toLocaleString('pt-BR', {
-                                day: '2-digit', month: '2-digit', year: '2-digit',
-                                hour: '2-digit', minute: '2-digit',
-                              })}
+                              {rotuloPeriodo(m.periodo, resumo.agrupamento)}
+                            </td>
+                            <td style={{ padding: '7px 16px', textAlign: 'right', color: '#94a3b8' }}>
+                              {m.leituras.toLocaleString('pt-BR')}
                             </td>
                             <td style={{ padding: '7px 16px', textAlign: 'right', color: '#1e293b', fontWeight: 500 }}>
-                              {fmt(d.temperatura, 1, '°C')}
+                              {formatarParametro('temperatura', m.temperatura, { unidade: '°C' })}
                             </td>
                             <td style={{ padding: '7px 16px', textAlign: 'right', color: '#1e293b', fontWeight: 500 }}>
-                              {fmt(d.ph, 1, '')}
+                              {formatarParametro('ph', m.ph)}
                             </td>
                             <td style={{ padding: '7px 16px', textAlign: 'right', color: '#1e293b', fontWeight: 500 }}>
-                              {fmt(d.amonia, 3, ' mg/L')}
+                              {formatarParametro('amonia', m.amonia, { unidade: 'mg/L' })}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                    {dados.length > 50 && (
-                      <div style={{ padding: '8px 16px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
-                        Exibindo as 50 leituras mais recentes de {dados.length} registros totais
-                      </div>
-                    )}
+                    <div style={{ padding: '8px 16px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
+                      {porHora ? 'Cada linha é a média das leituras daquela hora' : 'Cada linha é a média das leituras daquele dia'} (horário de Brasília). Horas e dias sem leitura não aparecem.
+                    </div>
                   </div>
                 </div>
               </>

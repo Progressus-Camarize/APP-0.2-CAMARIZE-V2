@@ -324,11 +324,14 @@
 
   .actions {
     width: 100%;
+    flex-wrap: wrap;
   }
 
+  /* Texto do botão numa linha só: sem espaço para os dois lado a lado, cada um ocupa a linha toda */
   .actions .btn {
-    flex: 1;
+    flex: 1 1 auto;
     justify-content: center;
+    white-space: nowrap;
   }
 }
 

@@ -25,6 +25,21 @@ const RECOVERY_RATIO = 0.6;
 // um aviso novo reflete dados novos, não o resto da variação que acabou de se encerrar.
 export const INTERVALO_REABRIR_MS = 30 * 60_000;
 const round = value => Number(value.toFixed(3));
+
+// Números nas mensagens dos avisos, no padrão brasileiro (vírgula decimal): a mensagem é salva e vai
+// igual para a tela, o push e o e-mail. Temperatura e pH com 1 casa, amônia com 2.
+const CASAS_DECIMAIS = { temperatura: 1, ph: 1, amonia: 2 };
+export function formatarValor(tipo, valor, { casasFixas = true } = {}) {
+  const casas = CASAS_DECIMAIS[tipo] ?? 1;
+  return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: casasFixas ? casas : 0, maximumFractionDigits: casas });
+}
+// Limite configurado: sem zeros à toa ("30 °C", não "30,0 °C")
+const formatarLimite = (tipo, valor) => formatarValor(tipo, valor, { casasFixas: false });
+// Avisos salvos antes da formatação acima traziam números como "28.457": reescreve só os números
+// e "Medição experimental: Confira" com maiúscula no meio da frase
+export const ajustarTextoDaMensagem = (mensagem, tipo) =>
+  mensagem.replace(/\d+\.\d+/g, n => formatarValor(tipo, Number(n)))
+    .replace('Medição experimental: Confira', 'Medição experimental: confira');
 const mean = values => values.reduce((sum, n) => sum + n, 0) / values.length;
 
 // As regras analisam médias por janela de tempo, não leituras brutas: assim valem para qualquer
@@ -92,8 +107,8 @@ export function evaluate(readings, bounds = {}, now = new Date()) {
     const direcao = delta > 0 ? 'aumento' : 'queda';
     const label = tipo === 'temperatura' ? 'Temperatura' : tipo === 'ph' ? 'pH' : 'Amônia';
     const mensagem = tipo === 'temperatura'
-      ? `Temperatura se aproxima do limite de ${limite} °C (${round(base)} → ${round(current)} °C). Confira o sensor e a água.`
-      : `${label} apresenta ${direcao} persistente (${round(base)} → ${round(current)}).${tipo === 'amonia' ? ' Medição experimental:' : ''} Confira o sensor e a água.`;
+      ? `Temperatura se aproxima do limite de ${formatarLimite(tipo, limite)} °C (${formatarValor(tipo, base)} → ${formatarValor(tipo, current)} °C). Confira o sensor e a água.`
+      : `${label} apresenta ${direcao} persistente (${formatarValor(tipo, base)} → ${formatarValor(tipo, current)}).${tipo === 'amonia' ? ' Medição experimental: confira' : ' Confira'} o sensor e a água.`;
     // Só a amônia é medição experimental (sensor sem calibração); pH só gera aviso com calibração (processReading)
     motivos.push({ tipo, mensagem, experimental: tipo === 'amonia', periodoInicio: recent[0].datahora,
       periodoFim: recent.at(-1).datahora, valorInicial: round(base), valorAtual: round(current), limite, direcao });
@@ -166,7 +181,7 @@ export function projectTrend(readings, bounds = {}, now = new Date()) {
     const label = tipo === 'temperatura' ? 'Temperatura' : tipo === 'ph' ? 'pH' : 'Amônia';
     const horas = Math.max(1, Math.round(horasAteCruzar));
     const mensagem = tipo === 'temperatura'
-      ? `Tendência indica que a temperatura deve atingir ${limite} °C em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`
+      ? `Tendência indica que a temperatura deve atingir ${formatarLimite(tipo, limite)} °C em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`
       : `Tendência indica ${direcao} persistente de ${label.toLowerCase()} que deve ultrapassar o limite configurado em ~${horas}h, se o padrão atual continuar. Projeção baseada no histórico recente: confira o sensor e a água.`;
     motivos.push({ tipo, mensagem, experimental: tipo === 'amonia', periodoInicio: ordered[0].datahora, periodoFim: now,
       valorInicial: current, valorAtual: projetado, limite, direcao, preditivo: true });
@@ -336,9 +351,9 @@ export function mensagemRetroativa(motivo) {
   const periodo = diaBrasilia(ini) === diaBrasilia(fim)
     ? `${diaBrasilia(ini)}, ${horaBrasilia(ini)}–${horaBrasilia(fim)}`
     : `${diaBrasilia(ini)} ${horaBrasilia(ini)} a ${diaBrasilia(fim)} ${horaBrasilia(fim)}`;
-  const valores = `${motivo.valorInicial} → ${motivo.valorAtual}`;
+  const valores = `${formatarValor(motivo.tipo, motivo.valorInicial)} → ${formatarValor(motivo.tipo, motivo.valorAtual)}`;
   const oQue = motivo.tipo === 'temperatura'
-    ? `a temperatura chegou perto do limite de ${motivo.limite} °C (${valores} °C)`
+    ? `a temperatura chegou perto do limite de ${formatarLimite(motivo.tipo, motivo.limite)} °C (${valores} °C)`
     : `${NOME_PARAMETRO[motivo.tipo]} teve ${motivo.direcao} persistente (${valores})${motivo.tipo === 'amonia' ? ', medição experimental' : ''}`;
   return `Durante a falta de conexão (${periodo}), ${oQue}. Verifique o cativeiro agora para ver se normalizou.`;
 }

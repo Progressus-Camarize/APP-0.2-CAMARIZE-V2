@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router';
 import styles from './AuthError.module.css';
+import { TbAlertTriangle } from 'react-icons/tb';
 
 export default function AuthError({ error, onRetry }) {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function AuthError({ error, onRetry }) {
       
       <div className={styles.errorContent}>
         <div className={styles.errorIcon}>
-          <span>⚠️</span>
+          <TbAlertTriangle aria-hidden="true" />
         </div>
         <h2 className={styles.errorTitle}>
           Acesso Restrito

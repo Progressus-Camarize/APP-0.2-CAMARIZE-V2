@@ -3,14 +3,16 @@ import axios from 'axios';
 import MemberLayout from '../components/MemberLayout';
 import Notification from '../components/Notification';
 import styles from '../styles/panel.module.css';
+import IconeParametro from '../components/IconeParametro';
+import { TbAlertTriangle, TbBroadcast } from 'react-icons/tb';
 
 const SENSOR_CFG = {
-  temperatura: { label: 'Temperatura', icon: '🌡️', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
-  ph:          { label: 'pH',          icon: '🧪', bg: '#eff6ff', stripe: '#3b82f6', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
-  amonia:      { label: 'Amônia',      icon: '⚗️', bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
+  temperatura: { label: 'Temperatura', bg: '#fff7ed', stripe: '#f97316', badgeBg: '#ffedd5', badgeColor: '#c2410c' },
+  ph:          { label: 'pH',          bg: '#eff6ff', stripe: '#3b82f6', badgeBg: '#dbeafe', badgeColor: '#1d4ed8' },
+  amonia:      { label: 'Amônia',      bg: '#fdf4ff', stripe: '#a855f7', badgeBg: '#f3e8ff', badgeColor: '#7e22ce' },
 };
 
-const DEFAULT_CFG = { label: 'Sensor', icon: '📡', bg: '#f8fafc', stripe: '#94a3b8', badgeBg: '#f1f5f9', badgeColor: '#475569' };
+const DEFAULT_CFG = { label: 'Sensor', bg: '#f8fafc', stripe: '#94a3b8', badgeBg: '#f1f5f9', badgeColor: '#475569' };
 
 function normalizeTipo(raw) {
   const s = String(raw || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -138,7 +140,7 @@ export default function SensoresPage() {
     return (
       <MemberLayout title="Sensores" subtitle="Sensores conectados aos seus cativeiros">
         <div className={styles.emptyState}>
-          <div className={styles.emptyStateIcon}>⚠️</div>
+          <div className={styles.emptyStateIcon}><TbAlertTriangle aria-hidden="true" /></div>
           <p className={styles.emptyStateText}>{error}</p>
         </div>
       </MemberLayout>
@@ -186,7 +188,7 @@ export default function SensoresPage() {
                   boxShadow: tipoFiltro === key ? `0 0 0 2px ${cfg.stripe}` : 'none',
                 }}
               >
-                <span style={{ fontSize: 22 }}>{cfg.icon}</span>
+                <IconeParametro tipo={key} style={{ fontSize: 22, color: cfg.badgeColor, flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: '1.1rem', fontWeight: 700, color: cfg.badgeColor, lineHeight: 1 }}>
                     {countByType[key]}
@@ -244,7 +246,7 @@ export default function SensoresPage() {
                       transition: 'all 0.15s',
                     }}
                   >
-                    {cfg ? `${cfg.icon} ${label}` : label}
+                    {cfg && <IconeParametro tipo={key} />}{label}
                   </button>
                 );
               })}
@@ -271,7 +273,7 @@ export default function SensoresPage() {
         {/* Lista de sensores */}
         {lista.length === 0 ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyStateIcon}>📡</div>
+            <div className={styles.emptyStateIcon}><TbBroadcast aria-hidden="true" /></div>
             <p className={styles.emptyStateText}>
               {sensores.length === 0
                 ? 'Nenhum sensor vinculado aos seus cativeiros.'
@@ -306,9 +308,9 @@ export default function SensoresPage() {
                         width: 44, height: 44, borderRadius: 12,
                         background: cfg.bg, display: 'flex',
                         alignItems: 'center', justifyContent: 'center',
-                        fontSize: 22, flexShrink: 0,
+                        fontSize: 22, color: cfg.badgeColor, flexShrink: 0,
                       }}>
-                        {cfg.icon}
+                        <IconeParametro tipo={sensor.tipoKey} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{

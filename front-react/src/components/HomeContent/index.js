@@ -9,6 +9,8 @@ import Modal from '../Modal';
 import GuidedTour from "../GuidedTour";
 import SolicitarVinculo from "../SolicitarVinculo";
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
+import IconeParametro from "../IconeParametro";
+import { TbTool, TbInfoCircle, TbChartLine, TbCircleCheck } from "react-icons/tb";
 
 const gramasBr = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
@@ -66,14 +68,14 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
         setLoading(false);
         return;
       }
+      // Ração de hoje de cada cativeiro: sai junto com a lista (não espera por ela) e não a bloqueia se falhar
+      axios.get(`${apiUrl}/alimentacoes/hoje`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => setRacaoHoje(r.data?.cativeiros || {}))
+        .catch(() => setRacaoHoje({}));
       const res = await axios.get(`${apiUrl}/cativeiros`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCativeiros(res.data);
-      // Ração de hoje de cada cativeiro: não bloqueia a lista se falhar
-      axios.get(`${apiUrl}/alimentacoes/hoje`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => setRacaoHoje(r.data?.cativeiros || {}))
-        .catch(() => setRacaoHoje({}));
     } catch (err) {
       console.error('Erro ao buscar cativeiros:', err);
       if (err.response?.status === 401) {
@@ -247,7 +249,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
                     {role !== 'membro' && (
                       <button className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`} onClick={() => router.push('/create-cativeiros')}>+ Cadastrar cativeiro</button>
                     )}
-                    <button className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`} onClick={() => router.push('/sensores')}>🔧 Gerenciar sensores</button>
+                    <button className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`} onClick={() => router.push('/sensores')}><TbTool aria-hidden="true" /> Gerenciar sensores</button>
                   </div>
                 </div>
               );
@@ -434,9 +436,12 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             margin: '0 0 12px 0',
             fontSize: '18px',
             fontWeight: '600',
-            color: '#1f2937'
+            color: '#1f2937',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            🦐 O que é o Camarize?
+            <TbInfoCircle aria-hidden="true" style={{ flexShrink: 0, color: '#64748b' }} /> O que é o Camarize?
           </h3>
           <p style={{
             margin: 0,
@@ -456,9 +461,12 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             margin: '0 0 12px 0',
             fontSize: '18px',
             fontWeight: '600',
-            color: '#1f2937'
+            color: '#1f2937',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            📊 Por que monitorar estes parâmetros?
+            <TbChartLine aria-hidden="true" style={{ flexShrink: 0, color: '#64748b' }} /> Por que monitorar estes parâmetros?
           </h3>
           <p style={{
             margin: '0 0 16px 0',
@@ -488,7 +496,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               gap: '8px',
               marginBottom: '8px'
             }}>
-              <span style={{ fontSize: '20px' }}>🌡️</span>
+              <IconeParametro tipo="temperatura" style={{ fontSize: '20px', color: '#92400e', flexShrink: 0 }} />
               <h4 style={{
                 margin: 0,
                 fontSize: '16px',
@@ -523,7 +531,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               gap: '8px',
               marginBottom: '8px'
             }}>
-              <span style={{ fontSize: '20px' }}>🧪</span>
+              <IconeParametro tipo="ph" style={{ fontSize: '20px', color: '#1e40af', flexShrink: 0 }} />
               <h4 style={{
                 margin: 0,
                 fontSize: '16px',
@@ -558,7 +566,7 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
               gap: '8px',
               marginBottom: '8px'
             }}>
-              <span style={{ fontSize: '20px' }}>⚗️</span>
+              <IconeParametro tipo="amonia" style={{ fontSize: '20px', color: '#be185d', flexShrink: 0 }} />
               <h4 style={{
                 margin: 0,
                 fontSize: '16px',
@@ -592,9 +600,12 @@ export default function HomeContent({ sidebarRefs, hideTour = false }) {
             margin: '0 0 12px 0',
             fontSize: '16px',
             fontWeight: '600',
-            color: '#166534'
+            color: '#166534',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            ✅ Benefícios do Monitoramento
+            <TbCircleCheck aria-hidden="true" style={{ flexShrink: 0 }} /> Benefícios do Monitoramento
           </h4>
           <ul style={{
             margin: 0,

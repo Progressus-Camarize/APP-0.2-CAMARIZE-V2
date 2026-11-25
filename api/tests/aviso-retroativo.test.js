@@ -8,7 +8,7 @@ import Aviso, { INDICE_AVISO_ATIVO_ANTIGO } from '../models/Aviso.js';
 import Cativeiros from '../models/Cativeiros.js';
 import ParametrosAtuais from '../models/Parametros_atuais.js';
 import { avaliarPeriodo, mensagemRetroativa, processReading } from '../services/avisoService.js';
-import { migrarAvisoRetroativo } from '../services/migracoes.js';
+import { migrarAvisoRetroativo, migrarTextoDosAvisos } from '../services/migracoes.js';
 import { connectTestDatabase, dropTestDatabase, password, seedFixtures } from './fixtures.js';
 
 process.env.NODE_ENV = 'test';
@@ -24,6 +24,8 @@ let fixtures;
 let token;
 
 const MIN = 60_000;
+// pH na mensagem: vírgula decimal e 1 casa
+const phBr = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 async function request(path, { method = 'GET', body, headers = {} } = {}) {
   const response = await fetch(`${baseURL}${path}`, {
@@ -109,11 +111,11 @@ test('mensagem diz quando foi e pede para verificar o cativeiro agora', () => {
   const inicio = new Date('2026-11-24T17:10:00Z');
   const mensagem = mensagemRetroativa({ tipo: 'ph', direcao: 'queda', valorInicial: 7.8, valorAtual: 7.3,
     periodoInicio: inicio, periodoFim: new Date('2026-11-24T18:40:00Z') });
-  assert.equal(mensagem, 'Durante a falta de conexão (24/11, 14:10–15:40), o pH teve queda persistente (7.8 → 7.3). '
+  assert.equal(mensagem, 'Durante a falta de conexão (24/11, 14:10–15:40), o pH teve queda persistente (7,8 → 7,3). '
     + 'Verifique o cativeiro agora para ver se normalizou.');
   const temperatura = mensagemRetroativa({ tipo: 'temperatura', limite: 30, valorInicial: 28, valorAtual: 29.7,
     periodoInicio: new Date('2026-11-24T02:50:00Z'), periodoFim: new Date('2026-11-24T03:20:00Z') });
-  assert.match(temperatura, /^Durante a falta de conexão \(23\/11 23:50 a 24\/11 00:20\), a temperatura chegou perto do limite de 30 °C/);
+  assert.match(temperatura, /^Durante a falta de conexão \(23\/11 23:50 a 24\/11 00:20\), a temperatura chegou perto do limite de 30 °C \(28,0 → 29,7 °C\)/);
 });
 
 test('lote com pH fora do esperado abre um aviso retroativo; o lote seguinte da mesma queda estende o mesmo aviso', async () => {
@@ -132,8 +134,11 @@ test('lote com pH fora do esperado abre um aviso retroativo; o lote seguinte da 
   assert.equal(aviso.estado, 'ativo');
   assert.equal(aviso.preditivo, false);
   assert.equal(aviso.pushStatus, 'pendente');
-  // As médias de 5 min seguem o relógio: a janela da mudança mistura os dois valores (ex.: 7.333)
-  assert.match(aviso.mensagem, /^Durante a falta de conexão \(.+\), o pH teve queda persistente \(7\.8 → 7\.3\d*\)\. Verifique o cativeiro agora para ver se normalizou\.$/);
+  // As médias de 5 min seguem o relógio: a janela da mudança mistura os dois valores (ex.: 7.333).
+  // Por isso o teste confere a faixa dos valores e que a mensagem mostra exatamente os salvos, formatados.
+  assert.ok(aviso.valorInicial > aviso.valorAtual && aviso.valorInicial <= 7.8 && aviso.valorAtual >= 7.3);
+  assert.match(aviso.mensagem, /^Durante a falta de conexão \(.+\), o pH teve queda persistente \(\d,\d → \d,\d\)\. Verifique o cativeiro agora para ver se normalizou\.$/);
+  assert.ok(aviso.mensagem.includes(`(${phBr(aviso.valorInicial)} → ${phBr(aviso.valorAtual)})`), aviso.mensagem);
   // O período fica dentro da queda (a janela das regras não puxa leituras de antes dela)
   assert.ok(aviso.periodoInicio.getTime() >= primeira[0].ts * 1000);
 
@@ -144,7 +149,7 @@ test('lote com pH fora do esperado abre um aviso retroativo; o lote seguinte da 
   assert.equal(estendido.length, 1);
   assert.ok(estendido[0].periodoFim > aviso.periodoFim);
   assert.ok(estendido[0].valorAtual < 6.8, `valorAtual ${estendido[0].valorAtual}`);
-  assert.match(estendido[0].mensagem, /\(7\.3\d* → 6\.7\d*\)/);
+  assert.ok(estendido[0].mensagem.includes(`(${phBr(estendido[0].valorInicial)} → ${phBr(estendido[0].valorAtual)})`), estendido[0].mensagem);
 
   // A placa reenviou o primeiro lote: nada de aviso novo
   assert.equal((await enviarLote(viveiro, primeira)).status, 200);
@@ -221,4 +226,23 @@ test('migração: remove o índice antigo de avisos ativos e marca avisos antigo
   assert.ok(!indices.includes(INDICE_AVISO_ATIVO_ANTIGO));
   assert.ok(indices.includes('cativeiro_1_tipo_1_preditivo_1_retroativo_1'));
   assert.equal((await Aviso.findById(antigo.insertedId).lean()).retroativo, false);
+});
+
+test('migração: avisos salvos passam a ter números no formato brasileiro', async () => {
+  const cativeiro = fixtures.cativeiros[1]._id;
+  const base = { cativeiro, estado: 'recuperado', periodoInicio: new Date(), periodoFim: new Date(), preditivo: false, retroativo: false };
+  const { insertedIds } = await Aviso.collection.insertMany([
+    { ...base, tipo: 'temperatura', mensagem: 'Temperatura se aproxima do limite de 30 °C (28.457 → 29.1 °C). Confira o sensor e a água.' },
+    { ...base, tipo: 'amonia', mensagem: 'Amônia apresenta aumento persistente (0.123 → 0.4). Medição experimental: Confira o sensor e a água.' },
+    { ...base, tipo: 'sensor_inativo', mensagem: 'Sensor sem leitura autenticada há cerca de 3h.' },
+  ]);
+
+  await migrarTextoDosAvisos();
+  // Pode rodar de novo em todo boot
+  await migrarTextoDosAvisos();
+
+  const mensagem = async i => (await Aviso.findById(insertedIds[i]).lean()).mensagem;
+  assert.equal(await mensagem(0), 'Temperatura se aproxima do limite de 30 °C (28,5 → 29,1 °C). Confira o sensor e a água.');
+  assert.equal(await mensagem(1), 'Amônia apresenta aumento persistente (0,12 → 0,40). Medição experimental: confira o sensor e a água.');
+  assert.equal(await mensagem(2), 'Sensor sem leitura autenticada há cerca de 3h.');
 });

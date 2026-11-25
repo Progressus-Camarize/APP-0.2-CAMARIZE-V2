@@ -40,8 +40,9 @@
   margin: 0 auto 16px auto;
 }
 
-.errorIcon span {
+.errorIcon svg {
   font-size: 32px;
+  color: #b45309;
 }
 
 .errorTitle {

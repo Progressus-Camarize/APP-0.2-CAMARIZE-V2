@@ -413,6 +413,81 @@ const getParametrosHistoricos = async (req, res) => {
   }
 };
 
+// GET /parametros/relatorio/:cativeiroId?dias=N — resumo do período para os relatórios.
+// A placa envia uma leitura a cada 5 s (~17 mil por dia): em vez de devolver todas as leituras para o
+// navegador calcular, o MongoDB calcula total, média, mínimo e máximo e as médias por hora (período de
+// 1 dia) ou por dia (períodos maiores), no horário de Brasília, numa passada só sobre as leituras.
+const FUSO_RELATORIO = 'America/Sao_Paulo';
+const estatistica = (r, campo) => (r && r[`${campo}Media`] !== null && r[`${campo}Media`] !== undefined
+  ? { media: r[`${campo}Media`], min: r[`${campo}Min`], max: r[`${campo}Max`] }
+  : { media: null, min: null, max: null });
+
+const getResumoRelatorio = async (req, res) => {
+  try {
+    const { cativeiroId } = req.params;
+    const days = Number(req.query.dias ?? 7);
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      return res.status(400).json({ error: 'Período inválido' });
+    }
+
+    const access = await cativeiroController.assertCativeiroAccess(cativeiroId, req.loggedUser.id, req.loggedUser.role);
+    if (access === null) return res.status(404).json({ error: 'Cativeiro não encontrado.' });
+    if (access === false) return res.status(403).json({ error: 'Acesso negado.' });
+
+    const desde = new Date();
+    desde.setDate(desde.getDate() - days);
+    const agrupamento = days === 1 ? 'hora' : 'dia';
+    // "2026-11-25 14:00" (hora) ou "2026-11-25" (dia), no horário de Brasília
+    const formato = agrupamento === 'hora' ? '%Y-%m-%d %H:00' : '%Y-%m-%d';
+
+    const [cativeiro, [resultado]] = await Promise.all([
+      Cativeiros.findById(cativeiroId).select('nome').lean(),
+      ParametrosAtuais.aggregate([
+        { $match: { id_cativeiro: new mongoose.Types.ObjectId(cativeiroId), ...VALID_READING_FILTER, datahora: { $gte: desde } } },
+        { $facet: {
+          totais: [{ $group: {
+            _id: null,
+            total: { $sum: 1 },
+            temperaturaMedia: { $avg: '$temp_atual' }, temperaturaMin: { $min: '$temp_atual' }, temperaturaMax: { $max: '$temp_atual' },
+            phMedia: { $avg: '$ph_atual' }, phMin: { $min: '$ph_atual' }, phMax: { $max: '$ph_atual' },
+            amoniaMedia: { $avg: '$amonia_atual' }, amoniaMin: { $min: '$amonia_atual' }, amoniaMax: { $max: '$amonia_atual' },
+          } }],
+          medias: [
+            { $group: {
+              _id: { $dateToString: { format: formato, date: '$datahora', timezone: FUSO_RELATORIO } },
+              leituras: { $sum: 1 },
+              temperatura: { $avg: '$temp_atual' }, ph: { $avg: '$ph_atual' }, amonia: { $avg: '$amonia_atual' },
+            } },
+            { $sort: { _id: -1 } },
+          ],
+        } },
+      ]),
+    ]);
+    if (!cativeiro) return res.status(404).json({ error: 'Cativeiro não encontrado.' });
+
+    const totais = resultado?.totais?.[0];
+    res.json({
+      cativeiro: { id: cativeiro._id, nome: cativeiro.nome },
+      dias: days,
+      desde,
+      total: totais?.total || 0,
+      estatisticas: {
+        temperatura: estatistica(totais, 'temperatura'),
+        ph: estatistica(totais, 'ph'),
+        amonia: estatistica(totais, 'amonia'),
+      },
+      agrupamento,
+      // Da hora/dia mais recente para o mais antigo; só os que têm leitura
+      medias: (resultado?.medias || []).map(m => ({
+        periodo: m._id, leituras: m.leituras, temperatura: m.temperatura, ph: m.ph, amonia: m.amonia,
+      })),
+    });
+  } catch (error) {
+    console.error('Erro ao montar resumo do relatório:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+};
+
 // Busca os dados do dashboard para um cativeiro — reutilizada por REST e SSE
 async function fetchDashboardData(cativeiroId) {
   const dataLimite = new Date();
@@ -571,6 +646,7 @@ export {
   getThresholdSuggestions,
   getParametrosAtuais,
   getParametrosHistoricos,
+  getResumoRelatorio,
   getDadosDashboard,
   streamDashboard
 };

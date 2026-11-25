@@ -5,6 +5,7 @@ import MemberLayout from "@/components/MemberLayout";
 import Modal from "@/components/Modal";
 import Notification from "@/components/Notification";
 import panelStyles from "@/styles/panel.module.css";
+import IconeParametro from "@/components/IconeParametro";
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 import { rotaListaDeCativeiros } from "@/components/Sidebar/menus";
 
@@ -151,12 +152,12 @@ export default function EditCativeiroPage() {
               {cativeiro?.condicoes_ideais && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                   {[
-                    { label: '🌡️', value: cativeiro.condicoes_ideais.temp_ideal, unit: '°C' },
-                    { label: '🧪', value: cativeiro.condicoes_ideais.ph_ideal, unit: '' },
-                    { label: '⚗️', value: cativeiro.condicoes_ideais.amonia_ideal, unit: ' mg/L' },
+                    { tipo: 'temperatura', label: 'Temperatura', value: cativeiro.condicoes_ideais.temp_ideal, unit: '°C' },
+                    { tipo: 'ph', label: 'pH', value: cativeiro.condicoes_ideais.ph_ideal, unit: '' },
+                    { tipo: 'amonia', label: 'Amônia', value: cativeiro.condicoes_ideais.amonia_ideal, unit: ' mg/L' },
                   ].filter(p => p.value != null).map(p => (
-                    <span key={p.label} style={{ background: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
-                      {p.label} {p.value}{p.unit}
+                    <span key={p.tipo} title={p.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: 6, fontWeight: 500 }}>
+                      <IconeParametro tipo={p.tipo} style={{ fontSize: 13 }} /> {p.value}{p.unit}
                     </span>
                   ))}
                 </div>

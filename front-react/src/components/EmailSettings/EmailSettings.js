@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { TbCircleCheck, TbCircleX, TbMail } from 'react-icons/tb';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -186,8 +187,14 @@ export default function EmailSettings() {
           color: message.type === 'success' ? '#065f46' : '#991b1b',
           border: `1px solid ${message.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
           fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
         }}>
-          {message.type === 'success' ? '✅' : '❌'} {message.text}
+          {message.type === 'success'
+            ? <TbCircleCheck aria-hidden="true" style={{ flexShrink: 0, fontSize: '18px' }} />
+            : <TbCircleX aria-hidden="true" style={{ flexShrink: 0, fontSize: '18px' }} />}
+          {message.text}
         </div>
       )}
 
@@ -333,6 +340,9 @@ export default function EmailSettings() {
         <button
           onClick={handleTestEmail}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
             padding: '12px 20px',
             borderRadius: '10px',
             border: '1px solid #d1d5db',
@@ -344,7 +354,7 @@ export default function EmailSettings() {
             transition: 'background 0.2s',
           }}
         >
-          📧 Testar Email
+          <TbMail aria-hidden="true" /> Testar Email
         </button>
       </div>
     </div>

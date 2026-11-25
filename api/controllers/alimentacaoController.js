@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Alimentacoes from "../models/Alimentacoes.js";
+import Cativeiros from "../models/Cativeiros.js";
 import cativeiroController from "./cativeiroController.js";
 import cativeiroService from "../services/cativeiroService.js";
 import { verificarChaveDispositivo } from "../services/deviceAuthService.js";
@@ -76,10 +77,11 @@ const listarAlimentacoes = async (req, res) => {
 const resumoDeHoje = async (req, res) => {
   try {
     const { id, role } = req.loggedUser;
-    const cativeiros = role === "master"
-      ? await cativeiroService.getAll()
-      : await cativeiroService.getAllByUsuarioViaRelacionamentos(id);
-    const resumos = await resumoAlimentacaoDoDia(cativeiros.map(c => c._id));
+    // Só os ids: carregar os cativeiros completos (com fazendas e populates) deixava a Home lenta
+    const cativeiroIds = role === "master"
+      ? await Cativeiros.distinct("_id")
+      : await cativeiroService.getIdsByUsuario(id);
+    const resumos = await resumoAlimentacaoDoDia(cativeiroIds);
     return res.json({ data: hojeEmBrasilia(), cativeiros: Object.fromEntries(resumos) });
   } catch (err) {
     console.error("Erro ao resumir alimentações de hoje:", err);

@@ -50,7 +50,7 @@ test('sensor → banco → dashboard ao vivo e acesso direto ao relatório', asy
   await expect(page.getByText(/31[.,]7/).first()).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: '⬇️ PDF', exact: true }).click(),
+    page.getByRole('button', { name: 'PDF', exact: true }).click(),
   ]);
   const pdf = await readFile(await download.path());
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
@@ -86,7 +86,7 @@ test('leitura autenticada → aviso no dashboard e em Notificações', async ({ 
     });
     expect(response.status()).toBe(201);
   }
-  await expect(page.getByText('Aviso ativo').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /avisos? ativos?/i })).toBeVisible();
   await expect(page.getByText(/sem calibração/i).first()).toBeVisible();
   await page.goto('/notifications');
   await expect(page.getByText(/mudança|aumento persistente/).first()).toBeVisible();

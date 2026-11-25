@@ -1,9 +1,25 @@
 import Aviso, { INDICE_AVISO_ATIVO_ANTIGO } from '../models/Aviso.js';
+import { ajustarTextoDaMensagem } from './avisoService.js';
 
 // Ajustes no banco que o Mongoose não faz sozinho. Rodam no boot da API e podem rodar
 // várias vezes sem efeito (cada passo confere se ainda é necessário).
 export async function executarMigracoes() {
   await migrarAvisoRetroativo();
+  await migrarTextoDosAvisos();
+}
+
+// Avisos salvos antes da formatação brasileira traziam números como "28.457 → 29.1": reescreve
+// esses números com vírgula e as casas do parâmetro. Só pega mensagens que ainda precisam de ajuste.
+export async function migrarTextoDosAvisos() {
+  const antigos = await Aviso.find({ tipo: { $in: ['temperatura', 'ph', 'amonia'] }, $or: [{ mensagem: /\d\.\d/ }, { mensagem: /Medição experimental: Confira/ }] })
+    .select('tipo mensagem').lean();
+  const operacoes = antigos
+    .map(a => ({ _id: a._id, mensagem: ajustarTextoDaMensagem(a.mensagem, a.tipo), antiga: a.mensagem }))
+    .filter(a => a.mensagem !== a.antiga)
+    .map(a => ({ updateOne: { filter: { _id: a._id }, update: { $set: { mensagem: a.mensagem } } } }));
+  if (!operacoes.length) return;
+  await Aviso.bulkWrite(operacoes, { ordered: false });
+  console.log(`Migração: texto de ${operacoes.length} aviso(s) ajustado (números no formato brasileiro)`);
 }
 
 // O aviso retroativo (queda de conexão) entrou no índice único de avisos ativos. O Mongoose cria

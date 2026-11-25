@@ -1,5 +1,5 @@
 import express from "express";
-import { cadastrarParametros, cadastrarLoteParametros, provisionDevice, getDeviceCredentialHistory, updateTemperatureLimits, updateSensitivityLimits, getThresholdSuggestions, getParametrosAtuais, getParametrosHistoricos, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
+import { cadastrarParametros, cadastrarLoteParametros, provisionDevice, getDeviceCredentialHistory, updateTemperatureLimits, updateSensitivityLimits, getThresholdSuggestions, getParametrosAtuais, getParametrosHistoricos, getResumoRelatorio, getDadosDashboard, streamDashboard } from "../controllers/parametrosController.js";
 import Auth from "../middleware/Auth.js";
 
 const router = express.Router();
@@ -588,6 +588,71 @@ router.get("/atuais/:cativeiroId", Auth.Authorization, getParametrosAtuais);
  *               $ref: '#/components/schemas/Error'
  */
 router.get("/historicos/:cativeiroId", Auth.Authorization, getParametrosHistoricos);
+
+/**
+ * @swagger
+ * /parametros/relatorio/{cativeiroId}:
+ *   get:
+ *     summary: Resumo de um período para os relatórios (total, média/mín/máx e médias por hora ou por dia)
+ *     description: >
+ *       Calculado no banco: não devolve todas as leituras do período (a placa envia uma a cada 5 s).
+ *       Período de 1 dia traz médias por hora; períodos maiores, médias por dia (horário de Brasília).
+ *       Usado pelos relatórios individual e geral.
+ *     tags: [Parâmetros]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cativeiroId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: dias
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *           minimum: 1
+ *           maximum: 365
+ *     responses:
+ *       200:
+ *         description: Resumo do período
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 cativeiro:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     nome: { type: string }
+ *                 dias: { type: integer }
+ *                 desde: { type: string, format: date-time }
+ *                 total: { type: integer, description: Leituras válidas no período }
+ *                 estatisticas:
+ *                   type: object
+ *                   description: Para temperatura, ph e amonia, { media, min, max } (null sem leituras)
+ *                 agrupamento: { type: string, enum: [hora, dia] }
+ *                 medias:
+ *                   type: array
+ *                   description: Médias por hora ou por dia, da mais recente para a mais antiga (só as que têm leitura)
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       periodo: { type: string, example: '2026-11-25 14:00', description: 'AAAA-MM-DD HH:00 (hora) ou AAAA-MM-DD (dia), horário de Brasília' }
+ *                       leituras: { type: integer }
+ *                       temperatura: { type: number }
+ *                       ph: { type: number }
+ *                       amonia: { type: number }
+ *       400:
+ *         description: Período inválido
+ *       403:
+ *         description: Usuário sem acesso a este viveiro
+ *       404:
+ *         description: Viveiro não encontrado
+ */
+router.get("/relatorio/:cativeiroId", Auth.Authorization, getResumoRelatorio);
 
 /**
  * @swagger

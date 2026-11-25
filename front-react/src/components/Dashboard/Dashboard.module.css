@@ -1,0 +1,110 @@
+/* Linha de status do topo: de quando é a última leitura e se dá para analisar */
+.status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.statusItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusItem svg {
+  flex-shrink: 0;
+  font-size: 1rem;
+  color: #94a3b8;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chipOk {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.chipAtencao {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.chipNeutro {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Avisos ativos do cativeiro, acima das leituras */
+.avisos {
+  margin-bottom: 20px;
+}
+
+.avisosTitulo {
+  margin: 0 0 10px;
+}
+
+/* Observação sobre os sensores sem calibração, abaixo dos cards */
+.nota {
+  margin: -12px 0 24px;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+/* Conexão em tempo real perdida, com os dados ainda na tela */
+.conexao {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+}
+
+.conexaoIcone {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  color: #b45309;
+}
+
+.conexaoTexto {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #92400e;
+}
+
+.conexaoAcoes {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}

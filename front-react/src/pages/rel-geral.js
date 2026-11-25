@@ -3,7 +3,10 @@ import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import MemberLayout from '@/components/MemberLayout';
 import panelStyles from '@/styles/panel.module.css';
-import { carregarHistorico } from '@/lib/parametros';
+import IconeParametro from '@/components/IconeParametro';
+import { TbAlertTriangle, TbPrinter, TbDownload, TbClipboardList, TbInbox } from 'react-icons/tb';
+import { carregarResumoRelatorio } from '@/lib/parametros';
+import { formatarParametro } from '@/lib/formatar';
 import { useAuthToken, fotoCativeiroUrl } from "@/lib/fotoCativeiro";
 
 const PERIODO_MAP = {
@@ -13,22 +16,11 @@ const PERIODO_MAP = {
 };
 
 const PARAM_CFG = [
-  { key: 'temperatura', label: 'Temp.',  unit: '°C',    decimals: 1, color: '#f97316', icon: '🌡️' },
-  { key: 'ph',          label: 'pH',     unit: '',      decimals: 1, color: '#3b82f6', icon: '🧪' },
-  { key: 'amonia',      label: 'Amônia experimental', unit: '', decimals: 3, color: '#a855f7', icon: '⚗️' },
+  { key: 'temperatura', label: 'Temp.',  unit: '°C',   color: '#f97316' },
+  { key: 'ph',          label: 'pH',     unit: '',     color: '#3b82f6' },
+  { key: 'amonia',      label: 'Amônia experimental', unit: 'mg/L', color: '#a855f7' },
 ];
 
-function calcStats(dados, field) {
-  const vals = dados.map(d => d[field]).filter(v => typeof v === 'number');
-  if (!vals.length) return { avg: null, min: null, max: null };
-  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-  return { avg, min: Math.min(...vals), max: Math.max(...vals) };
-}
-
-function fmt(v, decimals, unit) {
-  if (v === null || v === undefined) return '—';
-  return `${v.toFixed(decimals)}${unit}`;
-}
 
 export default function RelatorioGeral() {
   const authToken = useAuthToken();
@@ -37,7 +29,7 @@ export default function RelatorioGeral() {
   const relatorioRef = useRef();
 
   const [cativeiros, setCativeiros] = useState([]);
-  const [dadosPorCativeiro, setDadosPorCativeiro] = useState({});
+  const [resumoPorCativeiro, setResumoPorCativeiro] = useState({}); // id -> resumo calculado na API
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -74,15 +66,15 @@ export default function RelatorioGeral() {
 
         const results = await Promise.all(
           lista.map(c =>
-            carregarHistorico(apiUrl, c._id, info.dias, headers)
-              .then(dados => ({ id: c._id, dados }))
-              .catch(() => ({ id: c._id, dados: [] }))
+            carregarResumoRelatorio(apiUrl, c._id, info.dias, headers)
+              .then(resumo => ({ id: c._id, resumo }))
+              .catch(() => ({ id: c._id, resumo: null }))
           )
         );
 
         const mapa = {};
-        results.forEach(({ id, dados }) => { mapa[id] = dados; });
-        setDadosPorCativeiro(mapa);
+        results.forEach(({ id, resumo }) => { mapa[id] = resumo; });
+        setResumoPorCativeiro(mapa);
       } catch (err) {
         setError(err.response?.status === 401
           ? 'Sessão expirada. Faça login novamente.'
@@ -128,7 +120,7 @@ export default function RelatorioGeral() {
     return (
       <MemberLayout title="Relatório Geral" subtitle="Erro">
         <div className={panelStyles.emptyState}>
-          <div className={panelStyles.emptyStateIcon}>⚠️</div>
+          <div className={panelStyles.emptyStateIcon}><TbAlertTriangle aria-hidden="true" /></div>
           <p className={panelStyles.emptyStateText}>{error}</p>
           <button
             className={`${panelStyles.btn} ${panelStyles.btnSecondary}`}
@@ -168,13 +160,13 @@ export default function RelatorioGeral() {
               className={`${panelStyles.btn} ${panelStyles.btnSecondary} ${panelStyles.btnSm}`}
               onClick={handlePrint}
             >
-              🖨️ Imprimir
+              <TbPrinter aria-hidden="true" /> Imprimir
             </button>
             <button
               className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
               onClick={handleSavePDF}
             >
-              ⬇️ PDF
+              <TbDownload aria-hidden="true" /> PDF
             </button>
           </div>
         </div>
@@ -182,13 +174,14 @@ export default function RelatorioGeral() {
         <div ref={relatorioRef}>
           {cativeiros.length === 0 ? (
             <div className={panelStyles.emptyState}>
-              <div className={panelStyles.emptyStateIcon}>📋</div>
+              <div className={panelStyles.emptyStateIcon}><TbClipboardList aria-hidden="true" /></div>
               <p className={panelStyles.emptyStateText}>Nenhum cativeiro encontrado.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {cativeiros.map((cativeiro) => {
-                const dados = dadosPorCativeiro[cativeiro._id] || [];
+                const resumo = resumoPorCativeiro[cativeiro._id];
+                const total = resumo?.total || 0;
                 const fotoUrl = fotoCativeiroUrl(apiUrl, cativeiro._id, authToken, cativeiro.foto_versao);
                 return (
                   <div
@@ -212,33 +205,33 @@ export default function RelatorioGeral() {
                             {cativeiro.id_tipo_camarao?.nome || cativeiro.id_tipo_camarao || 'Tipo não informado'}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 2 }}>
-                            {dados.length} leitura{dados.length !== 1 ? 's' : ''} no período
+                            {total.toLocaleString('pt-BR')} leitura{total !== 1 ? 's' : ''} no período
                           </div>
                         </div>
                       </div>
 
                       {/* Estatísticas */}
-                      {dados.length === 0 ? (
-                        <div className={panelStyles.infoPanel} style={{ marginTop: 0 }}>
-                          📭 Nenhuma leitura registrada no período.
+                      {total === 0 ? (
+                        <div className={panelStyles.infoPanel} style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <TbInbox aria-hidden="true" style={{ flexShrink: 0, fontSize: '1.1rem' }} /> Nenhuma leitura registrada no período.
                         </div>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                           {PARAM_CFG.map(cfg => {
-                            const stats = calcStats(dados, cfg.key);
+                            const stats = resumo.estatisticas[cfg.key];
                             return (
                               <div
                                 key={cfg.key}
                                 style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}
                               >
-                                <div style={{ fontSize: '0.7rem', color: cfg.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                                  {cfg.icon} {cfg.label}
+                                <div style={{ fontSize: '0.7rem', color: cfg.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <IconeParametro tipo={cfg.key} style={{ flexShrink: 0, fontSize: '0.95rem' }} /> {cfg.label}
                                 </div>
                                 <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1e293b', marginBottom: 4 }}>
-                                  {fmt(stats.avg, cfg.decimals, cfg.unit)}
+                                  {formatarParametro(cfg.key, stats.media, { unidade: cfg.unit })}
                                 </div>
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                                  Mín {fmt(stats.min, cfg.decimals, cfg.unit)} · Máx {fmt(stats.max, cfg.decimals, cfg.unit)}
+                                  Mín {formatarParametro(cfg.key, stats.min, { unidade: cfg.unit })} · Máx {formatarParametro(cfg.key, stats.max, { unidade: cfg.unit })}
                                 </div>
                               </div>
                             );

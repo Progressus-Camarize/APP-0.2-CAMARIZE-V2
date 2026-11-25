@@ -4,21 +4,28 @@ import axios from "axios";
 import MemberLayout from "../MemberLayout";
 import Modal from "../Modal";
 import DietaCativeiro from "../DietaCativeiro";
+import { AvisoCard } from "../AvisoCard";
 import panelStyles from "@/styles/panel.module.css";
-import { TbThermometer, TbWifiOff, TbFlask2 } from "react-icons/tb";
+import cardStyles from "@/styles/cards.module.css";
+import styles from "./Dashboard.module.css";
+import { TbClock, TbChartLine, TbWifiOff, TbAlertTriangle, TbChartHistogram, TbCalendarEvent, TbCalendarWeek, TbCalendarMonth } from "react-icons/tb";
+import IconeParametro from "../IconeParametro";
 import { rotaListaDeCativeiros } from "../Sidebar/menus";
 import { formatarTempoDesde } from "@/lib/tempo";
+import { numeroBr } from "@/lib/formatar";
 
-const AVISO_BANNER_ICONES = { temperatura: TbThermometer, sensor_inativo: TbWifiOff };
-const AvisoBannerIcone = ({ tipo }) => {
-  const Icone = AVISO_BANNER_ICONES[tipo] || TbFlask2;
-  return <Icone aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: 4 }} />;
+// Por que a análise das leituras não pode ser feita agora (razao devolvida pela API)
+const MOTIVO_SEM_ANALISE = {
+  lacuna: 'há um intervalo sem leituras',
+  leitura_antiga: 'a última leitura é antiga',
+  leituras_insuficientes: 'ainda há poucas leituras',
 };
 
+
 const SENSOR_CFG = [
-  { key: 'temperatura',  label: 'Temperatura',  unit: '°C',    decimals: 1, icon: '🌡️', stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
-  { key: 'ph',           label: 'pH',            unit: '',      decimals: 1, icon: '🧪', stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
-  { key: 'amonia',       label: 'Amônia (experimental)', unit: '', decimals: 2, icon: '⚗️', stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
+  { key: 'temperatura',  label: 'Temperatura',  unit: '°C',    decimals: 1, stripe: '#f97316', bg: '#fff7ed', badgeColor: '#c2410c' },
+  { key: 'ph',           label: 'pH',            unit: '',      decimals: 1, stripe: '#3b82f6', bg: '#eff6ff', badgeColor: '#1d4ed8' },
+  { key: 'amonia',       label: 'Amônia (experimental)', unit: '', decimals: 2, stripe: '#a855f7', bg: '#fdf4ff', badgeColor: '#7e22ce' },
 ];
 
 // Default ranges for typical aquaculture values.
@@ -64,6 +71,7 @@ export default function Dashboard() {
   const [tooltip, setTooltip]             = useState(null);
   const [dieta, setDieta]                 = useState(undefined); // undefined carregando | null sem dieta | { erro }
   const [alimentacoes, setAlimentacoes]   = useState(undefined);
+  const [erroAvaliacao, setErroAvaliacao] = useState(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
   // SSE conecta direto na API (sem passar pelo proxy do Next.js que buferiza streaming).
@@ -158,7 +166,23 @@ export default function Dashboard() {
 
   const fmt = (v, dec, unit) => {
     if (v === '#' || v === null || v === undefined) return '—';
-    return typeof v === 'number' ? `${v.toFixed(dec)}${unit}` : String(v);
+    return typeof v === 'number' ? `${numeroBr(v, dec)}${unit ? ` ${unit}` : ''}` : String(v);
+  };
+
+  // "Conferi a mudança" / "Falso alarme" direto na tela do cativeiro (mesma rota da tela de Avisos)
+  const avaliarAviso = async (aviso, avaliacao) => {
+    try {
+      setErroAvaliacao(null);
+      const { data } = await axios.patch(`${apiUrl}/notifications/${aviso.id}/avaliacao`, { avaliacao }, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      // O aviso de queda de conexão fecha ao ser conferido: sai da lista de avisos ativos
+      setAvisosAtivos(lista => (data?.estado === 'recuperado'
+        ? lista.filter(a => a._id !== aviso.id)
+        : lista.map(a => (a._id === aviso.id ? { ...a, avaliacao, verificadoEm: new Date().toISOString() } : a))));
+    } catch {
+      setErroAvaliacao('Não foi possível registrar a conferência. Tente novamente.');
+    }
   };
 
   const valores = {
@@ -271,7 +295,7 @@ export default function Dashboard() {
     return (
       <MemberLayout title="Dashboard" subtitle="Dados em tempo real">
         <div className={panelStyles.emptyState}>
-          <div className={panelStyles.emptyStateIcon}>⚠️</div>
+          <div className={panelStyles.emptyStateIcon}><TbAlertTriangle aria-hidden="true" /></div>
           <p className={panelStyles.emptyStateText}>{error}</p>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 20 }}>
             <button
@@ -296,31 +320,55 @@ export default function Dashboard() {
   return (
     <MemberLayout title={nomeCativeiro || 'Dashboard'} subtitle="Parâmetros monitorados em tempo real">
       <div className={panelStyles.section}>
-        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#1e3a8a', fontSize: '0.82rem' }}>
-          Última leitura: {idadeLeitura !== null ? formatarTempoDesde(idadeLeitura) : 'sem dados'} · {dadosRecentes ? 'dados recentes' : 'dados antigos'}
-          {frescor?.origem === 'legado' && ' · origem não autenticada'}
-          <div style={{ marginTop: 4 }}>Análise: {dadosRecentes && analise?.suficiente ? 'leituras suficientes' : ({ lacuna: 'insuficiente: lacuna entre leituras', leitura_antiga: 'insuficiente: última leitura autenticada antiga', leituras_insuficientes: 'insuficiente: menos de seis leituras autenticadas' }[analise?.razao] || 'insuficiente para o momento')}</div>
-          <div style={{ marginTop: 4 }}>pH e amônia: sensor sem calibração; medições experimentais. A fração de NH₃ livre depende de pH e temperatura e não é estimada aqui.</div>
+        {/* Status da leitura: de quando é a última e se dá para analisar a tendência */}
+        <div className={styles.status}>
+          <span className={styles.statusItem}>
+            <TbClock aria-hidden="true" />
+            {idadeLeitura !== null ? `Última leitura: ${formatarTempoDesde(idadeLeitura)}` : 'Nenhuma leitura recebida'}
+          </span>
+          {idadeLeitura !== null && (
+            <span className={`${styles.chip} ${dadosRecentes ? styles.chipOk : styles.chipAtencao}`}>
+              {dadosRecentes ? 'Dados recentes' : 'Dados antigos'}
+            </span>
+          )}
+          {frescor?.origem === 'legado' && (
+            <span className={`${styles.chip} ${styles.chipNeutro}`} title="A leitura não veio com a chave do dispositivo">
+              Origem não autenticada
+            </span>
+          )}
+          <span className={styles.statusItem}>
+            <TbChartLine aria-hidden="true" />
+            {dadosRecentes && analise?.suficiente
+              ? 'Análise de tendência ativa'
+              : `Análise de tendência pausada${MOTIVO_SEM_ANALISE[analise?.razao] ? `: ${MOTIVO_SEM_ANALISE[analise.razao]}` : ''}`}
+          </span>
         </div>
-        {avisosAtivos.map(aviso => (
-          <div key={aviso._id} style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 10, padding: '12px 16px', marginBottom: 10, color: '#78350f' }}>
-            <strong><AvisoBannerIcone tipo={aviso.tipo} /> {aviso.retroativo ? 'Aviso da falta de conexão' : 'Aviso ativo'}</strong> · {aviso.mensagem}
-            <div style={{ fontSize: '0.74rem', marginTop: 4 }}>Período analisado: {new Date(aviso.periodoInicio).toLocaleString('pt-BR')} a {new Date(aviso.periodoFim).toLocaleString('pt-BR')}{aviso.experimental && aviso.tipo === 'ph' ? ' · sensor sem calibração' : ''}</div>
+
+        {/* Avisos ativos: mesmo card da tela de Avisos */}
+        {avisosAtivos.length > 0 && (
+          <div className={styles.avisos}>
+            <h2 className={`${panelStyles.sectionTitle} ${styles.avisosTitulo}`}>
+              {avisosAtivos.length === 1 ? 'Aviso ativo' : `${avisosAtivos.length} avisos ativos`}
+            </h2>
+            {erroAvaliacao && <p className={panelStyles.emptyStateText} role="alert">{erroAvaliacao}</p>}
+            <div className={cardStyles.list}>
+              {avisosAtivos.map(aviso => (
+                <AvisoCard
+                  key={aviso._id}
+                  aviso={{ ...aviso, id: aviso._id, datahora: aviso.criadoEm }}
+                  onAvaliar={avaliarAviso}
+                />
+              ))}
+            </div>
           </div>
-        ))}
+        )}
 
         {/* Banner de erro inline — aparece quando SSE cai mas já há dados visíveis */}
         {error && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-            background: '#fef9ec', border: '1px solid #fbbf24', borderRadius: 10,
-            padding: '10px 14px', marginBottom: 16,
-          }}>
-            <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
-            <span style={{ flex: 1, fontSize: '0.8rem', color: '#92400e', fontWeight: 500, minWidth: 0 }}>
-              {error}
-            </span>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <div className={styles.conexao} role="status">
+            <TbWifiOff className={styles.conexaoIcone} aria-hidden="true" />
+            <span className={styles.conexaoTexto}>{error}</span>
+            <div className={styles.conexaoAcoes}>
               <button
                 className={`${panelStyles.btn} ${panelStyles.btnPrimary} ${panelStyles.btnSm}`}
                 onClick={reconectar}
@@ -397,8 +445,8 @@ export default function Dashboard() {
               >
                 <div style={{ height: 4, background: cfg.stripe }} />
                 <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                    {cfg.icon}
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: cfg.badgeColor, flexShrink: 0 }}>
+                    <IconeParametro tipo={cfg.key} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -413,6 +461,10 @@ export default function Dashboard() {
             );
           })}
         </div>
+        <p className={styles.nota}>
+          pH e amônia vêm de sensores sem calibração: use os valores como referência, não como medição exata.
+          A fração de NH₃ livre depende do pH e da temperatura e não é estimada aqui.
+        </p>
 
         {/* Alimentação */}
         <div style={{ marginBottom: 24 }}>
@@ -511,7 +563,7 @@ export default function Dashboard() {
             </svg>
           ) : (
             <div style={{ textAlign: 'center', padding: '32px 0', color: '#94a3b8' }}>
-              <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>📊</div>
+              <TbChartHistogram aria-hidden="true" style={{ display: 'block', margin: '0 auto 8px', fontSize: '1.8rem' }} />
               <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>Nenhuma leitura registrada nos últimos 7 dias</div>
               <div style={{ fontSize: '0.75rem', marginTop: 4 }}>Os dados aparecem assim que o sensor enviar leituras</div>
             </div>
@@ -527,9 +579,9 @@ export default function Dashboard() {
           ? tooltip.x - TOOLTIP_W - 6
           : tooltip.x + 14;
         const params = [
-          { key: 'temperatura', icon: '🌡️', label: 'Temp.',  value: tooltip.temp,   dec: 1, unit: ' °C',   color: '#fb923c' },
-          { key: 'ph',          icon: '🧪', label: 'pH',     value: tooltip.ph,     dec: 2, unit: '',       color: '#60a5fa' },
-          { key: 'amonia',      icon: '⚗️', label: 'Amônia experimental', value: tooltip.amonia, dec: 3, unit: '', color: '#c084fc' },
+          { key: 'temperatura', label: 'Temp.',  value: tooltip.temp,   dec: 1, unit: ' °C',   color: '#fb923c' },
+          { key: 'ph',          label: 'pH',     value: tooltip.ph,     dec: 1, unit: '',       color: '#60a5fa' },
+          { key: 'amonia',      label: 'Amônia experimental', value: tooltip.amonia, dec: 2, unit: '', color: '#c084fc' },
         ];
         return (
           <div style={{
@@ -545,7 +597,7 @@ export default function Dashboard() {
             {params.map(p => {
               const active = p.key === tooltip.campo;
               const display = p.value !== null
-                ? `${p.value.toFixed(p.dec)}${p.unit}`
+                ? `${numeroBr(p.value, p.dec)}${p.unit}`
                 : 'sem dados';
               return (
                 <div key={p.key} style={{
@@ -557,7 +609,7 @@ export default function Dashboard() {
                   opacity: active ? 1 : 0.4,
                   transition: 'opacity 0.1s',
                 }}>
-                  <span style={{ fontSize: active ? '0.95rem' : '0.8rem' }}>{p.icon}</span>
+                  <IconeParametro tipo={p.key} style={{ flexShrink: 0, fontSize: active ? '0.95rem' : '0.8rem', color: p.color }} />
                   <span style={{ fontSize: '0.72rem', color: '#94a3b8', minWidth: 32 }}>{p.label}</span>
                   <span style={{
                     fontWeight: active ? 700 : 400,
@@ -578,18 +630,17 @@ export default function Dashboard() {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
-            { key: 'dia',    label: '📅 Relatório Diário',   sub: 'Últimas 24h' },
-            { key: 'semana', label: '📊 Relatório Semanal',  sub: 'Últimos 7 dias' },
-            { key: 'mes',    label: '📈 Relatório Mensal',   sub: 'Últimos 30 dias' },
-          ].map(({ key, label, sub }) => (
+            { key: 'dia',    label: 'Relatório Diário',  Icone: TbCalendarEvent, sub: 'Últimas 24h' },
+            { key: 'semana', label: 'Relatório Semanal', Icone: TbCalendarWeek,  sub: 'Últimos 7 dias' },
+            { key: 'mes',    label: 'Relatório Mensal',  Icone: TbCalendarMonth, sub: 'Últimos 30 dias' },
+          ].map(({ key, label, Icone, sub }) => (
             <button
               key={key}
               onClick={() => { setShowRelatorio(false); router.push(`/rel-individual/${id}?periodo=${key}`); }}
-              className={`${panelStyles.btn} ${panelStyles.btnPrimary}`}
-              style={{ width: '100%', justifyContent: 'space-between', padding: '14px 18px', fontSize: '0.9rem' }}
+              className={`${panelStyles.btn} ${panelStyles.btnPeriodo}`}
             >
-              <span>{label}</span>
-              <span style={{ opacity: 0.75, fontSize: '0.8rem' }}>{sub}</span>
+              <span className={panelStyles.btnPeriodoTitulo}><Icone aria-hidden="true" />{label}</span>
+              <span className={panelStyles.btnPeriodoSub}>{sub}</span>
             </button>
           ))}
         </div>
